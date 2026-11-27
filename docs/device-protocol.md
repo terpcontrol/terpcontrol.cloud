@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-09
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-11-27
+source: `fwupdate` removed and https verified (Chris, 2026-11-27); Chris on an optional join password asked for by HEAD (2026-11-27); a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -94,10 +94,11 @@ Every topic is `/devices/<device_id>/<name>`, with the device's own id. The devi
 | `command` | server → device | server | device |
 | `firmware` | server → device | server | device: OTA |
 | `tunnel_write` | server → device | server | device: tunnel |
-| `fwupdate` | server → device | nobody today | device: OTA from a URL |
+| `fwupdate` | server → device | nobody today | firmware before 2026-11-27: OTA from a URL |
 | `control/#` | server → device | nobody today | device: direct output control |
 
-The device subscribes to `configuration`, `firmware`, `fwupdate`, `command`, `control/#` and `tunnel_write`
+The device subscribes to `configuration`, `firmware`, `command`, `control/#` and `tunnel_write` (builds before
+2026-11-27 also to `fwupdate`)
 (`fridgecloud.cpp:186-362`) and publishes on the rest. The server subscribes to `/devices/#`
 (`device-ingest.service.ts`) and therefore also sees its own outbound messages echoed back; it ignores the echoes of
 `tunnel_write`, `command` and `firmware`, drops `image` (nothing asks for a still that way any more, see
@@ -107,30 +108,36 @@ it is stored again as it is and not sent back. Messages from one device are hand
 arrived, because a report depends on the one before it (`sockets_n` before its chunks, `webcam_pwd` before
 `webcam_did`).
 
-`fwupdate` and `control/#` are subscribed by every device and **never published by the server today**. They stay
-reserved, and the broker's topic rules keep covering them, so a future server can use them without a firmware
-change.
+`control/#` is subscribed by every device and `fwupdate` by builds before 2026-11-27; the server **has never
+published either**. Both stay reserved, and the broker's topic rules keep covering them. `fwupdate` must never be
+used: it makes an older device download from any URL it is given.
 
 ---
 
 ## 3 HTTP
 
-A device makes four kinds of request. All of them are unauthenticated in the HTTP sense — the device proves
+A device makes four kinds of request (builds before 2026-11-27 a fifth, `fwupdate`'s). All of them are unauthenticated in the HTTP sense — the device proves
 itself with its own provisioning password in the body, or not at all.
 
 | Request | When | Firmware |
 | --- | --- | --- |
-| `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:702-737` |
-| `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:675-700` |
-| `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:587-595` |
-| `GET <url>` | after an `fwupdate` message | `fridgecloud.cpp:597-673` |
+| `HEAD {API_URL}/device/register` | "change server" on the display, after the URL and before the password | `fridgecloud.cpp`, `registrationGate` |
+| `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:710-745` |
+| `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:683-708` |
+| `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:595-603` |
+| `GET <url>` | after an `fwupdate` message, builds before 2026-11-27 only | - |
 
 `{API_URL}` is the base URL compiled into the build (`pioenv.py:11`). ADR 0001 puts the new `/v1` API under that
-same base, so these four paths keep their place beside it.
+same base, so these paths keep their place beside it.
+
+**Transport.** An `https://` URL is verified: chain and host name against the public root CAs the build bakes in
+(`ca_bundle.gen.h`, from `firmware/dev-build.sh`), not the certificate dates. A server the device is moved to
+therefore needs a publicly trusted certificate, or plain `http://`, which every build still speaks. Builds before
+2026-11-27 do not verify an `https://` server at all.
 
 ### 3.1 `POST /device/register`
 
-Body, `Content-Type: application/json` (`fridgecloud.cpp:709-714`):
+Body, `Content-Type: application/json` (`fridgecloud.cpp:717-722`):
 
 | Key | Value |
 | --- | --- |
@@ -140,7 +147,7 @@ Body, `Content-Type: application/json` (`fridgecloud.cpp:709-714`):
 | `username` | provisioning NVS `mqtt_user` |
 | `password` | provisioning NVS `mqtt_password` |
 
-The firmware checks for **201** (`fridgecloud.cpp:719`). On 201 it reads `fw` from the answer and immediately
+The firmware checks for **201** (`fridgecloud.cpp:727`). On 201 it reads `fw` from the answer and immediately
 downloads `<api_url>/device/firmware/<fw>/firmware.bin`, which reboots it into the new cloud's build
 (`:727-733`). Anything else is ignored, and the call returns `false` either way (`:736`): it only returns at all
 when no new build was installed, and the display then says the connection failed (`wifi.cpp:1718-1724,2112`).
@@ -158,9 +165,27 @@ A new device is pinned to that build on the `stable` channel, so later releases 
 updates on. Re-registering an existing device pins it to the same build and keeps whatever channel it follows; it
 also forces `state.hardware.claimcode_auth` to `'off'`, which is what lets a re-homed device issue a claim code again.
 
+An empty or unset `SELF_REGISTRATION_PASSWORD` means no join password: any `registration_password` is accepted,
+because builds from before [3.1a](#31a-head-deviceregister) still make the user type something.
+
+### 3.1a `HEAD /device/register`
+
+Added November 2026. "Change server" on the display asks it right after the URL, so a cloud without a join
+password is joined without the prompt. No body either way; the answer is the status:
+
+| Status | Meaning | Display |
+| --- | --- | --- |
+| 204 | no join password (`SELF_REGISTRATION_PASSWORD` empty) | registers with an empty password at once |
+| 401 | a join password is needed | asks for it, as before |
+| 403 | `ENABLE_SELF_REGISTRATION` is off | "registration closed" |
+
+Anything else - above all the 404 of a server from before this route, or no answer at all - is read as 401, so a
+new build still joins an old cloud. Builds from before this route never ask it. The phone form is unchanged: it
+sends whatever is in its password field, which an open cloud does not check.
+
 ### 3.2 `POST /device/claimcode`
 
-Body (`fridgecloud.cpp:681-683`):
+Body (`fridgecloud.cpp:689-691`):
 
 | Key | Value |
 | --- | --- |
@@ -180,12 +205,12 @@ device or a wrong password answers 401 `{ status: 'unauthorized' }`.
 ### 3.3 `GET /device/firmware/:firmware_id/:binary`
 
 The OTA download. The firmware builds the URL as `<API_URL>/device/firmware/<id>/firmware.bin`
-(`fridgecloud.cpp:587-595`) and streams the body straight into the ESP32 `Update` partition.
+(`fridgecloud.cpp:595-603`) and streams the body straight into the ESP32 `Update` partition.
 
-What the firmware requires of the answer (`fridgecloud.cpp:597-673`):
+What the firmware requires of the answer (`fridgecloud.cpp:605-681`):
 
-- It accepts **any** `httpResponseCode > 0` (`:605-606`) — it does **not** check for 200. An error page would be
-  written to the OTA partition and rejected later by `Update.end()`, which is a silent failure.
+- It writes only a **200** into the `Update` partition. Builds before 2026-11-27 accept any `httpResponseCode > 0`:
+  an error page is written to the OTA partition and rejected later by `Update.end()`, a silent failure.
 - `Content-Length` matters: `http.getSize()` sizes `Update.begin()` so only the bytes that will be written are
   erased (`:618`). A missing length means `UPDATE_SIZE_UNKNOWN` and a full ~2 MiB erase, during which a flaky
   link can stall the download.
@@ -211,7 +236,7 @@ provisioning flow (`fw-buildcontainer/cli.py`).
 
 They are served by `LegacyDeviceProtocolController` (`device-protocol.controller.ts`) and excluded from the API
 document. **No build in this repository uses them**: current firmware calls `/device/claimcode`
-(`fridgecloud.cpp:678`) and `/device/firmware/...` (`:589`). They exist for builds shipped before the paths were
+(`fridgecloud.cpp:686`) and `/device/firmware/...` (`:597`). They exist for builds shipped before the paths were
 shortened, and have to stay until no device in the field asks for them.
 
 ### 3.5 What a device never does over HTTP
@@ -297,16 +322,17 @@ keeps nothing for a device that is not connected.
 - `sensors` and `outputs` are flat objects of numbers. Which keys a device sends depends on its hardware type;
   see [5.4](#54-which-keys-each-hardware-type-reports).
 - `timestamp` is **epoch seconds**, added only when the device's clock is plausible (`> 1e9`,
-  `fridgecloud.cpp:522-525`). Without a valid clock the sample is discarded rather than sent undated.
+  `fridgecloud.cpp:530-533`). Without a valid clock the sample is discarded rather than sent undated.
 
-Cadence and buffering (`fridgecloud.cpp:503-578`, constants in `fridgecloud.h:33-35`): `updateStatus()` is
+Cadence and buffering (`fridgecloud.cpp:503-586`, constants in `fridgecloud.h:33-35`): `updateStatus()` is
 called once per control tick, and `main.cpp:284-287` runs the control tick every second. One sample in
 `SAMPLE_INTERVAL = 5` is kept, so a document is produced every 5 s. It is serialised into a 512-byte buffer
-(`fridgecloud.cpp:527-528`) and pushed onto a deque of at most `MAX_BUFFER_LEN = 120` entries; because
+(`fridgecloud.cpp:535-536`) and pushed onto a deque of at most `MAX_BUFFER_LEN = 120` entries; because
 `UPLOAD_INTERVAL = 1`, the buffer is drained immediately, so the wire sees **one `bulk` message every five
-seconds**. When the buffer is full the sample is dropped and `message-buffer-overflow` is logged once at severity 1
-(`fridgecloud.cpp:511-517`). The drain stops on the first failed publish and keeps the rest for the next attempt
-(`fridgecloud.cpp:563-575`).
+seconds**. When the buffer is full the sample is dropped and `message-buffer-overflow` is logged once at severity 1;
+a full buffer is still drained as soon as the device is connected again (`fridgecloud.cpp:511-525`). Builds before
+2026-10-12 returned before the drain, so a device offline for ten minutes sent no reading again until it rebooted.
+The drain stops on the first failed publish and keeps the rest for the next attempt (`fridgecloud.cpp:571-583`).
 
 Server side (`device-ingest.service.ts`): the ingest stamps `devices.state.lastSeenAt`, then hands the document
 on with the instant the device dated it. Readings are written to InfluxDB, measurement `status`, tagged
@@ -325,7 +351,7 @@ readings and are dropped at ingest: a `co2` at or below zero, and an `out_co2` b
 ### 5.2 `status` in custom-MQTT mode
 
 **device → server.** A device in custom-MQTT mode does not buffer and does not publish on `bulk`. It publishes
-each value on its own sub-topic, as a bare value with no JSON envelope (`fridgecloud.cpp:543-553`):
+each value on its own sub-topic, as a bare value with no JSON envelope (`fridgecloud.cpp:551-561`):
 
 ```
 /devices/<id>/status/sensors/<key>     23.5
@@ -466,7 +492,7 @@ The messages current firmware sends:
 | --- | --- | --- | --- |
 | `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:45-59,165-169` |
 | `message-device-firmware-update` | 0 | every type, queued before an OTA download; it reaches the cloud only from an attempt that failed ([10](#10-the-ota-path)) | `fridgecloud.cpp:197,217` |
-| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:514` |
+| `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:521` |
 | `message-co2-low` | 0 | controller, fridge: CO2 under 200 ppm for 60 passes; once per low episode, re-armed by a reading at or above it (before #145 the latch was never cleared, so it practically never fired) | `controller.cpp:984-997`, `fridge.cpp:1107-1118` |
 | `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:19,90-104`) | `fridge.cpp:206,220` |
 | `message-ext-sensor-fail` | 1 | light, when its failsafe darkens the lamp after ten passes without a reading; **at most once per 15 min** (`SENSOR_FAIL_LOG_INTERVAL`, `light.h`) | `light.cpp:49-55` |
@@ -521,7 +547,8 @@ a word (`hardware-report.service.ts`). The key becomes part of a MongoDB update 
 no `.` or `$`. What passes is stored as `devices.state.hardware.<key>`, flat as the device sends it — except the
 camera's credentials, which never reach that report, because it is handed out with the sockets: `webcam_pwd`
 goes to the camera row's `secret` and to the device row's `cameraSecret`, and `webcam_url`, a legacy RTSP URL
-with credentials in it, is not stored at all. Nothing is ever written to the diary, and there is no reply.
+with credentials in it, is not stored at all - and a fridge's `co2`, which its firmware never sends: a fridge always
+has its SCD, and a stale `off` from a build of another type would never be cleared. Nothing is ever written to the diary, and there is no reply.
 
 Because it rides the log topic, a report inherits the log's limits: the queue may drop it when it is full, and
 the whole message has to fit the 384-byte serialisation buffer. That is why the firmware caps a reported value
@@ -544,22 +571,24 @@ over it would serialise into truncated JSON and the server would drop the whole 
 | `sockets_n` | how many rows the table holds | controller, fridge | `wifi.cpp:2784` |
 | `socket_list<k>` | up to three `role\|id\|ip\|state\|override-or-timer` entries | controller, fridge | `wifi.cpp:2786-2800` |
 | `socket_roles` | csv of the roles this build accepts | controller, fridge, at init | `wifi.cpp:2843` |
-| `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2844` |
+| `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2881` |
+| `light_hold` | `on@<seconds>` / `off@<seconds>`: the override holding the module's own light output and the seconds it has left, or `none` | controller, fridge announcing `light_hold`, with every socket table | `lightHoldValue`, `wifi.cpp:2785-2802` |
 | `socket_pulse` | `role:seconds`: the failsafe each role's socket is given | controller, fridge, at init | `wifi.cpp:2845` |
 | `webcam_did` | the camera's device id, or `none` | at boot, on pairing, on disconnect | `wifi.cpp:2870`, `:1375`, `:1398` |
 | `webcam_ip` | where the camera last answered, or `none` | at boot, on discovery, on disconnect | `wifi.cpp:2876`, `terpcam.cpp:188`, `wifi.cpp:1400` |
 | `webcam_url` | a legacy stored RTSP URL, or `none` | at boot, on disconnect | `wifi.cpp:2885`, `:1401` |
 | `webcam_uid` | the camera's 20-byte P2P id, formatted, or `none` | at boot, on pairing, when learnt, on disconnect | `wifi.cpp:2881`, `:1376`, `terpcam.cpp:192`, `wifi.cpp:1399` |
-| `webcam_pwd` | the password the device set on the camera | at boot when one is stored, after each securing attempt | `wifi.cpp:2893-2896`, `terpcam.cpp:672` |
+| `webcam_pwd` | the password the device set on the camera | at boot when one is stored, after each securing attempt, on pairing a streaming camera | `wifi.cpp:2893-2896`, `terpcam.cpp:672`, `provisionTerpCam` |
+| `webcam_rtsp` | `on` when the camera is read off its own RTSP stream on the LAN ([9.3](#93-the-cameras-own-stream)), else `off` | at boot, on pairing, on disconnect | `wifiInitTerpCamCloudReporting`, `provisionTerpCam`, `forgetTerpCam` |
 
 The `socket_*` keys come from the controller and the fridge only — no other type calls
 `wifiInitAuxCloudReporting`. The `webcam_*` keys come from every type that pairs a Terp Cam: the controller and
-the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:419`,
-`plug.cpp:605`). `reportCamIp` (`terpcam.cpp:185-196`) sends `webcam_ip` and `webcam_uid` whenever the device
+the fridge, and the fan, the light and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:420`,
+`light.cpp:414`, `plug.cpp:609`). `reportCamIp` (`terpcam.cpp:185-196`) sends `webcam_ip` and `webcam_uid` whenever the device
 has learnt a new value, and only while no relay is running, because the relay task never logs
 (`terpcam.cpp:1073`). Pairing secures the camera before it reports the new id, so `webcam_pwd` arrives before the
 `webcam_did` it belongs to (`wifi.cpp:1371-1376`). Disconnecting the camera in the menu forgets everything stored
-about it and reports `none` for all four keys (`forgetTerpCam`, `wifi.cpp:1384-1403`).
+about it and reports `none` for all four keys and `webcam_rtsp=off` (`forgetTerpCam`, `wifi.cpp:1384-1403`).
 
 The `none` sentinel matters. A device reports `webcam_did=none` and `sockets=none` rather than staying silent, because
 silence cannot clear a stale value: the cloud would keep whatever it last heard, and a camera unpaired while the
@@ -575,15 +604,19 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `claimcode_auth` | `'on'` makes `POST /device/claimcode` require the device password |
 | `firmware_version` | the build is reported to the rollout and stored as `devices.state.firmwareId` |
 | `sockets_n` | superseded `socket_list<k>` chunks from a larger table are unset |
+| `light_hold` | stamps `devices.state.lightHoldReportedAt`, which its seconds are read against; read at all only while `caps` names `light_hold` |
 | `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
 | `webcam_did` | the camera the device pairs is reconciled into a row of `cameras`; `none` also resets the device's `cameraSecret` |
 | `webcam_pwd` | the camera's `secret`, which the cloud logs in with over the relay; an empty value means "the default". Kept on the device row as well, because pairing reports it before the id that makes the camera row |
-| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, kept for the record; the relay finds the camera itself |
+| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`; the relay finds the camera itself, a camera read off its own stream is read at `ip` |
 | `webcam_url` | none: dropped unread |
+| `webcam_rtsp` | none beyond storage; `on` in `devices.state.hardware` makes every read of the device's Terp Cam an RTSP read through its tunnel ([9.3](#93-the-cameras-own-stream)) |
 
-`webcam_did`, `webcam_uid` and `webcam_pwd` also end a hold the cloud keeps on a camera that turned it away: a
-different camera, or one that refused the password, is left alone for 30 minutes unless the device says
-something new about it ([9](#9-the-still-cycle)).
+`webcam_did`, `webcam_ip`, `webcam_rtsp`, `webcam_uid` and `webcam_pwd` start the device's Terp Cam over, after
+the report is written (`CameraReportsService`): they end the hold the cloud keeps on a camera that turned it away -
+a different camera, or one that refused the password, is left alone for 30 minutes unless the device says something
+new about it - and the poller's backoff of that camera, so it is read in the next pass and every interval from then
+on ([9](#9-the-still-cycle)). Streams tunnelled through the same device keep theirs.
 
 The reconciliation requires `/^[A-Za-z0-9_-]{4,32}$/` of the reported id. A device that reports one is given the
 camera row it already has, or a new one whose entitlement runs twelve months from that first pairing
@@ -597,6 +630,7 @@ The full table cannot travel as one value, so it is reported as a count followed
 (`reportSocketsHardwareInfo`, `wifi.cpp:2771-2801`):
 
 ```
+hardware-info:light_hold=on@3540
 hardware-info:sockets=heater,light,pump
 hardware-info:socket_ips=heater@192.0.2.60,light@192.0.2.61,pump@192.0.2.63
 hardware-info:sockets_n=4
@@ -605,7 +639,8 @@ hardware-info:socket_list1=pump|4C7525A1B2C6|192.0.2.63|off|timer=30/900
 ```
 
 Four sockets: a heater that is on, a second heater the module could not reach and so says nothing about, a light
-an override is holding off for another two minutes, and a pump on a timer.
+an override is holding off for another two minutes, and a pump on a timer. Ahead of them, the module's own light
+output is held on for another 59 minutes.
 
 Rules a reader has to follow:
 
@@ -633,13 +668,21 @@ Rules a reader has to follow:
   left out of the table.
 - `sockets` and `socket_ips` are the older, lossy summary: one entry per role. They stay because readers that
   predate the table understand them.
-- A whole report is re-sent on boot, on every change of the table (`wifi.cpp:2771`, called from
-  `wifiInitAuxCloudReporting` `:2856` and from each mutation at `:600,606,2560,2965,3075,3410`), and **when a row's
-  state or override changes, at most once per 30 s** (`SMART_SOCKET_REPORT_MIN_INTERVAL`, `wifi.cpp:63`,
-  `reportSocketStateChanges`, `:2806-2819`). Without that last rule a socket that stopped answering would keep the
-  state of the boot report forever; with no limit, an output oscillating around its threshold would fill the log queue
-  with tables. The seconds an override has left are deliberately not part of what counts as a change — they tick down
-  every second.
+- A whole report is re-sent on boot, on every change of the table (`reportSocketsHardwareInfo`, called from
+  `wifiInitAuxCloudReporting` and from each mutation), **when a row's state or override changes, or the light
+  output's hold does, at most once per 30 s** (`SMART_SOCKET_REPORT_MIN_INTERVAL`, `wifi.cpp:63`,
+  `reportSocketStateChanges`), and **on the next pass after every `socket_override` the module accepted**, whatever
+  the spacing (`socket_report_due`). Without the state rule a socket that stopped answering would keep the state of
+  the boot report forever; with no limit, an output oscillating around its threshold would fill the log queue with
+  tables. The seconds an override has left are deliberately not part of what counts as a change — they tick down
+  every second — which is why a command is a reason of its own: a hold sent again with another length changes
+  nothing else, and whoever sent it is waiting to see it taken. Builds before `light_hold` re-send only on a change.
+- `light_hold` travels with every table, first, so it is as fresh as the rows: `on@<seconds>` or `off@<seconds>`
+  while an override holds the module's own light output, `none` while none does — after a reboot always, the hold
+  living in RAM. It is spelled like a row's override column without the name, and read the same way, against the
+  instant it arrived (`state.lightHoldReportedAt`). A build reports it once it announces `light_hold` in `caps`, and
+  the server reads it only then: `caps` is sent again at every boot, so a device put back on an older build stops
+  announcing it, while the `light_hold` the newer one last sent stays in the stored report.
 
 How the report is spelled — `MAX_SOCKETS = 32`, `SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`,
 `socketChunkCount` — is declared once in `shared-types/src/v1/socket-report.ts`, and the server and the simulator
@@ -699,19 +742,21 @@ mode, the dehumidifier timings, the light ramps - which the cloud has never seen
 `device_sent_no_settings`, a climate preset passes the device by, and the app's screens write nothing to it
 (`awaitingClimate`, `webapp/src/ui/climate-hardware.ts`). Current firmware ends that state on its next connect
 ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)); an older build only when a setting is changed on the
-device itself.
+device itself. A climate preset applied to its place in the meantime is then written to it as any configuration
+is (`devices.awaitedClimate`, [server-engines.md](knowledge/server-engines.md#device-settings-and-plans)); nothing
+on the wire changes.
 
 | Direction | Payload | Where |
 | --- | --- | --- |
 | server → device | the stored document, serialised | `device-configuration.service.ts` |
 | server → device | the same document, as the reply to a `fetch` | `device-ingest.service.ts` |
-| device → server | the device's whole settings object as JSON, after a change on its own menu | `fridgecloud.cpp:580-585` |
+| device → server | the device's whole settings object as JSON, after a change on its own menu | `fridgecloud.cpp:588-593` |
 | device → server | the same object, inside every `fetch`; kept only while the cloud has none | `fridgecloud.cpp:370-404` |
 
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
 control loop (`controller.cpp:569-578`). It sends **no acknowledgement and no echo**. The `fridge`, `plug`, `fan`
 and `light` types skip the NVS store while `mqttcontrol` is true, so direct control does not overwrite the saved
-settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:379-385`).
+settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:383-389`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The device subscribes to that
@@ -796,14 +841,15 @@ owner's decision of 2026-10-09, because the fan's control had worked before it. 
 fan the same `co2inject` with and without #136; it only differed after changes on a device's own menu.
 Consequence of the self-echo above: a change on the fan's own menu uploads a document without `co2inject`, the fan
 loads it back and stops slowing for the plug, day and night, and the cloud stores it without the section, so the
-app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app. A fan coupled in the
-pre-rewrite app was written its section without `day` and `night` and runs the compile-time 06:00-22:00 UTC;
-migration `023-co2-fan-windows` writes it from the plug's document ([smart-sockets.md](knowledge/smart-sockets.md)).
+app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app.
 
-**light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
+**light** (`light.cpp:448-454`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
-refuses a plan for it with 422 `device_states_no_climate`.
+refuses a plan for it with 422 `device_states_no_climate`. The one exception is the dark of germination and drying
+(ADR 0007): while the place's climate device germinates or dries, the server writes `limit: 0`, keeps the brightness
+before (`limitBeforeDark` on the device row) and writes it back when that ends there or the light leaves the place -
+unless a brightness was set since.
 
 **cam**: `loadSettings` is empty (`cam.cpp:38-39`). A document is accepted and nothing is read from it, and the
 cam sends none ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
@@ -814,7 +860,7 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
 `fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
-(`fan.cpp:422-429`); light `light` (`light.cpp:391-398`). The controller has no `onControl` handler at all.
+(`fan.cpp:422-429`); light `light` (`light.cpp:395-402`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
 reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:174-178`;
@@ -878,18 +924,18 @@ own handler (`:233-239`).
 | `socket_remove` | `role`, optional `slot` | controller, fridge |
 | `socket_test` | `role`, optional `slot` | controller, fridge |
 | `socket_override` | `slot` **or** `output`, `state: on \| off \| auto`, `seconds` | controller, fridge announcing `socket_override` |
-| `cam_relay` | `url`, `token`, `key` | controller, fridge, fan, plug |
+| `cam_relay` | `url`, `token`, `key` | controller, fridge, fan, light, plug |
 
 `socket_set`'s `timer` and `socket_override` are the two additions since the builds in the field. They are sent
 only to a device that announced `socket_timer` and `socket_override` in `caps`, and a role outside `socket_roles`
 is never sent at all, because an old build drops what it does not know without a word
 ([12](#12-extending-it-safely)).
 
-`light` and `cam` have empty command handlers (`light.cpp:400-407`, `cam.cpp:56-58`) and so honour nothing
-beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:601-603`). None of `plug`, `fan`,
+`cam` has an empty command handler (`cam.cpp:56-58`) and so honours nothing beyond `reboot`; the `light` and the
+`plug` honour `cam_relay` and nothing else (`light.cpp:404-412`, `plug.cpp:605-607`). None of `plug`, `fan`,
 `light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
-ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
-(`fan.cpp:415`, `plug.cpp:602`). The server sends `socket_set` and `socket_override` only to a controller or a
+ignore `socket_*`; the fan, the light and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
+(`fan.cpp:416`, `light.cpp:411`, `plug.cpp:606`). The server sends `socket_set` and `socket_override` only to a controller or a
 fridge (`SOCKET_HOST_TYPES`) and answers 409 `not_for_this_device` for anything else.
 
 **An action a device does not know is dropped silently.** There is no negative acknowledgement, no error log and
@@ -922,8 +968,11 @@ is controlling. It answers with `message-maintenance-mode-activated-remote:<minu
 device's own menu is logged as `message-maintenance-mode-activated:<minutes>`.
 
 The server keeps its own window, `devices.state.maintenanceUntil`: set before the command is published, so it
-survives a device that never heard it; set again from either log line when it arrives; and sent to the device again
-on its next `fetch` while a minute or more of it is left ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
+survives a device that never heard it; set again from either log line when it arrives - except where the line's
+whole minutes end up to a minute before the window already kept, which is the device saying back what it was told
+(set from such an echo, "bis 09:46" became "bis 09:45" a moment later; the fix round after the sixth whole-app
+walk) -; and sent to the device again on its next `fetch` while a minute or more of it is left
+([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
 The minutes the server sends are its seconds rounded, and on the repeat rounded down, so the device never holds
 past the end the screens name (`device-publisher.service.ts`, `device-ingest.service.ts`). Ending a window sends
 `durationMinutes: 0` and moves the server's end only where a window is open.
@@ -1007,9 +1056,11 @@ because somebody is waiting with a finger on a switch.
 `{ "action": "socket_override", "output": "light", … }` holds the module's own light output instead of a socket:
 the light runs at the configured `lights.limit` while the override says on, and at nothing while it says off
 (`controller.cpp:951-957`, `fridge.cpp:1075-1081`). The light sockets follow the output, so they are held with it.
-This is the `light_override` capability, and it is the only output that takes one. The device reports no hold on
-its light output back - the socket rows carry only their own overrides - so a screen that shows one remembers
-what it sent until it runs out.
+This is the `light_override` capability, and it is the only output that takes one. A build that also announces
+`light_hold` reports the hold back as `hardware-info:light_hold` ([6.3](#63-the-socket-table-chunked-and-reassembled)),
+and the API serves it as the socket page's `lightHold`, so every screen shows it. A build that announces only
+`light_override` reports nothing of it, and a screen that shows a hold there remembers what it sent until it runs
+out.
 
 The light's level and its hold are two different mechanisms. The level is the configuration key `lights.limit`,
 stored and delivered on the next connect, so it reaches builds that announced nothing and devices that are
@@ -1060,7 +1111,9 @@ camera at most every `stillIntervalSeconds`, with a failure backoff of `min(inte
 skips one whose previous read is still in flight, and where the camera says so, a device in maintenance or with
 `workmode: off` (`maintenanceOff`) and a light that is out (`nightOff`). A Terp Cam, and a stream tunnelled through
 a device, is skipped while its device is offline: each try could only wait out its timeouts. That is decided before
-the schedule, so an offline spell does not grow the backoff.
+the schedule, so an offline spell does not grow the backoff. Nor does a streaming Terp Cam whose device has not
+reported its `webcam_ip` yet (`CameraNotFoundYetError`): nothing was asked of the camera, the device logs
+`message-terp-cam-not-found` itself, and the read is retried every interval without a diary entry.
 
 One read, of either kind, has `CAPTURE_BUDGET_SECONDS = 180` (`shared-types/src/v1/capture.ts`) from the moment it
 is asked for, its wait for a turn at ffmpeg included; every step inside it gets what is left of that where it is
@@ -1147,7 +1200,7 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
   only `disconnected` ends it. The server has no code for it any more and answers a datagram on `tunnel_read` with
   `disconnected`, as for any connection it does not know; the Terp Cam went to the relay ([9.1](#91-the-relay)).
 
-**device → server** on `tunnel_read` (`handleTunnelReads`, `handleTunnelCloses`, `fridgecloud.cpp:740-850`):
+**device → server** on `tunnel_read` (`handleTunnelReads`, `handleTunnelCloses`, `fridgecloud.cpp:748-858`):
 
 ```json
 { "connection_id": "<uuid>", "length": 97, "sequence": 12, "payload": "<base64>" }
@@ -1161,6 +1214,37 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
 - At most six TCP and 41 UDP messages per loop, shared by the slots, and none while somebody is at the display
   (`ui.isIdle()`, 30 s after the last input).
 - Data for a connection the server does not know is answered with `disconnected`.
+
+### 9.3 The camera's own stream
+
+A camera that can serve its own RTSP stream on the LAN has it switched on at pairing, on its setup AP, and is then
+read like an RTSP camera behind the device: no relay, no P2P. The device reports `webcam_rtsp=on`, the password it
+set as `webcam_pwd` and the camera's address as `webcam_ip`; the server opens
+`rtsp://admin:<webcam_pwd>@<webcam_ip>:10554/tcp/av0_0` over TCP through the device's tunnel ([9.2](#92-the-tunnel))
+and takes the next keyframe of the full-resolution H.265 main stream (`terpCamStreamUrl`, `capture.service.ts`).
+Budget, ffmpeg lanes, poller and storage are the RTSP camera's; one tunnel connection per device at a time.
+
+1. **Pairing** (`enableTerpCamStream`, `provisionTerpCam`, `wifi.cpp`): on the setup AP the device sends
+   `set_users.cgi?pwd_change_realtime=1&ExUser=admin&ExPwd=<pw>&ExUserSwitch=1&` with the factory login, and counts the
+   camera as streaming once an RTSP `OPTIONS` on `192.168.168.1:10554` is answered `200` within 5 s. It reads the
+   camera's MAC from its ARP table, gives the admin login the same password
+   (`set_users.cgi?pwd_change_realtime=1&user3=admin&pwd3=<pw>&app_id=10000&`, best effort), and uses whichever
+   login `get_status.cgi` accepts for the rest of the pairing. A camera whose stream does not answer pairs the P2P
+   way ([9.1](#91-the-relay)).
+2. **Finding it** (`terpCamFindStream`, `terpCamTickStream`, `terpcam.cpp`): once back on its own Wi-Fi the device
+   sweeps its /24 for a stream on `10554` for up to 2 minutes; afterwards it checks the cached address every 5 minutes
+   from the idle loop and sweeps three addresses per pass when it no longer answers. Only a stream whose MAC is the
+   stored one counts; without a stored MAC, only a sweep that finds exactly one stream. A new address is reported as
+   `webcam_ip`; `message-terp-cam-not-found` and `message-terp-cam-found` are logged once per loss and recovery.
+3. **Disconnect** (`resetTerpCamOverAp`, `wifi.cpp`): on its home Wi-Fi the camera takes no command and keeps that
+   Wi-Fi across a power cycle; only its reset button puts it back on its setup AP `@IPC-<digits of its id>`. The
+   device scans for that AP once; when it is not there it does not wait: the display tells the user to press the
+   camera's reset button, and OK closes it. On it, and only when `get_status.cgi` names the paired camera, it switches the stream off
+   (`ExPwd=888888&ExUserSwitch=0`) and sends `restore_factory.cgi`; it then rejoins its own Wi-Fi. A camera paired
+   the P2P way gets the P2P reset first and the AP way when that finds nothing. One `message-cam-reset:ok` or
+   `:no-response` per disconnect.
+
+A device in this mode refuses `cam_relay`.
 
 ---
 
@@ -1186,7 +1270,7 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
    until the reboot and nothing else would push the OFF command out (`controller.cpp:596-615`,
    `fridge.cpp:743-764`, `wifiForceAllSmartSocketsOff`, `wifi.cpp:473-513`). The plug, fan and light have no
    update handler. A download that fails fires the subject again with `false` and the device carries on
-   (`fridgecloud.cpp:672`).
+   (`fridgecloud.cpp:680`).
 6. On success the device restarts, and the new id goes out on `fetch` and as `hardware-info:firmware_version`.
 7. The server compares the reported id: equal to the one it was running, nothing happens; different from the
    pending one, `devices.state.firmwareId` is updated and no more; equal to the pending one, the update is closed
@@ -1194,11 +1278,11 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
    the builds' version labels where the server has them. The protocol module tells the rollout what was reported
    before it stores it, because that comparison is what the rollout is deciding from.
 
-**`fwupdate` is the second, unused door.** A device also subscribes to `/devices/<id>/fwupdate` and accepts
-`{ "version": "<id>", "url": "<url>" }`, applying the same guard and then downloading from that arbitrary URL
-(`fridgecloud.cpp:205-222`). The server has never published it.
+**`fwupdate` was a second, unused door.** Builds before 2026-11-27 also subscribe to `/devices/<id>/fwupdate` and
+accept `{ "version": "<id>", "url": "<url>" }`, applying the same guard and then downloading from that arbitrary
+URL. The server has never published it, and later builds no longer listen.
 
-A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ignores both topics
+A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ignores the `firmware` topic (older builds: both topics)
 (`fridgecloud.cpp:18-22,195,215`).
 
 ---
@@ -1209,9 +1293,12 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | --- | --- | --- |
 | MQTT maximum packet size | 4096 bytes, set on every connect | `fridgecloud.h:39`, `.cpp:182` |
 | MQTT socket / write timeout | 5 s | `fridgecloud.cpp:158-159` |
+| MQTT connection attempt | DNS 15 s, TCP 5 s, TLS handshake 30 s, CONNACK 5 s; in a task of its own | `EspMQTTClient.h`, `.cpp` |
+| MQTT reconnect delay | 15 s after a loss, doubling per failed attempt to 60 s, each plus up to 25 % at random | `EspMQTTClient.h`, `.cpp` |
+| Recovery reboot while the cloud stays away | once per 24 h, by default only while the light is off; set on the device | `main.cpp`, `rebootwatchdog.cpp` |
 | `fetch` document | 4096 bytes; without the settings where they do not fit | `fridgecloud.h:40`, `.cpp:388-395` |
-| Reading document serialisation buffer | 512 bytes | `fridgecloud.cpp:527-528` |
-| Reading buffer | 120 documents, then `message-buffer-overflow` and drop | `fridgecloud.h:33`, `.cpp:511-517` |
+| Reading document serialisation buffer | 512 bytes | `fridgecloud.cpp:535-536` |
+| Reading buffer | 120 documents, then `message-buffer-overflow` and drop; drained on reconnect | `fridgecloud.h:33`, `.cpp:511-525` |
 | Reading cadence | one sample per 5 control ticks → one `bulk` / 5 s | `fridgecloud.h:34-35`, `main.cpp:70` |
 | Log queue | 32 entries; further entries dropped silently | `fridgecloud.h:37`, `.cpp:406-411` |
 | Log message serialisation buffer | 384 bytes | `fridgecloud.cpp:442-443` |
@@ -1222,16 +1309,16 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Consecutive failed publishes before a forced reconnect | 3 | `fridgecloud.h:99`, `.cpp:465-480` |
 | Command document | 1024 bytes; one that does not parse is dropped | `fridgecloud.cpp:226-231` |
 | Tunnel slots | 3 | `fridgecloud.h:102` |
-| Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:21`, `.cpp:813-830` |
-| Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:22,27`, `.cpp:774,786,816` |
-| Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:741-743,770-772` |
+| Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:21`, `.cpp:821-838` |
+| Tunnel messages per loop | ≤ 6 TCP and ≤ 41 UDP, shared across slots | `fridgecloud.h:22,27`, `.cpp:782,794,824` |
+| Tunnel activity | only while the display is idle (30 s after the last input) | `fridgecloud.cpp:749-751,778-780` |
 | Tunnel frame / connection idle / proxy (cloud side) | 128 raw bytes / 30 s / 300 s | `tunnel.service.ts` |
 | Relay dial-in / header / close (cloud side) | 45 s / 20 s / 10 s | `terpcam-direct.service.ts` |
 | Login / transfer per attempt (cloud side) | 15 s / 60 s | `terpcam-direct.service.ts` |
 | One read of a camera, every attempt included (cloud side) | 3 min | `shared-types/src/v1/capture.ts` |
 | Relay length / silence (device side) | 2 min / 30 s | `terpcam.cpp:932-933` |
 | Hold on a camera that refused the cloud | 30 min, or until the device reports it again | `terpcam-direct.service.ts` |
-| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |
+| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min, reset by a camera report | `camera-poller.service.ts` |
 | Upgrade instruction | first after 30 s, doubling to at most 24 h | `firmware-rollout.service.ts` |
 | Maintenance repeated on `fetch` | while at least 60 s of the window are left | `device-ingest.service.ts` |
 | Schedule clock check | once a minute | `schedule-clock.service.ts` |
@@ -1295,9 +1382,10 @@ pass spends at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cp
 | `protections` | that a plug enforces the `limits.*` protections of its document; the app greys them out for a plug that does not say so |
 | `sockets`, `sockets_n`, `socket_list<k>` | that this build reports a socket table, and what is in it |
 | `socket_roles` | every role this build accepts, the empty "unassigned" one aside |
-| `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override` |
+| `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override`; and `light_hold`, that it reports the hold on its own light output as `light_hold` |
 | `socket_pulse` | the failsafe seconds each role's socket is programmed with at pairing |
 | `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip`, `webcam_url` | that a camera is paired, and how to reach it |
+| `webcam_rtsp` | that the camera is read off its own stream through the tunnel; absent or `off` keeps the relay |
 
 Note the difference between a key with the value `none` and a key that is absent. `sockets=none` and
 `webcam_did=none` mean "this build reports, and there is nothing"; the key missing altogether means "firmware too
@@ -1401,7 +1489,8 @@ reader of either should not conclude from it.
   display is idle; the simulator always.
 - **Settings in `fetch`.** The simulator sends its document with every `fetch`, whatever its type; of the
   firmware, the cam sends none and a build before #141 none at all.
-- **`fwupdate` and `control/#`.** Subscribed by every device; published by neither the server nor the simulator.
+- **`fwupdate` and `control/#`.** Subscribed by the firmware (`fwupdate` only before 2026-11-27); published by
+  neither the server nor the simulator.
 
 The simulator is the cheapest way to exercise the cloud side of all of this — `./simulate-device.sh` registers,
 claims and then speaks these same topics — but where this document and `scripts/simulate-device.mjs` differ, the

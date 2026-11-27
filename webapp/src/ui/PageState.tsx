@@ -1,8 +1,13 @@
 import type { DateTime } from 'luxon';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { fetchedAt } from '@/api/clock';
+import type { Read } from '@/api/read';
+import { ApiError } from '@/api/problem';
+import { useSteersAsLastSeen } from '@/app/shell/shape';
 import { ageLabel } from './age';
+import amber from './OfflineHelp.module.css';
 import ui from './ui.module.css';
 import styles from './PageState.module.css';
 import { refusalText } from '@/ui/refusal';
@@ -26,19 +31,81 @@ export function Refused({ error, fallback, className }: { error: unknown; fallba
   );
 }
 
-/** What went wrong when a page has nothing to show yet, with the way to try again. */
-export function LoadFailed({ retry }: { retry: () => void }) {
+/**
+ * What could not be read, with the one way to try again. A page that has
+ * nothing to show hands over its read and its title: the title stays, so the
+ * window still says where one is, and the box says what Start says - that
+ * there is no connection, which changes nothing for the tent, or that the
+ * server answered with a fault, which is not the reader's connection - and
+ * while it asks again the button says so. `children` is what the page still
+ * knows. A part of a page that could not be read hands over only how to ask
+ * again, and is one line. Only a page that shows `values` says that they come
+ * back with the connection; Konto or Freigabelinks have none to wait for.
+ */
+export function LoadFailed({
+  retry,
+  read,
+  title,
+  values = false,
+  children,
+}: {
+  retry?: () => void;
+  read?: Read;
+  title?: string;
+  values?: boolean;
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
+  const steering = useSteersAsLastSeen();
+  if (!read) {
+    return (
+      <section className={styles.failed}>
+        <p className={ui.problem} role="alert">
+          {t('shell.loadFailed')}
+        </p>
+        <button type="button" className={ui.button} onClick={retry}>
+          {t('home.retry')}
+        </button>
+      </section>
+    );
+  }
+  // An answer that is a problem came from the server; anything else never got that far.
+  const answered = read.error instanceof ApiError ? 'server' : 'none';
+  const sentence = !steering ? 'bare' : answered === 'none' && !values ? 'steering' : 'text';
 
-  return (
-    <section className={styles.failed}>
-      <p className={ui.problem} role="alert">
-        {t('shell.loadFailed')}
-      </p>
-      <button type="button" className={ui.button} onClick={retry}>
-        {t('home.retry')}
-      </button>
+  const says = (
+    <>
+      <section className={amber.box} role="alert">
+        <h2>{t(`shell.away.${answered}.title`)}</h2>
+        {/* That the devices go on regulating is said to an account that has one, as this browser last saw it. */}
+        <p>{t(`shell.away.${answered}.${sentence}`)}</p>
+        <button
+          type="button"
+          className={styles.again}
+          disabled={read.isFetching}
+          aria-busy={read.isFetching || undefined}
+          onClick={() => void read.refetch()}
+        >
+          {t(read.isFetching ? 'home.retrying' : 'home.retry')}
+        </button>
+      </section>
+      {children}
+    </>
+  );
+
+  // A page that has a head of its own to stand under hands over no title.
+  return <Titled title={title}>{says}</Titled>;
+}
+
+/** A page's state under its title, so the window still says where one is; without a title, the state alone. */
+function Titled({ title, children }: { title?: string; children: ReactNode }) {
+  return title ? (
+    <section className={`${ui.stack3} ${ui.page}`}>
+      <h1>{title}</h1>
+      {children}
     </section>
+  ) : (
+    children
   );
 }
 
@@ -46,16 +113,17 @@ export function LoadFailed({ retry }: { retry: () => void }) {
 type Subject = 'space' | 'grow' | 'camera' | 'device';
 
 /**
- * A page whose subject the server says is not there for this account - usually
- * because somebody was taken out of a tent. It is not worth trying again, so it
- * offers home, and names only the two causes a 404 can have: it does not say the
- * subject ended, nor name a sharer, since a 404 does not tell which ids exist.
+ * A page whose subject the server says is not there for this account. It is
+ * not worth trying again, so it offers home, and names only the two causes a
+ * 404 can have: a 404 does not tell which ids exist. Its heading says what
+ * the address was about and titles the window.
  */
 export function NoLongerHere({ what }: { what: Subject }) {
   const { t } = useTranslation();
 
   return (
     <section className={styles.failed}>
+      <h1>{t(`shell.gone.title.${what}`)}</h1>
       <p className={ui.problem} role="alert">
         {t(`shell.gone.${what}`)}
       </p>
@@ -77,22 +145,43 @@ export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now:
   if (!failedAt) return null;
 
   return (
-    <p className={`mono ${styles.refreshFailed}`} role="status">
-      {t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}
-    </p>
+    // No live region: the age in it changes every ten seconds, and each would be said again.
+    <p className={styles.refreshFailed}>{t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}</p>
   );
 }
 
-/** A block in the shape of what is coming, saying that it is. */
-export function Waiting({ lines = 3 }: { lines?: number }) {
+/** A block in the shape of what is coming, saying that it is; a page waiting for its whole read keeps its `title` over it. */
+export function Waiting({ lines = 3, title }: { lines?: number; title?: string }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`${ui.card} ${styles.waiting}`} aria-busy="true">
-      <span className={`mono ${styles.waitingNote}`}>{t('home.waiting')}</span>
-      {Array.from({ length: lines }, (_, index) => (
-        <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
-      ))}
-    </div>
+    <Titled title={title}>
+      <div className={`${ui.card} ${ui.stack3}`} aria-busy="true">
+        <span className={styles.waitingNote}>{t('home.waiting')}</span>
+        {Array.from({ length: lines }, (_, index) => (
+          <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
+        ))}
+      </div>
+    </Titled>
+  );
+}
+
+/**
+ * Nothing here yet: the sentence that says what is missing, in the dashed shape every screen says it in, and - where
+ * the page has no other - the way to where it is set or added.
+ */
+export function NothingHere({ children, to, where }: { children: ReactNode; to?: string; where?: string }) {
+  return (
+    <p className={`${ui.cardDashed} ${ui.note}`}>
+      {children}
+      {to ? (
+        <>
+          {' '}
+          <Link to={to} className={styles.wayOn}>
+            {where}
+          </Link>
+        </>
+      ) : null}
+    </p>
   );
 }

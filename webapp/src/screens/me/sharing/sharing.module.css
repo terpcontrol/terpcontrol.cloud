@@ -21,12 +21,6 @@
   color: var(--muted);
 }
 
-.card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 /* A link that has run out or was taken back keeps its row, turned down: it is
    still a fact about what was handed out, and never drawn as if it worked. It
    is said with the muted ink and a sunken row rather than half opacity, which
@@ -57,7 +51,7 @@
 
 .cardTitle {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
 }
 
@@ -84,13 +78,12 @@
 }
 
 /* The dashed row that starts a link: the lesser option beside bordered cards,
-   as a button, in the mono the board sets its caption in. */
+   as a button, in the size the board sets its caption in. */
 .new {
   display: flex;
   justify-content: center;
   width: 100%;
   color: var(--muted);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -113,17 +106,18 @@
 }
 
 /* The address in full, and still selectable: a browser that refuses the
-   clipboard leaves reading it off the screen as the only way. */
+   clipboard leaves reading it off the screen as the only way. In the app's
+   face, as an invite link is, broken only after a slash. */
 .address {
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
   padding: var(--space-2) var(--space-3);
   border: var(--rule-solid);
   border-radius: var(--radius);
   background: var(--card-2);
-  font-size: var(--text-xs);
-  white-space: nowrap;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  overflow-wrap: break-word;
 }
 
 .sentence {
@@ -134,20 +128,6 @@
 .sentence a {
   color: var(--brand);
   text-decoration: underline;
-}
-
-.switchRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
-.switchText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
 }
 
 .actions {

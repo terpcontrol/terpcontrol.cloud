@@ -48,7 +48,6 @@ namespace fg {
     String topic_bulk;
     String topic_log;
     String topic_firmware;
-    String topic_fwupdate;
     String topic_command;
     String topic_control;
     String topic_tunnel_read;
@@ -153,6 +152,8 @@ namespace fg {
     void resetConnection();
     void updateFirmware(std::string fw_id);
     void updateFirmwareFromUrl(std::string update_url);
+    enum class RegistrationGate { PASSWORD, OPEN, CLOSED };
+    RegistrationGate registrationGate(std::string url);
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();

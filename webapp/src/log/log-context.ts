@@ -1,13 +1,14 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { createContext, use } from 'react';
 import type { Entry, HumanEntryKind } from '@fg2/shared-types/v1';
 
 /**
- * Logging, reachable from every screen: the raised button opens the sheet over
+ * Logging, reachable from every screen: the Eintrag button opens the sheet over
  * whatever you were looking at, a due card ticks itself off, and what was
  * written stays on screen long enough to be taken back.
  *
  * The state lives above the routes because none of it belongs to a screen - a
- * line written on the home is still being saved while the tent page is open.
+ * line written on Start is still being saved while another page is open.
  */
 
 /** What a line is written against: a grow, the space it stands in, or single plants of it. */
@@ -27,10 +28,16 @@ export interface LogTarget {
   standsIn: string | null;
 }
 
-/** The eight tiles. `phase` is the one that is not an entry of its own: it is written as a phase and shows up as one. */
+/**
+ * What a line can be. `phase` is the one that is not an entry of its own: it
+ * is written as a phase and shows up as one. A `visit` is no tile - stepping
+ * in is started as maintenance, from Start and from a device - but a line of
+ * it written before is still corrected like the others.
+ */
 export type TileKind = HumanEntryKind | 'phase';
 
-export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase', 'visit'];
+/** The seven tiles of the sheet, in the order they are drawn. */
+export const TILE_KINDS: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement', 'training', 'phase'];
 
 /** Where the sheet opens: the screen it was opened from, or a link that names the place and the tile. */
 export interface LogOpening {
@@ -43,15 +50,20 @@ export interface LogOpening {
    * not list - falls back to the chip chosen last time instead of refusing.
    */
   underneath?: boolean;
+  /** The task whose "Eintragen" opened the sheet: the line written for its grow ticks that task. */
+  taskId?: string | null;
 }
 
 /** A line on its way to the server, and what a retry would send again. */
 export interface LogRequest {
   /** What the toast says: "Watered · Spring run · Day 34". */
   label: string;
-  send: () => Promise<Entry>;
+  /** `progress` is for a line that takes a while, the photo line's uploads: how many of how many are done. */
+  send: (progress: (done: number, total: number) => void) => Promise<Entry>;
   /** The tile whose details the toast offers afterwards; absent where there are none to offer. */
   details?: { kind: TileKind; target: LogTarget } | null;
+  /** What landing the line changed beyond the diary, read again with it. */
+  changed?: (client: QueryClient) => void;
   /**
    * Whether the toast may offer to take the line back, which is true of
    * everything a person writes by hand. It is false where deleting the diary
@@ -59,23 +71,59 @@ export interface LogRequest {
    * button that undoes half of something is worse than no button at all.
    */
   undoable?: boolean;
+  /** What holds again once the line is taken back, where that is more than the diary no longer having it. */
+  undone?: string;
 }
 
 /** What a tick may still be taken back, for the ticks where taking it back would only be half of one. */
 export interface CompleteOptions {
   undoable?: boolean;
+  /** What the tick changed beyond the diary - a plan it moved on - read again once it has landed. */
+  changed?: (client: QueryClient) => void;
 }
+
+/**
+ * The way back from something told, and what holds again once it is taken: the toast answers in its place with
+ * "Undone · <undone>" (`undoneLabel`), never with the label it took back - that names what no longer holds. A
+ * refusal is said there too, with the offer to try again.
+ */
+export interface Back {
+  undo: () => Promise<unknown>;
+  undone: string;
+  /**
+   * The lines written after it that stand on what it did - a line dated before a grow's old start, written once the
+   * start was moved back for it: taken back with it, rather than left behind "Vor dem Start".
+   */
+  along?: (entry: Entry) => boolean;
+}
+
+/** Something that was done already, said in the toast with the way to take it back - where it can be taken back whole. */
+export type Told = (Back | { undo: null }) & {
+  label: string;
+  /** The control that was used, where it may be used again at once - a switch, a stepper: its next toast takes this one's place. */
+  from?: string;
+};
 
 interface LogState {
   openSheet: (opening?: LogOpening) => void;
-  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null) => void;
+  /** Opens one kind's view: on a line to correct, or on a new one dated to `at` where the sheet was told when, closing `taskId`. */
+  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null, at?: Date | null, taskId?: string | null) => void;
+  /** Opens a harvest's line on its weights, added or corrected after the cut. */
+  openWeights: (line: Entry) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */
   complete: (taskId: string, label: string, options?: CompleteOptions) => void;
+  /** Says what a tap just did where nothing else on the screen will - an offer declined, a phase set - and offers to take it back. */
+  tell: (told: Told) => void;
+  /** The chip the sheet was pointed at last, in this session: a page about a place leads with it (`placeAim`). */
+  last: string | null;
 }
 
 export const LogContext = createContext<LogState | null>(null);
+
+/** The chip the sheet was pointed at last; nothing outside the log, which a page drawn on its own is. */
+export const useLastAim = (): string | null => use(LogContext)?.last ?? null;
 
 export function useLog(): LogState {
   const state = use(LogContext);

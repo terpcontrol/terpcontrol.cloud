@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { useMe, useUpdateMe } from '@/api/account';
+import { useAccountMe, useUpdateMe } from '@/api/account';
+import { followAccount } from '@/i18n/i18n';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { browserZone } from '@/ui/zone';
@@ -15,7 +16,7 @@ import { browserZone } from '@/ui/zone';
  */
 export function ZoneAdoption() {
   const { t, i18n } = useTranslation();
-  const me = useMe();
+  const me = useAccountMe();
   const mayManage = useMayManage();
   const update = useUpdateMe();
   const asked = useRef(false);
@@ -35,13 +36,15 @@ export function ZoneAdoption() {
     update.mutate({ preferences: { timezone: here, timezoneChosen: true } }, { onSuccess: () => setAdopted({ from: kept.timezone, zone: here }) });
   }, [account, mayManage, here, update]);
 
-  // The language is the browser's to choose, but what the server writes itself -
-  // the day counter burnt into a film - is read in the one the account was last
-  // used in, so the account is told it without a word.
+  // The account keeps the language chosen in a browser, without a word: what the server writes itself - the day
+  // counter burnt into a film - is read in it, and a browser nobody chose one in follows it. An account no browser
+  // was signed in to yet - its zone still unpicked - knows none and is told this browser's, as it takes its zone.
   const language = i18n.resolvedLanguage ?? null;
   const { mutate } = update;
   useEffect(() => {
-    if (!account?.preferences || !mayManage || !language || account.preferences.locale === language || told.current === language) return;
+    const kept = account?.preferences;
+    if (!kept || !language || kept.locale === language || told.current === language) return;
+    if ((kept.timezoneChosen === true && followAccount(kept.locale)) || !mayManage) return;
     told.current = language;
     mutate({ preferences: { locale: language } });
   }, [account, mayManage, language, mutate]);
@@ -50,8 +53,8 @@ export function ZoneAdoption() {
 
   return (
     <p className={ui.note} role="status">
-      {t('shell.zoneAdopted', adopted)} <Link to="/me/appearance">{t('shell.zoneAdoptedChange')}</Link>{' '}
-      <button type="button" className={`${ui.button} ${ui.quiet}`} onClick={() => setAdopted(null)}>
+      {t('shell.zoneAdopted', adopted)} <Link to="/me/account">{t('shell.zoneAdoptedChange')}</Link>{' '}
+      <button type="button" className={ui.button} onClick={() => setAdopted(null)}>
         {t('shell.zoneAdoptedDismiss')}
       </button>
     </p>

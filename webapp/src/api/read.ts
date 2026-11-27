@@ -111,6 +111,16 @@ export const useRead = useStatedQuery as unknown as typeof useQuery;
 export const useReadPages = useStatedInfiniteQuery as unknown as typeof useInfiniteQuery;
 
 /**
+ * Since when a read that holds an answer has not been able to renew it, on
+ * this browser's clock: its refresh failed, or the browser is offline and the
+ * read waits for the connection. Null while it is being refreshed as it
+ * should. What the screen shows is as old as that, for a reason that is the
+ * app's and not a device's.
+ */
+export const failingSince = (read: { isError: boolean; fetchStatus: string; dataUpdatedAt: number }): number | null =>
+  (read.isError || read.fetchStatus === 'paused') && read.dataUpdatedAt > 0 ? read.dataUpdatedAt : null;
+
+/**
  * The beat a live value ages on, and so the beat every read of what the
  * devices report is taken again on: the device rows, their sockets and live
  * values, the alerts and rules the alarm engine moves, the plan, the tasks, the
@@ -125,3 +135,13 @@ export const LIVE_BEAT_MS = 30_000;
  * fresh, so it adds no beat of its own to a screen that never asks for it.
  */
 export const FOLLOWED = { refetchInterval: false, staleTime: 5 * 60_000 } as const;
+
+/** A read as a page holds it once it has failed: what it failed with, whether it is asking again, and how to ask. */
+export type Read = { error: unknown; isFetching: boolean; refetch: () => unknown };
+
+/** Several reads a page waits for, as one: the first failure among them, and every one of them asked again. */
+export const together = (...reads: Read[]): Read => ({
+  error: reads.find(read => read.error)?.error ?? null,
+  isFetching: reads.some(read => read.isFetching),
+  refetch: () => reads.forEach(read => void read.refetch()),
+});

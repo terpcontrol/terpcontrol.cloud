@@ -13,9 +13,19 @@ import { pathOf, payloadOf } from './screens/notifications/push-route';
  * feeding schemes) kept once it is looked at. It is written out here because a generated worker has no ear for a push: the
  * browser hands a push to the worker and to nothing else, so a worker without
  * these two handlers is a subscription that shows nobody anything.
+ *
+ * A new release takes over at once: the worker does not wait for every window
+ * of the app to close, and claims the open ones. Waiting is what a generated
+ * worker is spared by the plugin and a hand-written one is not - without these
+ * two lines an installed app or a tab left open kept the old release until
+ * somebody emptied the browser's cache. The page reloads itself when it
+ * notices (`src/app/update.ts`).
  */
 
 declare const self: ServiceWorkerGlobalScope;
+
+self.addEventListener('install', () => void self.skipWaiting());
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
 precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));

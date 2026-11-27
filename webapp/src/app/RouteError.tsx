@@ -25,7 +25,7 @@ export function RouteError() {
       </p>
       <div className={styles.actions}>
         <button type="button" className={ui.button} onClick={() => window.location.reload()}>
-          {t('shell.crashed.again')}
+          {t('home.retry')}
         </button>
         <Link to="/" className={ui.button}>
           {t('shell.crashed.home')}

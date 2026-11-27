@@ -1,12 +1,13 @@
 import { Query, Schema } from 'mongoose';
-import { Media, MediaExportJob, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
+import { CameraOrientation, Media, MediaExportJob, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
 import { exportScope, mediaAspect, mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
 import { deleteStoredImages } from '../../image-store';
+import { orientationSchema } from './cameras.schema';
 
 /**
- * A picture or a film. The bytes stay in the GridFS bucket, whose file id is this
- * document's `id`, so the two collections are joined by nothing but that id.
+ * A picture or a film. The bytes are in the image store (GridFS or S3), filed
+ * under this document's `id`, so the two are joined by nothing but that id.
  *
  * A picture belongs to a camera, a grow or a space, never to a device. What is
  * about none of them is `null` there and never missing: the sweeps below and the
@@ -23,7 +24,7 @@ type MediaExportDocument = Omit<MediaExportJob, 'startedAt' | 'endedAt'> & {
   endedAt: Date | null;
 };
 
-export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render' | 'exportJob'> & {
+export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render' | 'exportJob' | 'orientation'> & {
   createdAt: Date;
   capturedAt: Date;
   endsAt: Date | null;
@@ -44,6 +45,8 @@ export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 
    * kept before it was, and either is unknown.
    */
   monochrome?: boolean | null;
+  /** Absent on a row stored before cameras could be turned, which is read as null. */
+  orientation?: CameraOrientation | null;
 };
 
 const overlaysSchema = new Schema<MediaOverlays>(
@@ -117,6 +120,7 @@ export const mediaSchema = new Schema<MediaDocument>(
     exportJob: { type: exportSchema, default: null },
     lit: { type: Boolean, default: null },
     monochrome: { type: Boolean, default: null },
+    orientation: { type: orientationSchema, default: null },
   },
   { collection: 'media', versionKey: false },
 );
@@ -129,7 +133,7 @@ mediaSchema.index({ cameraId: 1, kind: 1, window: 1, capturedAt: 1 }, { unique: 
 // The frames and the timelapses of one camera, newest first, which is both the
 // read of `/frames` and how thinning and retention walk a camera's history.
 mediaSchema.index({ cameraId: 1, kind: 1, capturedAt: -1 });
-// The pictures of a grow and of a space, for the week cards and the public page.
+// The pictures of a grow and of a space, for the diary's days and the public page.
 mediaSchema.index({ growId: 1, capturedAt: -1 });
 mediaSchema.index({ spaceId: 1, capturedAt: -1 });
 // The composer's queue: the hourly builder drains what is queued, oldest first.

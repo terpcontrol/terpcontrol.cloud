@@ -1,7 +1,7 @@
 ---
-summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
+summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
+updated: 2026-11-27
+source: camera orientation and the display stamp (Chris, 2026-09-29, PR #132); the OSD switch and orientation tried on the development fridge's Terp Cam, the caption without a second time and the portrait card (Chris, 2026-11-26); the OSD switch on the setup AP confirmed on that camera (2026-11-27); a film's day from the grow's origin (the redesign session's fix round of 2026-11-16); a Terp Cam judged from its controller's return, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); one picture time for a silent place (the redesign session's fix round of 2026-11-15); a film's caption by the nearest line and measured widths, a film of too few pictures refused at the request, the rest of today filmed from the camera page, a public card drawn over its newest picture (the fourth whole-app walk's fix round, 2026-11-14); a stream test's details, the film's caption, curve and type by the frame, the dark film's refusal worded (the third whole-app walk's fix round, 2026-11-14); a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12); Chris (decisions, PR reviews 2026-08..10; the reset on a camera report 2026-11-25); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -36,11 +36,19 @@ way and what the code has to respect. Internal notes on the camera exist.
   thinning (2026-08-19); the test button waits exactly as long as a regular capture (2026-10-03).
 - Device RAM is scarce, so firmware camera code must not leak: it allocates only while it runs and frees on every
   exit (2026-08-19). Code says the product name, `terpcam*`, not the manufacturer's (2026-09-08).
+- A stored still carries no overlay: the time it was taken is drawn by the app on display only, and the camera is told
+  to stop stamping its own clock when it is paired - cameras paired before are not migrated (2026-09-29, PR #132).
+- A camera's rotation and mirroring are applied to the stored picture, and every still keeps the orientation it was
+  stored with, so a wrong setting can be taken back off the pictures later (2026-09-29, PR #132).
 
 ## Kinds of camera (`cameras.kind`)
-- `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan) or Smart Socket
-  (plug) - the LIGHT has no entry (PR #128). One per device; the server treats every type alike.
-- `rtsp`: any URL ffmpeg reads (RTSP or an HTTP snapshot URL), pulled directly or, with `tunnel: true`, through the
+- `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan), lamp module
+  (light) or Smart Socket (plug) - every type with a display (fan and plug PR #128, light issue #190). One per
+  device; the server treats every type alike.
+- `rtsp`: an `rtsp://` or `rtsps://` address with a host - anything else is refused on create and on a changed
+  address, 422 `not_a_stream_address` (`isStreamAddress`, `stream-url.ts`; the redesign session of 2026-11-13,
+  after "quatsch" made a camera that could never show a picture), and the web app checks the field the same way
+  before anything is sent (`isStreamAddress`, `webapp/src/screens/camera/stream.ts`) - pulled directly or, with `tunnel: true`, through the
   MQTT tunnel of any Terp Control device in the place - the tunnel is in the firmware all types share. Through the
   device is the default (Chris, 2026-10-08): the app's switch starts on, and a create that names a device and leaves
   `tunnel` out gets it (not over UDP); a direct pull is for a camera the cloud can reach on the internet.
@@ -58,10 +66,44 @@ way and what the code has to respect. Internal notes on the camera exist.
   by using it (`get_status.cgi` until the reply carries `deviceid`), not by parsing the reply: shapes differ and the
   change can drop the session. Kept in NVS, reported as `webcam_pwd`; a camera that refuses keeps the default and
   pairs anyway, and is secured later from the idle loop (`terpCamNeedsSecuring`, one attempt even on a zero budget).
+- The same session then switches the camera's on-picture clock (OSD) off, fire and forget, twice on request index 3
+  (PR #132); a camera that misses it keeps its stamp. A streaming camera never gets there: it pairs with
+  `webcam_rtsp=on`, `terpCamSecure` is skipped, and on the home WiFi it takes no CGI at all. Tried on hardware
+  2026-11-26: the development fridge's H.265 Terp Cam, paired again with the PR's firmware, keeps its burned-in clock
+  on every still (and that clock runs on UTC, an hour off the app's stamp in winter). So `provisionTerpCam` now also
+  sends `camera_control.cgi?param=10&value=0` on the setup AP, after the stream is switched on and with the login
+  the rest of the pairing uses, for every camera (Chris wanted the camera's own clock gone, 2026-11-26). Confirmed on
+  hardware 2026-11-27: the same camera, reset and paired again with that firmware, streams stills without the clock.
 - "disconnect cam" asks, ends a running relay and sends `restore_factory.cgi` over a checked session for 4 s (the
-  camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing. Best
+  camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing.
+  Where that finds nothing - always for a streaming camera - the reset goes over the camera's setup AP instead
+  (below). Best
   effort: `forgetTerpCam` erases every camera key (Chris, 2026-09-30) and reports the `webcam_*` keys as `none` either
   way - also with no `webcam_did` stored, since keys left by an interrupted pairing crashed the next one (PR #123).
+
+## A Terp Cam read off its own stream (`webcam_rtsp=on`)
+- The current cameras speak no P2P a device or the cloud can use on their own, but serve their main stream (H.265,
+  2304x1296) over RTSP on the LAN once it is switched on. That switch is a CGI the camera takes only on its setup
+  AP, so pairing sends it there, before `set_wifi.cgi`; once on the home Wi-Fi the camera serves the stream and
+  nothing else - no CGI, no snapshot. Which camera is which is decided by behaviour, not by its id: the stream
+  answering an RTSP `OPTIONS` on the setup AP within 5 s is what makes it a streaming camera; anything else pairs the
+  P2P way, so the older cameras are untouched. Wire details: [device-protocol 9.3](../device-protocol.md#93-the-cameras-own-stream).
+- One password for both: the generated one becomes the stream's (`ExPwd`) and the admin login's, is stored as
+  `webcam_pwd` and is what the server logs in with. `terpCamNeedsSecuring` is then false and the P2P securing never runs.
+- Because the stream says nothing about whose camera it is, the device tells its camera by MAC: read off its ARP
+  table on the setup AP at pairing (`webcam_mac` in NVS) and compared on every address it finds later. On the
+  development camera the setup AP's MAC and the home-Wi-Fi MAC were the same. Without a stored MAC a sweep adopts a
+  stream only when it is the only one on the network.
+- The device keeps the address current (`terpCamTickStream`: a check every 5 min, then a sweep of its /24 at three
+  addresses per idle pass); the server only reads `webcam_ip`. A camera the device has not found yet fails its reads
+  with "the device has not yet found its camera on its network".
+- Through the tunnel the read takes as long as the keyframe takes to cross MQTT; the keyframe is the first thing
+  ffmpeg keeps (`-skip_frame nokey`), and the P-frames before it are dropped unread by the decoder.
+- Disconnecting resets the camera over its setup AP, because on the home Wi-Fi it takes no command. A power cycle
+  does not get it there: a camera paired this way rejoined the home Wi-Fi after one (development fridge and camera,
+  2026-11-25). Its reset button does. The device does not ask for it and wait: asking whether the button was pressed
+  and then looking for the AP for minutes made no sense to the user (Chris, 2026-11-27). When one scan does not find
+  the AP, the display says the reset failed and to press the camera's reset button, and OK closes it.
 
 ## Finding the camera on the LAN
 - `realdeviceid` (`webcam_did`) is the identity; `webcam_uid` and `webcam_ip` are hints. Discovery asks the cached
@@ -142,14 +184,35 @@ way and what the code has to respect. Internal notes on the camera exist.
   which the camera page reads too: change it there, not on one side.
 - The test button joins a read in flight (a Terp Cam read is the device's camera whatever the settings; an RTSP test
   with other settings reads on its own), and the poller leaves the button's read alone: a device bridges one relay
-  at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout.
+  at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout. The
+  camera page holds the button while the device it is read through is not live - offline or late with its
+  reports, not only offline - and drops a press the device fell silent under rather than waiting it out (the
+  redesign session of 2026-11-13; a press on a silent device said "Bild wird aufgenommen …" for over 45 s). A
+  late device is said once, by the page's pill, which the held button points at; no sentence about the relay
+  ([app-ux.md §2](app-ux.md#2-navigation-and-the-place-page), "The camera page").
 - ffmpeg lanes (`ffmpeg.ts`, beside `runFfmpeg`, which every still, decode and film runs through): one shared pool let
   Terp Cam decodes queue behind hanging streams past the test button's wait. Hanging RTSP cameras can still delay
   other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).
 - A missed dial-in is an ordinary failed attempt (Chris, 2026-09-30, PR #119): the former 15-min hold made a slow
   link, a busy device or a server restart look like firmware without the relay.
+- A newly paired camera is read on its interval from the moment its device reports it (Chris, 2026-11-25): every
+  `webcam_*` report the protocol lists ([device-protocol 6.2](../device-protocol.md#62-hardware-info)) resets the
+  backoff of that device's Terp Cam - only that camera, not streams tunnelled through the device (Chris). Before,
+  a streaming Terp Cam got its row on `webcam_did` but its `webcam_ip` only once the device had swept its LAN; every
+  read in between failed and doubled the backoff towards 120 min, and the address arriving reset nothing, so a
+  freshly paired camera stayed without stills for up to two hours. Re-pairing the same camera revives its row id,
+  and with it the poller's old failure count - the reset covers that too.
+- "Not found yet" (`CameraNotFoundYetError`) never grows the backoff and writes no diary entry; a read that was in
+  flight when a report reset the camera does not grow it either (`round` in the poller's state).
 
 ## Camera records (`cameras.schema.ts`, `hardware-report.service.ts`)
+- A camera a device pairs from 2026-11-13 on is named "Terp Cam" by the server (`PAIRED_CAMERA_NAME`; Chris), so
+  an unnamed one never reads by a fragment of its id; a row that comes back keeps its name, and nothing already
+  named was renamed.
+- A device nobody owns gets no camera row, and it says its camera once per boot. So the claim makes the row of a
+  camera the device reported while it was nobody's (`cameraOf`, `devices.service.ts`), in the place the claim put
+  the device, and the app reads its cameras again once the claim has answered: the Terp Cam is on Start and Steuerung
+  at once, not after the device's next restart.
 - The device is the source of truth for a Terp Cam, and a report reaches only rows of the reporting device's owner:
   the row live on this device, or one this owner buried for this `did`. Rows are never taken across accounts, so
   after an owner change the new owner gets a fresh row (own twelve months) and the old one keeps its stills.
@@ -167,8 +230,10 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Stills (`media`, kind `still`; storage in [data.md](data.md))
 - `lit`: the controller's light output at capture time, else `false` for a picture too dark to show anything (mean
-  luma under 24), else null, which counts as lit. Pictures meant to show plants (week, home, cockpit and grow cards)
-  query `lit != false`; a week's day takes the lit still nearest midday.
+  luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, Start
+  and grow cards) query `lit != false`; a day takes the lit still nearest midday (`diary/diary-pictures.ts`). A
+  place that is silent shows the last picture there is instead, dated by its capture as Steuerung dates it, so one
+  picture carries one time (`Picture`, `screens/start/Picture.tsx`).
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
   192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable
@@ -176,12 +241,27 @@ way and what the code has to respect. Internal notes on the camera exist.
   day and night from it: the newest measured still of any camera in its space speaks for its camera for ten
   intervals plus the gap thinning has left by its age (`StillDaylightService`; Chris, 2026-10-08,
   [ADR 0006](../adr/0006-day-and-night-by-the-device-clock.md)).
-- The camera burns its own local time into the picture; the app shows the account's zone, so a mismatch means the
-  account's zone is wrong (Me > Appearance), not the app.
+- Orientation (`cameras.orientation`: mirrored left-right and/or top-bottom first, then 0/90/180/270 deg clockwise)
+  is applied as ffmpeg filters while the still is encoded - the RTSP grab and the keyframe decode alike - so a turned
+  picture costs no second JPEG generation (`orientation.ts`). Each still stores the orientation it was taken with in
+  `media.orientation`; null (rows from before) means as delivered.
+- The app stamps the capture instant on the camera page and on Start's picture (`StillStamp`), in the account's
+  zone. A camera paired before PR #132 still burns in its own local time, which may disagree with it: the account's
+  zone (Me > Appearance) is the one to trust. The stamp is the picture's time there: the caption beside it says only
+  what makes the picture not the newest ("Licht aus · Bild von …", "letztes Bild von …"), never a plain "Bild von
+  18:17" or "Canopy cam · 18:17" a second time (Chris, 2026-11-26). It keeps to the picture's own corner where the
+  picture is fitted whole between bands (`useStillRatio`, the frame a size container), and wraps the time under the
+  date on a picture too narrow for one line. Start's card shows a portrait picture whole between bands rather than
+  cut to its middle (Chris, 2026-11-26).
 - Thinning, once a day after the films: older than 1 day one per minute, 7 days one per 5 min, 30 days one per 15 min,
   90 days one per hour (`THINNING_TIERS`, `still-thinning.ts`). Stills the previous release still holds rows for are
   left alone until the release that drops `legacy_*`. Stills go after 3 years; cameras without Premium only earlier
   where the install switches that on.
+- **A still a diary holds on to outlives all of that**: thinning and both sweeps spare every still a diary line
+  names in `mediaIds` (the grow page makes a line of a day's picture) and every grow's `coverMediaId`
+  (`MediaService.heldByDiaries`, read once per pass and only when a sweep has something to remove). A day's own
+  picture needs no sparing from thinning - an hour's spacing always leaves a lit still near midday - but the sweeps
+  take it with the rest, so a day older than a camera's retention has no picture.
 
 ## Timelapses (`timelapse.service.ts`)
 - The builder runs 60 s after start, then an hour after its previous pass ends: queued renders first (also woken
@@ -191,15 +271,42 @@ way and what the code has to respect. Internal notes on the camera exist.
   2026-09-23) exists only on the hotfix branch `patch-2026-09-23`, not in this builder.
 - The open period is rebuilt only after 1 h (day), 4 h (week) or 12 h (month) of new stills past the film's end, a
   closed one once. Frames at least 2, 14 or 60 min apart, 25 fps; fewer than 13 frames make no film. ffmpeg
-  `-threads 1`, libx265; SD is 1280 wide, HD as captured; cameras without Premium get SD and a mark.
+  `-threads 1`, libx265; SD bounds the longer edge at 1280 (a portrait camera's film is 720x1280, not upscaled), HD as
+  captured; cameras without Premium get SD and a mark.
 - Rebuilding loses frames once thinning has run (a day older than 7 days: ~288 frames instead of ~720), so deleting
   films to regenerate them is not free.
-- A rolling film takes the size of its first frame and ffmpeg scales every later one to it, so a film across a change
-  of the camera's resolution (640x360 stills from before PR #120, a stream switched) comes out at the older size; a
-  composed film is drawn at the size it was asked for (PR #91).
+- ffmpeg stretches every frame of a film to the size of its first. A rolling film copies stills as stored, so when its
+  frames differ in size (a camera turned, a resolution change) each is fitted - letterboxed - into the newest frame's
+  size instead (PR #132). A composed film is drawn at the size it was asked for and needs no fit (PR #91).
 - The composer (`POST /v1/cameras/{id}/timelapses`) queues a render and answers 202 (200 when that film exists);
   overlays and the mark are SVG composited with sharp, because ffmpeg's text filter needs fonts and freetype. A film
-  of a span still running ends at its last frame, so the hourly pass carries it on and a later tap films the rest.
+  of a span still running ends at its last frame, so the hourly pass carries it on and a later tap films the rest:
+  where today's film stops more than 10 minutes short of the camera's newest still (the server's own
+  `STILL_FRESH_FILM_MS`), the camera page offers "Rest ab 08:55 filmen" under its buttons (`filmReachesTo`), which
+  asks for the same day again.
+  The climate overlay draws its curves and cursor below its row of readings (`timelapse-overlays.ts`), so a spike
+  does not run through a figure. Type, plates and margins are sized by the frame's short side, so a portrait
+  (9:16) film reads as a landscape one does; a frame's caption is the diary line nearest it within half an hour
+  (`captionAt`; the first in that hour hid a line written ten minutes after another), and over the climate box it
+  widens past the box as far as its words need, up to the frame's margins, and is cut only there. Its width is
+  reckoned from Inter's own advance widths (`ADVANCES`, read from the face's `hmtx`; an unmeasured character
+  counts as a wide letter, a CJK one as a whole size): guessed at 0.55 of the size a letter, the "…" came a fifth
+  before the bar's end. A film's day badge counts the grow's day as every screen and the share card do - from its
+  origin, the earliest of its start and its phases (`growOriginOf`), on the owner's calendar (`growDayAt` in the
+  owner's zone) - and draws none before it (the eleventh whole-app walk found a film reading "Tag 1" where the screens
+  said 31). The curve runs by time from the first reading
+  to the last, so it fills its box, and breaks where readings stop for longer than two windows or `VALUE_AGE`'s
+  stale limit, as Verlauf breaks at a gap (`curveStrokes`; the third whole-app walk found a 9:16 caption cut at
+  62 % of the frame, a 16:9 curve in the middle of its box and a 7-hour gap bridged by a line).
+- **A film whose every frame in the span was taken in the dark is refused at the request** (the redesign session
+  of 2026-11-14): 422 `all_dark`, decided by the render's own frame choice (`framesFor`, `whyNoFilm`), so nothing
+  is queued that would fail later; asked with the lights-off frames it is made. **A span with fewer than 13
+  frames is refused the same way** (422 `too_few_pictures`, lights-off frames or not): a day film asked for early
+  was said to be on its way and failed 8 ms later. The camera page says either reason under its buttons, in the
+  warning's colour and in the app's own words, naming where the dark pictures are chosen ("Eigenen Zeitraffer
+  zusammenstellen" › "Bilder aus der Dunkelphase"). The button is still offered: no
+  route says beforehand whether a span is dark. While a film plays on a desktop it is as wide as the still beside
+  it.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
 
 ## Health, diary, app
@@ -208,15 +315,47 @@ way and what the code has to respect. Internal notes on the camera exist.
   all count by it; only the alarm adds a floor of 600 s.
 - `camera_stale` (`alarm-health.service.ts`): one warning when a camera is quiet for max(interval x 10, 600 s); not
   judged without a first still, with `staleWarning` off (opt-out), `nightOff`, in maintenance with `maintenanceOff`,
-  or while the device is offline; not raised under `workmode: off`. The alert's value is the quiet span in seconds.
+  or while the device is offline; not raised under `workmode: off`. A Terp Cam is asked through its controller, so
+  after an outage its silence counts from the controller's return - when its offline alert ended
+  (`AlertService.backOnlineAt`) - not from the last still before the outage: the first pass after every reconnect
+  had raised "Terp Cam ohne Bild" before a picture could arrive. The alert's value is the quiet span in seconds.
 - A failed scheduled read writes `message-rtsp-stream-error` to the diary only with `logErrors` on (default off).
   Firmware older than the relay logs `message-cam-capture:*` and `message-aux-command-failed:cam_capture`: the
   ingest drops `...:ok` always and the failures unless `logErrors` is on (`device-ingest.service.ts`).
+- The orientation row of the settings sheet (`Orientation.tsx`, `turning.ts`) previews the newest still turned by
+  the difference between the draft and the still's own `orientation`, not by the whole setting, so it stays right
+  between a save and the next still. lucide's `FlipHorizontal2` is the icon with a horizontal centre line, which
+  reads as a top-bottom mirror: the editor uses the explicit `TrianglesCenterlineDashed*` names.
 - The app names a stored error with the contract's `captureFailureOf`, as the server names a failed test; the raw text
   is owner-only, it can name the tunnel's address. A failed film stores one of the `RENDER_FAILURE_TEXT` sentences
   (`capture.ts`) and the app names it by the whole sentence (`renderFailureOf`): reworded, films that failed before
-  show `unknown`. The day view reads frames in pages of 200 up to 15 pages and refetches every 30 s from its newest
-  picture only (`webapp/src/api/cameras.ts`).
+  show `unknown`. The camera page reads no day of stills: its days come from the grow's diary
+  (`GET /v1/grows/{id}/diary`, the lit still nearest midday per day), today's picture from the place's overview,
+  else the camera's newest still (`webapp/src/screens/camera/days.ts`, `webapp/src/api/cameras.ts`). A public
+  grow's card (a profile, the diaries somebody follows) without a cover of its own is drawn over the newest still
+  taken in the light by a camera where the grow stands, since it came there (`growsMoved`, `coveredBy` in
+  `grow-moved.ts`): the card said "Bild vor 3 Std" beside a leaf.
+- The camera page's day and the diary it leads to share `?day=`, the grow's day number, not a date
+  (`dayNamed`, `webapp/src/screens/grow/diary/read-back.ts`).
+- A film asked for is read by `GET /v1/media/{id}` while it renders (`useMedia`); the page needs no second read
+  of the film list to follow it.
+- Tunnel, carrier and transport are written by the settings sheet's Save in one `PATCH /v1/cameras/{id}`, with
+  whatever else was changed. UDP does not pass through a tunnel, so turning the tunnel on for a stream read over
+  UDP sends `transport: null` (`webapp/src/screens/camera/CameraSettings.tsx`).
+- Adding a stream camera (`webapp/src/screens/camera/add/RtspCamera.tsx`; the redesign session of 2026-11-13):
+  "Test" never adds. It asks `POST /v1/cameras/test-captures` (Chris, 2026-11-14: a route of its own that makes no
+  camera; before, the form made a silent camera for the test and removed it, a tombstone row per press), which
+  drafts the camera as a create would store it (`CamerasService.draft`) and reads it as a camera's test does
+  (`CameraPollerService.readUnstored`: offline device refused at once, the same budget), stores nothing and hands
+  the picture back in the answer, at most 720 pixels wide (`TestCapturesService.startStream`). Only the account that
+  started a test asks after it; a press with the same stream while one runs joins it; ten starts a minute per
+  client. A failed test's details - and a capture's last error, and its diary line - name the address the person
+  typed, its login as `<credentials>`, never the tunnel's own local port, and carry no ffmpeg memory addresses
+  (`saidOfStream`, `modules/v1/camera/stream-url.ts`; the third whole-app walk found `rtsp://127.0.0.1:32967/…`
+  under an address typed with `:8554`). The name field's placeholder is an example that trails off ("Zeltkamera,
+  Seitenkamera …"), never a word that reads as a value. "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
+  with the form for one, instead of the pairing guide (`AddCamera.tsx`); pairing is offered only at devices in
+  places the reader manages.
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong
@@ -230,9 +369,10 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Limits and failure modes
 - Firmware older than PR #124 ignores the relay `url` and gets no stills; the cloud no longer sends `cam_capture`.
-  Refusal holds, test captures and reads in flight live in server memory; a restart clears them.
-- Supported are cameras that answer the LAN search and send H.264 on the main stream; one with another P2P scheme
-  (seen with H.265 cameras on newer camera firmware) never delivers - supporting it is a change of its own.
+  Refusal holds, test captures, tests of an address and reads in flight live in server memory; a restart clears them.
+- The relay supports cameras that answer the LAN search and send H.264 on the main stream; the H.265 cameras with
+  another P2P scheme are read off their own stream instead (above). A camera of that kind paired before the stream
+  path existed still reports `webcam_rtsp=off` and has to be paired again.
 - "capture attempt N failed (camera did not accept the session ...); retrying on a fresh session" is mostly noise
   (about one capture in nine on dev; the retry worked, no still was lost).
 - "the controller did not open the relay in time" can mean the device is online but cannot find its camera

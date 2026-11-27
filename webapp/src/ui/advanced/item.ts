@@ -1,22 +1,15 @@
 import type { ComponentType } from 'react';
-import type { Camera, Device, SocketPage } from '@fg2/shared-types/v1';
+import type { Device, SocketPage } from '@fg2/shared-types/v1';
 
 /**
- * The items an Erweitert section offers, wherever one stands: per device in its
- * panel, per place at the foot of its cockpit, on the charts page and per
- * camera on its page.
- *
- * Erweitert is where what most growers never need goes - a work mode, a ramp, a
- * protocol - one collapsed section beside the thing it is about rather than one
- * expert switch for the whole app, which hid the everyday settings along with
- * the rare ones. A section with nothing to offer here is not drawn at all.
+ * The items Erweitert offers on a device's page: where what most growers never
+ * need goes. With nothing to offer it is not drawn at all.
  *
  * An item is one file anywhere under `src/` whose name ends in `.advanced.tsx`
  * and that exports `items`, built with `advancedItem`: the registry
  * (`registry.ts`) finds it at build time, so adding one touches no file but its
- * own (and the catalogues). Its help topics are named
- * `advanced.<name>` and live under `help.advanced` in both catalogues, so they
- * are not added to the app's list either.
+ * own (and the catalogues). Its help topics are named `advanced.<name>` and
+ * live under `help.advanced` in both catalogues.
  */
 
 /** What an item about one device is drawn with. */
@@ -34,56 +27,8 @@ export interface DeviceContext {
   sockets?: SocketPage;
 }
 
-/** What an item about one place is drawn with. */
-export interface PlaceContext {
-  spaceId: string;
-  /** Everything standing there. */
-  devices: Device[];
-  mayManage: boolean;
-}
-
-/** Which half of the cycle the VPD line keeps: both, or only the lit or only the dark one. */
-export const VPD_HALVES = ['all', 'day', 'night'] as const;
-export type VpdHalf = (typeof VPD_HALVES)[number];
-
-/** The fine settings of the charts page, which its items read and change; they travel in the page's address. */
-export interface ChartSettings {
-  /** The window each point summarises; null leaves it to the width of the window. */
-  stepSeconds: number | null;
-  vpdHalf: VpdHalf;
-  /** Whether a window that ends now follows it. */
-  live: boolean;
-}
-
-/** What an item on the charts page is drawn with. */
-export interface ChartsContext {
-  /** The grow charted, where one is. */
-  growId: string | null;
-  /** The place charted, where one is. */
-  spaceId: string | null;
-  settings: ChartSettings;
-  change: (over: Partial<ChartSettings>) => void;
-  /** The step the answer was drawn at, which a step asked for may have been widened to; null until one has arrived. */
-  answeredStep: number | null;
-  /** Whether a VPD line is drawn, which is the only time its half matters. */
-  vpdDrawn: boolean;
-  /** Whether the window ends now, which is the only kind that can follow it. */
-  endsNow: boolean;
-}
-
-/** What an item about one camera is drawn with, on its page. */
-export interface CameraContext {
-  camera: Camera;
-  /** Everything standing where the camera looks: the devices a stream can be pulled through. */
-  devices: Device[];
-  mayManage: boolean;
-}
-
 export interface AdvancedContexts {
   device: DeviceContext;
-  place: PlaceContext;
-  charts: ChartsContext;
-  camera: CameraContext;
 }
 
 export type AdvancedScope = keyof AdvancedContexts;

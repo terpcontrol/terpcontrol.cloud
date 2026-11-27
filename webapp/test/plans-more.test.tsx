@@ -1,27 +1,30 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
+import type { ReactNode } from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { Device, Plan, PlanReplace, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
-import { planLineOf } from '@/screens/cockpit/plan-line';
+import type { Told } from '@/log/log-context';
+import { planLineOf } from '@/screens/start/plan-line';
+import { ContinuePlan } from '@/screens/control/ContinuePlan';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { emptyDraft, newStep, type PlanDraft } from '@/screens/control/plan-edit';
 import { followsGermination, stepMeta } from '@/screens/control/plan-labels';
 import { READY_PLANS, readyDraft } from '@/screens/control/ready-plans';
-import { items as continueItems } from '@/screens/devices/advanced/ContinuePlan.advanced';
 import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
-import { translate } from './translations';
+import { Toast } from './toast';
+import { catalogue, translate } from './translations';
 
 /**
  * What came back of the old app's plans: light hours in a step, which is what
  * a photoperiod plan turns to flower with; the two ready-made plans a fridge
  * starts from; going on with a plan at a step of one's choosing; and the line
- * on the cockpit that says where a running plan stands.
+ * on Start that says where a running plan stands.
  */
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -32,6 +35,18 @@ const state = vi.hoisted(() => ({
   saved: [] as PlanReplace[],
   sent: [] as PlanTransition[],
   templates: { items: [] as unknown[], nextCursor: null },
+  grows: [] as unknown[],
+  diary: true,
+  lead: null as string | null,
+}));
+
+vi.mock('@/log/underneath', async importOriginal => ({ ...(await importOriginal<object>()), usePlaceGrow: () => state.lead }));
+
+vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
+
+vi.mock('@/api/grows', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useGrows: () => ({ data: { items: state.grows, nextCursor: null }, isPending: false }),
 }));
 
 vi.mock('@/api/devices', async importOriginal => ({
@@ -50,7 +65,14 @@ vi.mock('@/api/plans', async importOriginal => ({
     dataUpdatedAt: NOW.toMillis(),
     refetch: () => {},
   }),
-  usePlanTransition: () => ({ mutate: (body: PlanTransition) => state.sent.push(body), error: null, isPending: false, isSuccess: false }),
+  usePlanTransition: () => ({
+    mutate: (body: PlanTransition, options?: { onSuccess?: () => void }) => {
+      state.sent.push(body);
+      options?.onSuccess?.();
+    },
+    error: null,
+    isPending: false,
+  }),
   useStopPlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useRemovePlan: () => ({ mutate: () => {}, error: null, isPending: false }),
   useSavePlan: () => ({ mutate: (body: PlanReplace) => state.saved.push(body), error: null, isPending: false }),
@@ -116,12 +138,20 @@ const noPlan = new ApiError({ status: 404, code: 'plan_not_found', title: 'Not f
 
 beforeAll(() => translate());
 
+/** What the panel answered a move with. */
+let told: Told[] = [];
+const drawn = (node: ReactNode) => drawAt(<Toast told={told}>{node}</Toast>);
+
 beforeEach(() => {
+  told = [];
   state.plan = plan();
   state.planError = null;
   state.saved = [];
   state.sent = [];
   state.templates = { items: [], nextCursor: null };
+  state.grows = [];
+  state.diary = true;
+  state.lead = null;
 });
 
 describe('light hours in a step', () => {
@@ -156,7 +186,7 @@ describe('light hours in a step', () => {
     expect(followsGermination([germination, after], 1, false)).toBe(true);
     expect(followsGermination([germination, after], 0, false)).toBe(false);
     expect(followsGermination([after, germination], 0, true)).toBe(true);
-    expect(stepMeta(t, after, null, true)).toBe('No stage · 1 wk · ends germination');
+    expect(stepMeta(t, after, null, true)).toBe('No phase · 1 wk · ends germination');
 
     drawAt(
       <PlanEditor
@@ -166,9 +196,9 @@ describe('light hours in a step', () => {
         onClose={() => {}}
       />,
     );
-    expect(screen.getByText('No stage · 1 wk · ends germination')).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]);
-    expect(screen.getByText(/This step ends the germination before it/)).toBeInTheDocument();
+    expect(screen.getByText('No phase · 1 wk · ends germination')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: /^Edit / })[1]);
+    expect(screen.getByText(/This step only ends the germination before it/)).toBeInTheDocument();
     expect(screen.queryByText(/This step writes nothing/)).not.toBeInTheDocument();
   });
 
@@ -197,8 +227,25 @@ describe('light hours in a step', () => {
   it('are not saved outside a day, and the step says why', () => {
     drawAt(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 30 })} onClose={() => {}} />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 0 to 24 hours, or leave it empty.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: between 0 and 24 h, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
+    // Tied to the field and to Save, where the step saying it may be folded away.
+    expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toBeInvalid();
+    expect(screen.getByRole('button', { name: 'Save the plan' })).toHaveAccessibleDescription(
+      'Flower – Light on for: between 0 and 24 h, or leave it empty.',
+    );
+  });
+
+  it('ask before an Escape throws away what was changed, and close at once with nothing changed', () => {
+    const onClose = vi.fn();
+    drawAt(<PlanEditor device={device()} plan={null} draft={draft()} onClose={onClose} />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '12' } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Throw away what you changed in this plan?')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   describe('said as the window they make', () => {
@@ -262,7 +309,7 @@ describe('light hours in a step', () => {
     expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
     expect(screen.queryByText('Light limit')).not.toBeInTheDocument();
     expect(screen.getByText('Drying · temperature')).toBeInTheDocument();
-    expect(screen.getByText(/^A step into drying switches the device into its drying mode/)).toBeInTheDocument();
+    expect(screen.getByText(/^In drying the light stays off/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
     expect(state.saved[0].steps[0]).toMatchObject({ stage: 'drying', lightHours: null, settings: { night: { temperature: 22, humidity: 58 } } });
@@ -287,9 +334,7 @@ describe('light hours in a step', () => {
     expect(screen.getByText('Germination · temperature')).toBeInTheDocument();
     expect(screen.getByText('Germination · humidity')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /^A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity/,
-      ),
+      screen.getByText(/^In germination it is dark and the device holds this temperature round the clock; a humidifier holds the humidity/),
     ).toBeInTheDocument();
 
     // The humidity the step carried for a leafy plant was a dehumidifier's line; germination brings its own 75 %.
@@ -387,7 +432,7 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const fridge = device();
-    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose a ready-made plan' }));
     const sheet = screen.getByRole('dialog', { name: 'Start from a template' });
@@ -402,15 +447,20 @@ describe('the two ready-made plans', () => {
   it('say before a plan is started which stage it puts the grow into', () => {
     state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
     const fridge = device();
-    const view = drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
-
+    // Where no grow stands, starting puts none into a stage, and says nothing of one.
+    const bare = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
-    expect(screen.getByText(/^Starting puts a grow standing here into Veg,/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
+    bare.unmount();
+
+    state.grows = [{ id: 'grow-1', endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } }];
+    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.getByText('Starting puts a grow here into Veg.')).toBeInTheDocument();
 
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
     view.unmount();
     state.plan = plan({}, { status: 'paused' });
-    drawAt(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
   });
 
@@ -418,23 +468,67 @@ describe('the two ready-made plans', () => {
     state.plan = null;
     state.planError = noPlan;
     const tent = device('controller');
-    drawAt(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
+    drawn(<PlanPanel device={tent} mayManage landing={climateLanding(tent)} />);
 
     expect(screen.queryByRole('button', { name: 'Choose a ready-made plan' })).not.toBeInTheDocument();
+  });
+
+  /** Nothing is explained over the buttons: what a plan is stands behind the (i) beside the sentence that there is none. */
+  it('leave a device without a plan one sentence and its buttons, with what a plan is behind the help', () => {
+    state.plan = null;
+    state.planError = noPlan;
+    const fridge = device();
+    const { container } = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+
+    expect(container.querySelectorAll('p')).toHaveLength(1);
+    expect(screen.getByText('No plan yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Grow plan' })).toHaveAccessibleDescription(/Saving a plan does not start it,/);
+  });
+});
+
+describe('a plan in a place with two grows', () => {
+  it('names the grow whose phases its steps set, and nothing where one grow stands', () => {
+    const fridge = device();
+    const standing = (id: string, name: string) => ({ id, name, endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } });
+    state.plan = plan({ growId: 'grow-1' });
+    state.grows = [standing('grow-1', 'First grow'), standing('grow-2', 'Second grow')];
+    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.getByText('The plan moves First grow into the phases of its steps.')).toBeInTheDocument();
+    view.unmount();
+
+    state.grows = [standing('grow-1', 'First grow')];
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.queryByText(/into the phases of its steps/)).not.toBeInTheDocument();
+  });
+
+  /** Before the tap it names the grow it will move - the place's lead, as every page leads with it - and starts for it. */
+  it('names the grow a start moves, the place´s lead, and starts the plan for it', () => {
+    const fridge = device();
+    const standing = (id: string, name: string) => ({ id, name, endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } });
+    state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
+    state.grows = [standing('grow-2', 'Seedlings'), standing('grow-1', 'First grow')];
+    state.lead = 'grow-1';
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+
+    expect(screen.getByText('Starting puts First grow into Veg.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start the plan' }));
+    expect(state.sent).toEqual([{ kind: 'resume', growId: 'grow-1' }]);
   });
 });
 
 describe('going on with a plan at a step', () => {
-  const ContinuePlan = continueItems[0].Item;
+  /** It stands under the steps it chooses among, for whoever may move the plan - and not where a climate could not land. */
+  it('is offered under the plan to whoever may change it, and to nobody else', () => {
+    const { unmount } = drawn(<PlanPanel device={device()} mayManage landing="document" />);
+    expect(screen.getByRole('combobox', { name: 'Step' })).toBeInTheDocument();
+    unmount();
 
-  it('is offered to whoever may change a fridge or a controller', () => {
-    expect(continueItems[0].shows({ device: device(), mayManage: true, offline: false })).toBe(true);
-    expect(continueItems[0].shows({ device: device(), mayManage: false, offline: false })).toBe(false);
-    expect(continueItems[0].shows({ device: device('light'), mayManage: true, offline: false })).toBe(false);
+    drawn(<PlanPanel device={device()} mayManage={false} landing="document" />);
+    expect(screen.queryByRole('combobox', { name: 'Step' })).not.toBeInTheDocument();
   });
 
   it('asks before it sends, says the step starts over, and sends the step by its id', () => {
-    drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
+    drawn(<ContinuePlan device={device()} />);
 
     const which = screen.getByRole('combobox', { name: 'Step' });
     // The step after the one the plan stands on is the one offered first.
@@ -442,28 +536,80 @@ describe('going on with a plan at a step', () => {
     fireEvent.change(which, { target: { value: 'step-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
 
-    expect(screen.getByRole('alertdialog')).toHaveTextContent('“Photoperiod” carries on at 1 · Veg. The step starts from the beginning');
+    const question = screen.getByText(/^“Photoperiod” carries on at 1 · Veg\. The step starts from the beginning/);
+    // Asked as every move of a plan is, and read first: the question takes the focus.
+    expect(question).toHaveFocus();
     expect(state.sent).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Continue at step 1' }));
 
     expect(state.sent).toEqual([{ kind: 'goto', stepId: 'step-1' }]);
+    // Answered by the toast, which names the step: the question is gone, and no line of its own stays under the plan.
+    expect(told.map(one => one.label)).toEqual(['The plan is now running at step 1, Veg']);
+    expect(question).not.toBeInTheDocument();
+  });
+
+  it('promises values only for a step that writes some', () => {
+    state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Flower', stage: 'flowering', settings: {}, lightHours: null })] });
+    drawn(<ContinuePlan device={device()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Flower/)).toHaveTextContent(/This step writes nothing: the device keeps what it has\.$/);
+    expect(screen.queryByText(/its values reach the device/)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Step' }), { target: { value: 'step-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 1 · Veg/)).toHaveTextContent(/Its values reach the device within a minute\.$/);
+  });
+
+  /** A step of nothing but a phase over a germination ends it as "Keimung beenden" does, and says on what. */
+  it('names the climate a step that only ends the germination ends it on', () => {
+    state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Seedling', stage: 'seedling', settings: {}, lightHours: null })] });
+    const germinating = (endsOn: { stage: 'seedling'; preset: null } | null) => {
+      const one = device('controller');
+      return { ...one, control: { ...one.control!, mode: 'germination' as const, endsOn } };
+    };
+    const view = drawn(<ContinuePlan device={germinating({ stage: 'seedling', preset: null })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Seedling/)).toHaveTextContent(
+      /This step only ends the germination\. After that the climate Seedling · with light holds with its targets, and the alarms follow it\.$/,
+    );
+    view.unmount();
+
+    drawn(<ContinuePlan device={germinating(null)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Seedling/)).toHaveTextContent(
+      /This step only ends the germination\. After that the targets from before hold again\./,
+    );
   });
 
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;
-    const { container } = drawAt(<ContinuePlan device={device()} mayManage offline={false} />);
+    const { container } = drawn(<ContinuePlan device={device()} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 });
 
-describe('the cockpit´s line for a running plan', () => {
+describe('Start´s line for a running plan', () => {
   it('says the step, how long it has left and what follows', () => {
     expect(planLineOf(t, plan(), NOW)).toBe('Veg, 10 days to go, then Flower');
     expect(planLineOf(t, plan({}, { activeStepIndex: 1, stepStartedAt: NOW.minus({ days: 42 }).plus({ hours: 5 }).toISO()! }), NOW)).toBe(
-      'Flower, 5 hours to go, then the plan is done',
+      'Flower, 5 h to go, then the plan is done',
     );
+  });
+
+  it('counts a step´s last hour in minutes, and a step of a few minutes never as an hour', () => {
+    const short = plan(
+      { steps: [step({ duration: { value: 40, unit: 'minutes' } }), step({ id: 'step-2', name: 'Flower' })] },
+      { stepStartedAt: NOW.minus({ minutes: 10 }).toISO()! },
+    );
+    expect(planLineOf(t, short, NOW)).toBe('Veg, 30 min to go, then Flower');
+    const ending = plan(
+      { steps: [step({ duration: { value: 1, unit: 'hours' } }), step({ id: 'step-2', name: 'Flower' })] },
+      { stepStartedAt: NOW.minus({ minutes: 59, seconds: 30 }).toISO()! },
+    );
+    expect(planLineOf(t, ending, NOW)).toBe('Veg, 1 min to go, then Flower');
   });
 
   it('says a step that waits is waiting, and one with no length runs until it is moved on', () => {
@@ -476,8 +622,49 @@ describe('the cockpit´s line for a running plan', () => {
     expect(planLineOf(t, open, NOW)).toBe('Veg, until you move it on');
   });
 
+  /** A step named by its number is said in the reader's language, as Steuerung says it: never "Schritt 2" in English. */
+  it('names a step that has no name of its own by its number, in the reader´s language', async () => {
+    // What `usePlanWords` fetches once a plan says something the session's own catalogue does not know.
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    try {
+      const numbered = plan({ steps: [step({ name: 'Schritt 1' }), step({ id: 'step-2', name: '' })] });
+      expect(planLineOf(t, numbered, NOW)).toBe('Step 1, 10 days to go, then Step 2');
+    } finally {
+      i18next.removeResourceBundle('de', 'translation');
+    }
+  });
+
   it('says a paused plan stands still, and nothing about one put away', () => {
     expect(planLineOf(t, plan({}, { status: 'paused' }), NOW)).toMatch(/, paused – resume under Control$/);
     expect(planLineOf(t, plan({}, { status: 'stopped' }), NOW)).toBeNull();
+  });
+});
+
+describe('the plan editor in an account without the diary', () => {
+  // A plan of one step opens on it.
+  const open = () =>
+    drawAt(
+      <PlanEditor
+        device={device()}
+        plan={null}
+        draft={{ ...emptyDraft('A plan', { mode: 'off', email: null, writeEntries: true }), steps: [newStep('Veg')] }}
+        onClose={() => {}}
+      />,
+    );
+
+  it('offers no diary to write in and no grow the step puts into its phase', () => {
+    state.diary = false;
+    open();
+
+    expect(screen.getByRole('button', { name: 'Edit Veg', expanded: true })).toBeInTheDocument();
+    expect(screen.queryByText('Write it in the diary')).not.toBeInTheDocument();
+    expect(screen.queryByText(/puts the grow here/)).not.toBeInTheDocument();
+  });
+
+  it('offers both where the diary is kept', () => {
+    open();
+
+    expect(screen.getByText('Write it in the diary')).toBeInTheDocument();
+    expect(screen.getByText(/puts the grow here into this phase/)).toBeInTheDocument();
   });
 });

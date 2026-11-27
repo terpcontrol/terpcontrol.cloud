@@ -5,12 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
 import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
-import { fetchedAt } from '@/api/clock';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSession } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { useReportFreshness } from '@/ui/freshness';
+import { together } from '@/api/read';
 import { RefreshFailed } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import { AdminHead, AdminNotLoaded, Liveness } from './parts';
@@ -20,7 +19,7 @@ import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type Fle
 import { HealthCard } from './HealthCard';
 import { NoMatch } from './NoMatch';
 import { RolloutCard } from './RolloutCard';
-import { typeName } from '@/ui/naming';
+import { givenName, typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
 /**
@@ -68,13 +67,12 @@ export function Fleet() {
   useFollowCursor(people);
   useFollowCursor(cameras);
   useFollowCursor(firmwares);
-  useReportFreshness(fleet.dataUpdatedAt ? fetchedAt(fleet.dataUpdatedAt) : null);
 
   const header = <AdminHead title={t('admin.fleet.title')} />;
 
   if (fleet.isPending || devices.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!fleet.data || !devices.data) return <AdminNotLoaded head={header} retry={() => void fleet.refetch()} />;
+  if (!fleet.data || !devices.data) return <AdminNotLoaded head={header} read={together(fleet, devices)} />;
 
   const known: Map<string, User> = new Map(itemsOf(people.data).map(one => [one.id, one]));
   const allDevices = itemsOf(devices.data);
@@ -93,11 +91,9 @@ export function Fleet() {
   const online = fleet.data.classes.reduce((total, one) => total + one.online, 0);
 
   return (
-    <section className={styles.page}>
-      <AdminHead title={t('admin.fleet.title')}>
-        <span className={`mono ${styles.counts}`}>
-          {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
-        </span>
+    <section className={ui.stack4}>
+      <AdminHead title={t('admin.fleet.title')} readAt={fleet.dataUpdatedAt}>
+        <span className={styles.counts}>{`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}</span>
         <Filters filter={filter} onChange={setFilter} types={typesOf(rows)} />
       </AdminHead>
 
@@ -139,8 +135,8 @@ export function Fleet() {
       {/* The total under the table is the install's device count, said as
           that, because the rows above it also hold the standalone cameras and
           no route counts those on their own. */}
-      <div className={styles.row}>
-        <span className={`mono ${styles.consequence}`}>
+      <div className={ui.wrapRow}>
+        <span className={styles.consequence}>
           {t('admin.fleet.showing', { shown: shown.length, loaded: rows.length, devices: t('admin.count.devices', { count: counted }) })}
           {` · ${t('admin.fleet.camerasOwn')}`}
           {cameras.hasNextPage ? ` · ${t('admin.fleet.camerasPartial')}` : ''}
@@ -173,9 +169,9 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
   const { t } = useTranslation();
 
   return (
-    <div className={styles.chips}>
+    <div className={`${ui.wrapRow} ${styles.filters}`}>
       <select
-        className={`${ui.chip} ${styles.menu}`}
+        className={`${ui.chip} ${ui.menu}`}
         aria-label={t('admin.fleet.filter.type')}
         value={filter.type ?? ''}
         onChange={event => onChange({ ...filter, type: event.target.value || null })}
@@ -197,7 +193,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
       </Choice>
 
       <input
-        className={`mono ${ui.input} ${styles.search}`}
+        className={`${ui.input} ${styles.search}`}
         type="search"
         autoComplete="off"
         aria-label={t('admin.fleet.filter.search')}
@@ -224,10 +220,13 @@ function Row({ row, now }: { row: FleetRow; now: DateTime }) {
         {row.serialNumber !== null ? (
           <span className={`mono ${styles.rowName}`}> · {t('admin.fleet.serial', { serial: row.serialNumber })}</span>
         ) : null}
-        {row.name ? <span className={styles.rowName}> · {row.name}</span> : null}
+        {/* A claim stores the type where nobody gave a name, and a key is no name: the type column says it in words. */}
+        {givenName(row) ? <span className={styles.rowName}> · {givenName(row)}</span> : null}
       </td>
       <td>{typeLabel(row.type, t)}</td>
-      <td>{row.ownerHandle ? `@${row.ownerHandle}` : row.ownerId ? <span className="mono">{row.ownerId}</span> : t('admin.fleet.unclaimed')}</td>
+      <td className={styles.owner}>
+        {row.ownerHandle ? `@${row.ownerHandle}` : row.ownerId ? <span className="mono">{row.ownerId}</span> : t('admin.fleet.unclaimed')}
+      </td>
       {/* A build is a uuid and is never compared with another, so it is drawn
           as the opaque fact it is - under the name it was registered with where
           this install has one. */}

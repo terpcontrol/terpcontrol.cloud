@@ -66,6 +66,17 @@ const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 const EXPOSED_HEADERS = ['Date'];
 
 /**
+ * How long a browser may keep a preflight's answer, in seconds. Every call the
+ * webapp makes carries a bearer token, so every one is preflighted, and without
+ * this Chrome keeps the answer five seconds: an app opened cold asks twice for
+ * everything, and on a phone that is a round trip more before the session and
+ * again before the home. Chrome caps it at two hours, Firefox at a day. What
+ * the answer allows is the list above and whatever headers were asked for, so
+ * keeping it for a day costs nothing until a release adds a verb.
+ */
+const PREFLIGHT_MAX_AGE_S = 24 * 60 * 60;
+
+/**
  * What is worth compressing: the plugin's own default pattern with
  * `octet-stream` removed from the end of it.
  *
@@ -161,7 +172,7 @@ const bootstrap = async (): Promise<void> => {
   // shown whether the result still fits in its document.
   await app.register(fastifyMultipart, { attachFieldsToBody: 'keyValues', limits: { fileSize: MAX_UPLOAD_BYTES } });
   await app.register(fastifyCookie);
-  await app.register(fastifyCors, { methods: ALLOWED_METHODS, exposedHeaders: EXPOSED_HEADERS });
+  await app.register(fastifyCors, { methods: ALLOWED_METHODS, exposedHeaders: EXPOSED_HEADERS, maxAge: PREFLIGHT_MAX_AGE_S });
   await app.register(fastifyHelmet, {
     // Pictures are loaded straight into <img> tags on the webapp's origin, so
     // they must stay readable across origins.

@@ -5,7 +5,7 @@
 /* The desktop's frame is the navy of the site's dark sections, in both modes:
    dark around a light page, as the site's hero and footer stand round its
    content. The rail takes the inks that read on navy under the names its
-   items already use, and shows the logo reversed. */
+   items already use - the place chip's too - and shows the logo reversed. */
 @media (min-width: 900px) {
   .rail {
     --ink: var(--navy-ink);
@@ -13,7 +13,6 @@
     --label: var(--navy-label);
     --logo-colour: none;
     --logo-reverse: block;
-    --logo-height: 42px;
 
     display: block;
     flex-shrink: 0;
@@ -21,6 +20,11 @@
     background: var(--navy-end);
     border-right: var(--rule-width) solid var(--navy-rule);
     color: var(--ink);
+  }
+
+  /* The focus ring in the rail's own ink: the brand blue is the navy's own top stop and could not be seen on it. */
+  .rail :focus-visible {
+    outline-color: var(--navy-ink);
   }
 
   /* The navy runs the page's whole height, and what is on it stays with the
@@ -33,60 +37,71 @@
     flex-direction: column;
     gap: var(--space-1);
     height: 100vh;
-    padding: var(--space-6) var(--space-4) var(--space-5) var(--space-4);
+    padding: var(--space-5) var(--space-4);
     background: var(--navy);
   }
 
-  .identity {
-    padding: 0 var(--space-2) var(--space-5);
-  }
-
   .wordmark {
-    margin-bottom: var(--space-2);
+    --logo-height: 40px;
+
+    padding: 0 var(--space-2) var(--space-5);
+    line-height: 0;
   }
 
-  .freshness {
-    min-height: calc(var(--text-xs) * var(--line-body));
-    font-size: var(--text-xs);
-    color: var(--muted);
-  }
-
-  .log {
+  /* Grow, Verlauf and Steuerung. With one place they stand in the row of the
+     items; from the second place on the chosen place heads them inside one
+     box, a hairline on a breath of white, so the name reads as what these
+     three are about. */
+  .about {
     display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    width: 100%;
-    border: 0;
-    height: var(--control-height);
-    margin-bottom: var(--space-4);
-    padding: 0 var(--space-3) 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--green-fill);
-    color: var(--on-green);
-    font-weight: var(--weight-bold);
-    box-shadow: var(--shadow);
+    flex-direction: column;
+    gap: var(--space-1);
   }
 
-  .logCaption {
-    flex: 1;
+  .about:empty {
+    display: none;
   }
 
-  .key {
-    padding: 1px var(--space-2);
-    border: var(--rule-width) solid currentColor;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-xs);
+  .about:has(> [data-place-chip]) {
+    margin: var(--space-2) 0;
+    padding: var(--space-2);
+    background: var(--navy-group);
+    border: var(--rule-width) solid var(--navy-rule);
+    border-radius: var(--radius);
+  }
+
+  /* The place chip on the navy: a pane of white with an edge that has to be found. */
+  .about > [data-place-chip] {
+    justify-content: space-between;
+    margin-bottom: var(--space-1);
+    background: var(--navy-hover);
+    border-color: var(--navy-edge);
+  }
+
+  .about > [data-place-chip]:hover {
+    border-color: var(--navy-ink);
   }
 
   .item {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: 42px;
-    padding: var(--space-2) var(--space-3);
+    min-height: var(--control-height);
+    padding: 0 var(--space-3);
     border-radius: var(--radius-sm);
     color: var(--muted);
+    font-size: var(--text-md);
     font-weight: var(--weight-medium);
+  }
+
+  /* An item that opens something over the page instead of leading to one. */
+  .button {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
   }
 
   .item:hover {
@@ -98,97 +113,58 @@
      a dark ground. */
   .active,
   .active:hover {
-    color: var(--ink);
     background: var(--navy-active);
-    font-weight: var(--weight-semibold);
+    color: var(--ink);
+    font-weight: var(--weight-heading);
   }
 
   .active svg {
     color: var(--navy-green);
   }
 
-  /* The label ink is measured against the rail, not the lighter pane; on the
-     pane the quieter line takes the muted ink instead. */
-  .active .accountNote {
-    color: var(--muted);
+  .log {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--control-height);
+    margin-top: var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--green-fill);
+    color: var(--on-green);
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    box-shadow: var(--shadow);
   }
 
   .spacer {
     flex: 1;
   }
 
-  /* The admin section, at the foot of the rail above the account: its own
-     group under a small-caps label, because it is not one of the app's places
-     but the install's. */
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    margin-bottom: var(--space-2);
+  .grow {
+    flex: 1;
   }
 
-  .sectionLabel {
-    padding: var(--space-2) var(--space-2) var(--space-1);
-  }
-
-  /* The open count, at the end of the Alerts row. */
-  .badge {
+  /* The open count, at the end of the Meldungen row: the alarm's crimson under white in both modes, as the yes to a
+     step that cannot be taken back is - the dark mode's alarm ink as a fill was a pink badge. */
+  .count {
     display: inline-grid;
     place-items: center;
-    min-width: 18px;
-    height: 18px;
-    margin-left: auto;
-    padding: 0 var(--space-1);
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
     border-radius: var(--radius-pill);
-    background: var(--alarm);
-    color: var(--on-signal);
+    background: var(--alarm-fill);
+    color: var(--on-alarm);
     font-size: var(--text-xs);
-    font-weight: var(--weight-bold);
+    font-weight: var(--weight-medium);
     line-height: 1;
   }
 
-  .avatar {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+  /* Only work that is due, no alarm: counted all the same, on a pane of white rather than in the alarm's red. */
+  .count[data-kind='tasks'] {
     background: var(--navy-active);
-    font-size: var(--text-xs);
-    font-weight: var(--weight-bold);
     color: var(--ink);
   }
-
-  .account {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 0;
-    line-height: var(--line-tight);
-  }
-
-  .handle {
-    overflow: hidden;
-    color: var(--ink);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* A sentence about the person, not a label: it stays in the text face, on
-     one line like every other item's - the item carries no chevron, as no
-     other rail item does, so the line has the room it needs in German too.
-     Cut rather than wrapped should a longer language ever overrun it. */
-  .accountNote {
-    overflow: hidden;
-    font-size: var(--text-xs);
-    color: var(--label);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-/* Only work that is due, no alarm: counted all the same, in the brand's blue rather than the alarm's red. */
-.badge[data-kind='tasks'] {
-  background: var(--brand);
-  color: var(--card);
 }

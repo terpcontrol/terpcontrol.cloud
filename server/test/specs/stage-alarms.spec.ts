@@ -28,9 +28,9 @@ const aRule = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** A controller claimed into a space, or into a space of its own when none is named. */
-const claimAController = async (spaceId?: string): Promise<{ deviceId: string; spaceId: string }> => {
-  const device = await registerDevice('controller');
+/** A controller claimed into a space, or into a space of its own when none is named; a plug, where a tent already holds a climate. */
+const claimAController = async (spaceId?: string, type: 'controller' | 'plug' = 'controller'): Promise<{ deviceId: string; spaceId: string }> => {
+  const device = await registerDevice(type);
   const claimed = await owner.client
     .post('/v1/devices/claims')
     .send({ code: await claimCodeOf(device.deviceId), ...(spaceId ? { spaceId } : {}) })
@@ -49,7 +49,9 @@ const presetRulesOf = async (deviceId: string): Promise<Record<string, unknown>[
 const byName = (rules: Record<string, unknown>[]): Record<string, Record<string, unknown>> =>
   Object.fromEntries(rules.map(rule => [rule.name as string, rule]));
 
-const enterPhase = (stage: string, preset: string | null = null) => owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, preset }).expect(201);
+/** A phase entered with its climate, which is what moves the place's thresholds. */
+const enterPhase = (stage: string, preset: string | null = null) =>
+  owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, preset, climate: true }).expect(201);
 
 beforeAll(async () => {
   owner = await createAccount('stage-alarms-owner');
@@ -113,25 +115,56 @@ describe('the rules a stage writes', () => {
   });
 });
 
+/** A place has one climate, so what arrives in the tent beside its controller is a plug, which measures the same air. */
 describe('a device that arrives in a tent already in a stage', () => {
   it('takes the thresholds of that stage when claimed into the tent', async () => {
     await enterPhase('vegetative');
 
-    const { deviceId } = await claimAController(tent);
+    const { deviceId } = await claimAController(tent, 'plug');
 
     const rules = byName(await presetRulesOf(deviceId));
     expect(Object.keys(rules)).toHaveLength(4);
     expect(rules['Too hot']).toMatchObject({ watch: { upper: 31 }, presetId: 'vegetative' });
   });
 
-  it('takes them when moved into the tent, and keeps them when moved out', async () => {
-    const { deviceId, spaceId: shelf } = await claimAController();
+  /** No climate was written on the shelf: a fan claimed into a new place carried a flowering tent's 60 % into it. */
+  it('takes them when moved into the tent, and drops them when moved to a place where no climate was written', async () => {
+    const { deviceId, spaceId: shelf } = await claimAController(undefined, 'plug');
     expect(await presetRulesOf(deviceId)).toEqual([]);
 
     await owner.client.patch(`/v1/devices/${deviceId}`).send({ spaceId: tent }).expect(200);
     expect(byName(await presetRulesOf(deviceId))['Too cold']).toMatchObject({ watch: { lower: 18 }, presetId: 'vegetative' });
 
     await owner.client.patch(`/v1/devices/${deviceId}`).send({ spaceId: shelf }).expect(200);
-    expect(await presetRulesOf(deviceId)).toHaveLength(4);
+    expect(await presetRulesOf(deviceId)).toEqual([]);
+  });
+
+  it('keeps them where a stage is only recorded, which writes no climate', async () => {
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'flowering' }).expect(201);
+
+    expect(byName(await presetRulesOf(controller))['Too hot']).toMatchObject({ watch: { upper: 31 }, presetId: 'vegetative' });
+  });
+});
+
+describe('a preset taken back under Steuerung', () => {
+  it('answers the thresholds it moved, and its undo puts them back or takes them away', async () => {
+    const { deviceId } = await claimAController();
+    const document = { workmode: 'small', day: { temperature: 25, humidity: 60 }, night: { temperature: 20, humidity: 55 } };
+    const save = (body: Record<string, unknown>) =>
+      owner.client
+        .put(`/v1/devices/${deviceId}/configuration`)
+        .send({ configuration: document, ...body })
+        .expect(200);
+    const tooHumid = async () => (byName(await presetRulesOf(deviceId))['Too humid']?.watch as { upper?: number } | undefined)?.upper;
+
+    expect((await save({ preset: { stage: 'vegetative', preset: null } })).body.bandsBefore).toBeNull();
+    const flower = await save({ preset: { stage: 'flowering', preset: null } });
+    expect(flower.body.bandsBefore).toEqual({ stage: 'vegetative', preset: null });
+    expect(await tooHumid()).toBe(60);
+
+    await save({ bands: flower.body.bandsBefore });
+    expect(await tooHumid()).toBe(72);
+    await save({ bands: null });
+    expect(await presetRulesOf(deviceId)).toEqual([]);
   });
 });

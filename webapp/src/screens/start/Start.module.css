@@ -1,0 +1,1061 @@
+/* Start: one place's page, the cards of several, and what stands there before
+   anything does. A phone's column first, and the same one column beside the
+   rail until two fit: from 1100px a place is its figures, grow and camera left
+   and its cards right, and the cards of several places pair up. */
+
+.page {
+  width: 100%;
+  max-width: var(--column-width);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  min-height: var(--control-height);
+}
+
+/* A name is as wide as the screen at most: a word longer than its line breaks inside it, with a hyphen where the
+   browser knows one - and only such a word, so that an ordinary name is not cut up to fill its lines. */
+.head h1,
+.offerTitle,
+.placeName {
+  min-width: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
+}
+
+.head h1 {
+  flex: 1 1 auto;
+}
+
+/* On a phone the name and the menu share the first row, and the sentence and
+   the pill the second while the sentence fits beside the pill on one line; a
+   longer one takes the row and the pill goes under it, rather than the
+   sentence standing three lines deep in what the pill leaves it. */
+.headEnd {
+  display: contents;
+}
+
+.head > :is(a, h1) {
+  order: 0;
+}
+
+.head .menu {
+  flex: none;
+  order: 1;
+  margin-left: auto;
+}
+
+.head::after {
+  flex-basis: 100%;
+  order: 2;
+  content: '';
+}
+
+.head .statusFrame {
+  flex: 1 1 auto;
+  order: 3;
+}
+
+.headEnd > [data-liveness] {
+  flex: none;
+  order: 4;
+  margin-left: auto;
+}
+
+/* The pill's word explains itself: a finger's room round it, inside the row's own height. */
+.head [data-liveness] > button {
+  position: relative;
+}
+
+.head [data-liveness] > button::after {
+  content: '';
+  position: absolute;
+  inset: -13px -12px;
+}
+
+.columns,
+.column {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .page {
+    gap: var(--space-4);
+  }
+
+  /* On a desktop the sentence stands between the pill and the menu - and on a row
+     of its own under the name as soon as the name leaves it no room: the head
+     wraps before anything in it overlaps. */
+  .head {
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .head h1 {
+    flex: 0 1 auto;
+  }
+
+  .head::after {
+    content: none;
+  }
+
+  .headEnd > [data-liveness] {
+    order: 1;
+    margin-left: 0;
+  }
+
+  .head .statusFrame {
+    flex: 1 1 18rem;
+    order: 2;
+  }
+
+  .head .menu {
+    order: 3;
+  }
+}
+
+@media (min-width: 1100px) {
+  .page {
+    max-width: var(--page-width);
+  }
+
+  /* One column of cards - a diary kept by hand, a failure - keeps a phone's width. */
+  .page[data-single] {
+    max-width: var(--column-width);
+  }
+
+  .page:not([data-single]) > .columns {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .page:not([data-single]) .column:first-child {
+    flex: 1 1 0;
+  }
+
+  .page:not([data-single]) .column:last-child {
+    flex: none;
+    width: 360px;
+  }
+
+  /* A column with nothing in it - a place read by support with nothing written and nothing standing there - gives
+     its room back. */
+  .page:not([data-single]) .column:last-child:empty {
+    display: none;
+  }
+}
+
+/* --- whose place it is, for somebody let into it --- */
+
+.guest > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.role {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* Whose place it is, on one line: the room and the owner each in a box of
+   their own that is cut where the line ends - the shorter one whole, since
+   the tracks share the line evenly up to what each needs. As the way to who
+   else is here it is a finger high. */
+.guestSaid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
+  align-items: center;
+}
+
+a.guestSaid {
+  min-height: var(--control-height);
+}
+
+.guestSaid > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+/* --- the demo's banner --- */
+
+.demo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.demo > :first-child {
+  flex: 1;
+}
+
+.demoAction {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: var(--rule-width) solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  background: var(--selected);
+  color: var(--on-selected);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- the status sentence --- */
+
+.statusFrame {
+  min-width: 0;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+  color: var(--muted);
+}
+
+a.status {
+  min-height: var(--control-height);
+}
+
+.status[data-tone='good'] {
+  color: var(--green-ink);
+}
+
+.status[data-tone='warn'] {
+  color: var(--warning);
+}
+
+.status[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+/* What stands open behind a status that does not name it, in the alarm's colour where one of it is critical. */
+.open[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+.mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.modeChange {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-weight: var(--weight-medium);
+}
+
+.loadedAt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* --- the readings of a place among several: big figures, each with its name and its last hour's mean --- */
+
+/* Equal shares of one row, a hairline between two; a figure wider than its share - a VPD below zero on a narrow
+   phone - takes what it needs from the others rather than running into its neighbour. */
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Its own figure never breaks. */
+.figure {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.figure + .figure {
+  padding-left: var(--space-3);
+  border-left: var(--rule-solid);
+}
+
+.figureValue {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-figure);
+  letter-spacing: var(--tracking-figure);
+  line-height: var(--line-tight);
+  white-space: nowrap;
+}
+
+.figureUnit {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+/* On the narrowest phones the figures are a step smaller and stand without the hairlines, so three keep one row -
+   and a figure that still does not fit starts the next without a rule in front of it. */
+@media (max-width: 359px) {
+  .figureValue {
+    font-size: var(--text-xl);
+  }
+
+  .figure + .figure {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* A figure off its target takes the warning's ink, and on a card that asks for somebody the alarm's. */
+.figure[data-tone='off'] .figureValue {
+  color: var(--warning);
+}
+
+.place[data-asks='alarm'] .figure[data-tone='off'] .figureValue {
+  color: var(--alarm);
+}
+
+.figureName {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* "Ø 1 Std 25,5": the last hour under the name, without the unit the figure above already has. */
+.figureMean {
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* --- the grow as a row that leads to it - a small picture, a name, a line --- */
+
+.lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink);
+}
+
+.thumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 88px;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-sm);
+  background: var(--card-2);
+  color: var(--muted);
+  /* A bright picture keeps an edge against the card. */
+  outline: var(--rule-solid);
+  outline-offset: calc(-1 * var(--rule-width));
+  object-fit: cover;
+}
+
+.leadText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leadName {
+  overflow-wrap: anywhere;
+  font-size: var(--text-name);
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
+.leadLine {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+/* --- the place as it looks: the camera's picture across the column, the grow under it in the same card --- */
+
+.view {
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.picture {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: var(--overlay-solid);
+}
+
+.picture img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A turned camera's portrait picture is shown whole rather than cut to the card's middle. */
+.picture img[data-portrait] {
+  object-fit: contain;
+}
+
+/* The last picture of a place nobody has heard from, stepped back behind what says so. */
+.picture[data-age='offline'] img {
+  opacity: 0.55;
+}
+
+.pictureEmpty {
+  color: rgb(255 255 255 / 60%);
+}
+
+/* Its name and time on the picture, white on the smoked navy every caption over a photograph sits on. */
+/* The caption runs along the bottom, so the picture's time takes the top corner. */
+.picture .pictureStamp {
+  top: 10px;
+  bottom: auto;
+}
+
+.pictureCaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 28px var(--space-4) var(--space-3);
+  background: linear-gradient(to top, var(--overlay), transparent);
+  color: #fff;
+  font-size: var(--text-sm);
+}
+
+.pictureCaption svg {
+  flex: none;
+}
+
+.pictureWords {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pictureGrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 64px;
+  padding: 14px var(--space-4);
+  border-top: var(--rule-solid);
+  color: var(--ink);
+}
+
+.pictureGrowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The grow's day, phase and week as its stage's pill; on a phone under the line. */
+.stage {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+@media (max-width: 899px) {
+  .pictureGrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pictureGrow .stage {
+    grid-row: 2;
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .pictureGrow > .chevron {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+}
+
+/* --- the place's summaries: Zielwerte and Alarme, a heading and a quiet way to change them --- */
+
+.summaryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* "Ändern ›" in the heading's row, a finger high without growing it. */
+.change {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-block: calc((var(--control-height) - 1lh) / -2);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* The targets as a table: a row per half of the day, a column per reading, the light across the columns. */
+.targets {
+  display: grid;
+  grid-template-columns: auto repeat(var(--columns), auto);
+  justify-content: start;
+  gap: 6px 18px;
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+/* On a phone narrower than 375 px the table gives way rather than "jetzt": its gaps close up, and at 320 a column's
+   head breaks where the language hyphenates it ("Luft-feuchte"), so the tag keeps its line beside the half it marks. */
+@media (max-width: 374px) {
+  .targets {
+    column-gap: var(--space-2);
+  }
+
+  .targetsHead {
+    hyphens: auto;
+  }
+}
+
+.targetsRow {
+  display: contents;
+}
+
+.targetsHead {
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.targetsLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.targetsValue {
+  font-family: var(--font-figure);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.targetsValue small {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.targetsLight {
+  grid-column: 2 / -1;
+  color: var(--muted);
+}
+
+.targetsWindow {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/* The half in force, "jetzt", in green. */
+.now {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* An alarm a line: its name at the left, where it trips in ink at the right. */
+.alarms {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.alarms > li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.alarmName {
+  color: var(--muted);
+}
+
+.alarmBound {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  text-align: right;
+}
+
+/* --- a card with a small heading: Heute, Zuletzt, Zielwerte --- */
+
+.offerTitle {
+  font-size: var(--text-lg);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.cardText {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.due {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.dueText {
+  flex: 1;
+  min-width: 0;
+}
+
+.dueNote {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.dueAction {
+  flex: none;
+}
+
+.dueAsk {
+  flex-basis: 100%;
+}
+
+/* "Zuletzt": each line is a finger high, and the first one's reach runs up under the label rather than standing a gap
+   below it, so the label heads its lines as closely as a card's title does. */
+.latest > ul {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.latest > ul:last-child {
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+/* A finger high, and drawn into the card's own padding so its words do not stand in a gap of their own. */
+.more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: var(--control-height);
+  margin: calc(-1 * var(--space-3)) 0 -10px;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- a row that leads somewhere (`ui.rowCard`): the targets, a door of the empty Start --- */
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+}
+
+.rowText[data-tone='brand'] {
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+}
+
+.rowNote {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.door {
+  min-height: 0;
+  padding: var(--space-4);
+  border-color: var(--rule-strong);
+  gap: var(--space-3);
+}
+
+.door .rowText {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+.door .rowNote {
+  font-size: var(--text-sm);
+}
+
+.door[data-first] {
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
+}
+
+.door[data-first] :is(.rowNote, .chevron) {
+  color: inherit;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.pair > * {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+/* Half of a 320 px card leaves a button about 120 px: an outlined button's own 16 px a side broke "Grow hierher"
+   onto two lines beside a one-line "Grow starten". */
+.pair > :is(button, a) {
+  padding-inline: var(--space-2);
+}
+
+/* A third answer - "Nein danke" beside two ways in - takes the row under them. */
+.pair > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.go {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--green-fill);
+  color: var(--on-green);
+  font-weight: var(--weight-medium);
+}
+
+.add {
+  align-self: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.invited {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- the empty Start --- */
+
+.empty {
+  padding-top: var(--space-5);
+}
+
+.empty h1 {
+  margin-bottom: var(--space-2);
+}
+
+/* --- several places: a card each, under the room it stands in --- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cards:empty {
+  display: none;
+}
+
+/* A room's heading opens a group of its own: more room above it than between two cards. */
+.list > :is(.room, .cards) + :is(.room, .cards) {
+  margin-top: var(--space-2);
+}
+
+/* "+ Ort hinzufügen" under the cards on a phone, the width of the column. */
+.addPlace {
+  display: grid;
+}
+
+/* Beside the rail the cards pair up as master's Home did - a room's lone card keeps its half, so every room's cards
+   stand in one grid - and "+ Ort hinzufügen" is a quiet button in the title's row. */
+@media (min-width: 1100px) {
+  .page.list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .list > * {
+    grid-column: 1 / -1;
+  }
+
+  .list > .head {
+    grid-column: 1;
+  }
+
+  .list > .addPlace {
+    grid-row: 1;
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .addPlace > button {
+    min-height: var(--control-height);
+    border-radius: var(--radius-sm);
+    color: var(--brand);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+.place {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--card-padding);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
+/* A card that asks for somebody: an edge inside its left side in the colour of what it asks. */
+.place[data-asks] {
+  box-shadow:
+    inset 3px 0 0 var(--warning-edge),
+    var(--shadow);
+}
+
+.place[data-asks='alarm'] {
+  box-shadow:
+    inset 3px 0 0 var(--alarm-edge),
+    var(--shadow);
+}
+
+.placeHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 28px;
+}
+
+.placeName {
+  flex: 1;
+  font-size: var(--text-name);
+  font-weight: var(--weight-heading);
+  color: var(--heading);
+}
+
+/* The place's state in the device pill's words, with its dot. */
+.pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: var(--rule-width) solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.pill::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentcolor;
+  content: '';
+}
+
+.pill[data-tone='warn'] {
+  background: var(--warning-wash);
+  color: var(--warning);
+}
+
+.pill[data-tone='alarm'] {
+  border-color: var(--alarm-edge);
+  background: var(--alarm-wash);
+  color: var(--alarm);
+}
+
+/* Maintenance is somebody's choice, and offline a state whose loudness is the alerts': said, in the quiet surface's
+   ink, as the place's own pill says it. */
+.pill[data-tone='quiet'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
+/* On a card the figures are a step smaller on a phone and stand without the hairlines, so four of them fit one row. */
+.placeFigures .figureValue {
+  font-size: var(--text-xl);
+}
+
+.placeFigures .figureName {
+  font-size: var(--text-xs);
+}
+
+.placeFigures .figure + .figure {
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* Four that do not fit one row stand two by two rather than leaving the fourth alone on a second. */
+@media (max-width: 359px) {
+  .placeFigures .figures:has(> :nth-child(4)) > .figure {
+    flex-basis: 40%;
+  }
+}
+
+@media (min-width: 900px) {
+  .placeFigures .figureValue {
+    font-size: var(--text-figure);
+  }
+
+  .placeFigures .figure + .figure {
+    padding-left: var(--space-3);
+    border-left: var(--rule-solid);
+  }
+}
+
+.placeStatus {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.placeStatus[data-tone='warn'] {
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+.placeStatus[data-tone='alarm'] {
+  font-weight: var(--weight-medium);
+  color: var(--alarm);
+}
+
+.placeLine {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* What grows there, under a hairline: the grow's name in ink, the rest muted. Straight under the name - a place
+   that measures nothing - a hairline would rule off nothing. */
+.placeGrow {
+  padding-top: var(--space-2);
+  border-top: var(--rule-solid);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.placeHead + .placeGrow {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.placeGrowName {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/* That something is due there, which "Heute" under the cards lists. */
+.placeDue {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+}
+
+/* --- waiting: the shape of a place, grey --- */
+
+.wait {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--rule);
+}
+
+/* The figures' card and a row under it, as a place's Start opens. */
+.waitFigures {
+  height: 132px;
+  border-radius: var(--radius);
+}
+
+.waitRow {
+  height: 64px;
+  border-radius: var(--radius);
+}
+
+.card .wait {
+  background: var(--card-2);
+}

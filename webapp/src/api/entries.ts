@@ -1,4 +1,4 @@
-import { keepPreviousData, type QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
 import type {
   Entry,
@@ -12,29 +12,17 @@ import type {
   TaskCompletionCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { readEvery } from './pages';
 import { invalidate } from './write';
 
 /**
  * The writing half of the diary, and the reads of its lines: what the Log
- * sheet reads back, the window under a chart, a grow's photos and a device's
- * own lines.
+ * sheet reads back, the window under a chart and a device's own lines.
  *
  * Writing is a plain function rather than a mutation hook: the sheet
  * acknowledges before the request is answered and keeps the line itself until
  * it is, so the queue in `@/log` owns the attempt and React Query only hears
  * about what came of it.
  */
-
-/** As many photo lines as a viewer of one grow is worth reading at once. */
-const PHOTO_LIMIT = 200;
-
-/** The photo lines of a grow, which is where its pictures are written. */
-export const useGrowPhotoLines = (growId: string) =>
-  useRead({
-    queryKey: ['entries', 'photos', growId],
-    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'photo', limit: PHOTO_LIMIT }, signal),
-  });
 
 /** How many of a device's own lines support reads, newest first: enough for "since yesterday", few enough to read. */
 const DEVICE_LINES = 60;
@@ -65,38 +53,6 @@ export const useRecentEntries = (growId: string | null, spaceId: string | null) 
     enabled: Boolean(growId ?? spaceId),
   });
 
-/** The most a window's lines are read in pages of the route's largest, before the rest is only counted as more. */
-const WINDOW_PAGES = 5;
-
-/** What happened in a window, newest first, and whether there was more than was read. */
-export interface WindowEntries {
-  items: Entry[];
-  more: boolean;
-}
-
-/**
- * Everything written about a place - or a grow with no place - over one
- * window: its devices' own lines, the alarms, the plan and the diary. The
- * charts page draws them under its curves, so a window of a busy month is read
- * a few pages deep and the rest is said rather than read.
- */
-export const useWindowEntries = (about: { growId: string | null; spaceId: string | null }, window: { from: string; to: string } | null) =>
-  useRead({
-    queryKey: ['entries', 'window', about.spaceId ?? about.growId, window],
-    queryFn: async ({ signal }): Promise<WindowEntries> => {
-      const { items, complete } = await readEvery<Entry>(
-        '/entries',
-        signal,
-        { spaceId: about.spaceId, growId: about.spaceId ? null : about.growId, startsAt: window?.from, endsAt: window?.to },
-        WINDOW_PAGES,
-      );
-
-      return { items, more: !complete };
-    },
-    enabled: window !== null && Boolean(about.spaceId ?? about.growId),
-    placeholderData: keepPreviousData,
-  });
-
 export const writeEntry = (body: EntryCreate): Promise<Entry> => api.post<Entry>('/entries', body);
 
 export const correctEntry = (id: string, body: EntryUpdate): Promise<Entry> => api.patch<Entry>(`/entries/${id}`, body);
@@ -114,10 +70,11 @@ export const startPhase = (growId: string, body: PhaseCreate): Promise<Phase> =>
  * because the bytes take as long as the connection takes and the entry does
  * not: a picture no entry ever names is swept up by the server.
  */
-export const uploadPhoto = (file: File, about: { growId: string | null; spaceId: string | null }): Promise<Media> => {
+export const uploadPhoto = (file: File, about: { growId: string | null; spaceId: string | null }, rotate = 0): Promise<Media> => {
   const form = new FormData();
   form.set('file', file);
   form.set('kind', 'photo');
+  if (rotate % 360) form.set('rotate', String(rotate % 360));
   if (about.growId) form.set('growId', about.growId);
   else if (about.spaceId) form.set('spaceId', about.spaceId);
 

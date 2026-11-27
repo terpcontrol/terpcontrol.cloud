@@ -59,26 +59,56 @@ const csvValue = (value: number | null): string => {
   return Number.isFinite(value) ? String(value) : '';
 };
 
+/**
+ * The scripts that are two reads under names of their own: each window's
+ * lowest and its highest (`extremesQuery`), a grain's means and how many
+ * readings it held (`grainsQuery`), an output's samples and those it ran in
+ * (`countsQuery`), each window's first and last sample (`edgesQuery`). Every other script is answered as one result, as it always
+ * was.
+ */
+const EXTREMES = /\|>\s*yield\(name:\s*"(min|max|mean|count|heard|on)"\)/g;
+
 const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string => {
-  const parsed = parseFlux(query);
-  const { rows, start, stop } = runQuery(store.points, parsed, now);
+  const names = [...query.matchAll(EXTREMES)].map(match => match[1]);
+  // A union of several reads (`samplesInQuery`, `edgesQuery`) is the rows of each, one after the other.
+  const reads =
+    names.length === 2
+      ? query.split(EXTREMES).filter(part => part.includes('from(bucket:'))
+      : /union\(tables:/.test(query)
+        ? query.split(/(?=from\(bucket:)/).filter(part => part.includes('from(bucket:'))
+        : [query];
 
-  const lines = [
-    '#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,double,string,string,string,string',
-    '#group,false,false,true,true,false,false,true,true,true,true',
-    '#default,_result,,,,,,,,,',
-    ',result,table,_start,_stop,_time,_value,_field,_measurement,device_id,user_id',
-  ];
+  return reads
+    .map((read, index) => {
+      const { rows, start, stop } = runQuery(store.points, parseFlux(read), now);
+      const lines = [
+        '#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,double,string,string,string,string',
+        '#group,false,false,true,true,false,false,true,true,true,true',
+        `#default,${names.length === 2 ? names[index] : '_result'},,,,,,,,,`,
+        ',result,table,_start,_stop,_time,_value,_field,_measurement,device_id,user_id',
+      ];
 
-  for (const row of rows) {
-    lines.push(
-      ['', '', '0', rfc3339(start), rfc3339(stop), rfc3339(row.time), csvValue(row.value), row.field, row.measurement, row.deviceId, row.userId].join(
-        ',',
-      ),
-    );
-  }
+      for (const row of rows) {
+        lines.push(
+          [
+            '',
+            '',
+            '0',
+            rfc3339(start),
+            rfc3339(stop),
+            rfc3339(row.time),
+            csvValue(row.value),
+            row.field,
+            row.measurement,
+            row.deviceId,
+            row.userId,
+          ].join(','),
+        );
+      }
 
-  return lines.join('\r\n') + '\r\n\r\n';
+      return lines.join('\r\n') + '\r\n\r\n';
+    })
+    .join('');
 };
 
 const readBody = (req: IncomingMessage): Promise<string> =>
@@ -94,7 +124,7 @@ const json = (res: ServerResponse, status: number, payload: unknown): void => {
   res.end(body);
 };
 
-export interface FakeInfluxOptions {
+interface FakeInfluxOptions {
   influx: InfluxStore;
   mail: MailStore;
   /** Lets a spec take the MQTT broker away and bring it back. */
@@ -132,6 +162,22 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
         const csv = toAnnotatedCsv(query, options.influx, Date.now());
         res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8' });
         res.end(csv);
+        return;
+      }
+
+      // The delete API as the store answers it: the range is closed at the start and open at the end, and the
+      // predicate is the conjunction of equalities the server ever sends.
+      if (path === '/api/v2/delete' && req.method === 'POST') {
+        const { start, stop, predicate } = JSON.parse(await readBody(req)) as { start: string; stop: string; predicate?: string };
+        const from = Date.parse(start);
+        const until = Date.parse(stop);
+        const equalities = [...(predicate ?? '').matchAll(/(\w+)="([^"]*)"/g)].map(([, key, value]) => [key, value] as const);
+        const matches = (point: InfluxPoint): boolean =>
+          point.time >= from &&
+          point.time < until &&
+          equalities.every(([key, value]) => (key === '_measurement' ? point.measurement : point.tags[key]) === value);
+        options.influx.points = options.influx.points.filter(point => !matches(point));
+        res.writeHead(204).end();
         return;
       }
 

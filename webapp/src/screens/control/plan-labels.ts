@@ -1,5 +1,9 @@
-import type { DeviceConfiguration, GerminationChoices, GrowthStage, StepDuration } from '@fg2/shared-types/v1';
-import type { Translate } from '@/i18n/i18n';
+import i18next from 'i18next';
+import { useEffect, useState } from 'react';
+import type { DeviceConfiguration, GerminationChoices, GrowthStage, Plan, StepDuration } from '@fg2/shared-types/v1';
+import { loadCatalogues, saidInAnyLanguage, type Translate } from '@/i18n/i18n';
+import { durationFigure, timeWords } from '@/ui/age';
+import { MINUTE_MS } from '@/ui/days';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
 import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
@@ -17,6 +21,21 @@ import { hoursWritten } from './targets/schedule-words';
 /** The words a length is written in - "3 wk", "10 d" - or what a step with no length really is. */
 export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
+
+/**
+ * What is left of a step, rounded up so it never reads short, in one family of words (`timeWords`): "noch 7 Tage" over
+ * six days and eight hours was a day too many, "noch 7 T" read as a clock beside a step set in days, and "1 T in diesem
+ * Schritt · noch 22 Stunden" was two families on one line.
+ */
+export const leftWords = (t: Translate, ms: number): string => timeWords(t, ms / 1000, Math.ceil);
+
+/** What a step has served, floored as every age is; its first minute in seconds. */
+export const servedWords = (t: Translate, ms: number): string =>
+  ms < MINUTE_MS ? durationFigure(Math.max(0, Math.floor(ms / 1000)), 's') : timeWords(t, ms / 1000, Math.floor);
+
+/** A step that writes no setting, no light and no dark stage: the device keeps what it has (after germination, that ends it). */
+export const stepWritesNothing = (step: Pick<StepFacts, 'stage' | 'settings' | 'lightHours'>): boolean =>
+  !isDarkStage(step.stage) && writesNothing(step.settings as DeviceConfiguration) && step.lightHours == null;
 
 /** The facts of a step that its line is made of, which a saved step and one being written both have. */
 interface StepFacts {
@@ -71,10 +90,58 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
     step.stage === 'germination' && step.germinationChoices?.warnTooHumid ? t('space.control.step.warnsTooHumid') : null,
     step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    !isDarkStage(step.stage) && writesNothing(settings) && step.lightHours == null
-      ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort')
-      : null,
+    stepWritesNothing(step) ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort') : null,
   ]
     .filter(Boolean)
     .join(' · ');
+};
+
+/**
+ * A plan's pause reason in the reader's language. The server stores words, in
+ * the language of whoever paused: one the app wrote is known by its words in
+ * a catalogue the session holds, anything else stands as stored.
+ */
+const OWN_REASONS = ['targets.pauseReason', 'targets.pauseReasonGermination', 'climateControl.pauseReason'];
+const ownReason = (reason: string | null): string | undefined => OWN_REASONS.find(key => saidInAnyLanguage(i18next, key, reason));
+
+export const pauseReasonOf = (t: Translate, reason: string | null): string | null => {
+  const own = ownReason(reason);
+  return own ? t(own) : reason;
+};
+
+const DEFAULT_STEP = 'space.control.step.defaultName';
+
+/**
+ * Whether a step has no name of its own: left empty, or the default the editor wrote, in the language of whoever
+ * wrote it ("Schritt 2" read in English) - known by a catalogue the session holds, as a pause reason is.
+ */
+const unnamed = (name: string, index: number): boolean =>
+  name.trim() === '' || saidInAnyLanguage(i18next, DEFAULT_STEP, name.trim(), { number: index + 1 });
+
+/** A step as the reader reads it: the name a person gave it, else its number, in the reader's language. */
+export const stepTitle = (t: Translate, name: string, index: number): string =>
+  unnamed(name, index) ? t(DEFAULT_STEP, { number: index + 1 }) : name;
+
+/** What follows a step's number where it has a name of its own - ", Blüte" -, and nothing where its name is its number. */
+export const ownStepName = (name: string, index: number): string => (unnamed(name, index) ? '' : `, ${name.trim()}`);
+
+/**
+ * Fetches the catalogues the session lacks - an English session holds no German - once a plan says something none of
+ * its own knows: a paused plan's reason, or a step named a word and its number, which may be another language's
+ * default name; and draws the caller again.
+ */
+export const usePlanWords = (plans: readonly (Plan | null | undefined)[]): void => {
+  const [, setLoaded] = useState(false);
+  const unknown = plans.some(
+    plan =>
+      (plan?.state.status === 'paused' && plan.state.pauseReason !== null && !ownReason(plan.state.pauseReason)) ||
+      plan?.steps.some((step, index) => step.name.trim().endsWith(` ${index + 1}`) && !unnamed(step.name, index)),
+  );
+  useEffect(() => {
+    // Without them the reason stays as it was stored.
+    if (unknown)
+      void loadCatalogues()
+        .then(() => setLoaded(true))
+        .catch(() => undefined);
+  }, [unknown]);
 };

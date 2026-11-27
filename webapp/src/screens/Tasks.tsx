@@ -1,30 +1,26 @@
 import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
-import { useBackToPlace } from '@/app/places';
-import { fetchedAt } from '@/api/clock';
+import type { Reminder, Task } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
-import { useGrows } from '@/api/grows';
+import { useRoomsMembers } from '@/api/members';
 import { useReminders } from '@/api/reminders';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
 import { useTasks } from '@/api/tasks';
 import { useLog } from '@/log/log-context';
-import { useReportFreshness } from '@/ui/freshness';
 import { Help } from '@/ui/Help';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, growStanding, useMayLogIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
-import { BackLink } from '@/ui/BackLink';
+import { PageHead } from '@/ui/PageHead';
+import { useSubjects } from './start/due';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
   dateLabel,
   dayLabel,
-  entryKindOf,
   GROUPS,
   groupOf,
   isMine,
@@ -32,7 +28,7 @@ import {
   reminderOf,
   storedScope,
   storeScope,
-  subjectName,
+  tickedLabel,
   type Scope,
 } from './tasks/tasks';
 import styles from './tasks/Tasks.module.css';
@@ -58,11 +54,9 @@ export function Tasks() {
   const now = useNow();
   const waiting = useTasks(false);
 
-  useReportFreshness(waiting.dataUpdatedAt ? fetchedAt(waiting.dataUpdatedAt) : null);
-
   if (waiting.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Head />
         <Waiting />
       </section>
@@ -71,9 +65,9 @@ export function Tasks() {
 
   if (!waiting.data) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Head />
-        <LoadFailed retry={() => void waiting.refetch()} />
+        <LoadFailed read={waiting} />
       </section>
     );
   }
@@ -82,22 +76,18 @@ export function Tasks() {
 }
 
 /**
- * The title, with the way back to the cockpit the list was opened from - its
- * grow block's "Alle Aufgaben" or the bell - since no tab of the bar is this
- * page's own.
+ * The title, with the way back to Meldungen, where the list is reached: no item of the bar is this page's own.
+ * What the list holds is behind the help button - not for the demo, which is answered no list.
  */
 function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => void }) {
   const { t } = useTranslation();
-  const back = useBackToPlace();
+  const { user } = useSession();
 
   return (
-    <header className={styles.head}>
-      <div className={styles.titleRow}>
-        <BackLink to={back.to} label={back.name ? t('place.backTo', { name: back.name }) : t('shell.tabs.home')} />
-        <h1>{t('tasks.title')}</h1>
-      </div>
+    <PageHead back={{ to: '/alerts', label: t('alerts.back') }} title={t('tasks.title')}>
+      {user?.isDemo ? null : <Help topic="tasks" />}
       {scope && onScope ? (
-        <div className={ui.segments} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
+        <div className={`${ui.segments} ${styles.scope}`} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
           {SCOPES.map(one => (
             <button key={one} type="button" role="radio" aria-checked={scope === one} className={ui.segment} onClick={() => onScope(one)}>
               {t(`tasks.scope.${one}`)}
@@ -105,7 +95,7 @@ function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => v
           ))}
         </div>
       ) : null}
-    </header>
+    </PageHead>
   );
 }
 
@@ -122,11 +112,7 @@ function Nothing({ demo, waiting, onAll }: { demo: boolean; waiting: number; onA
   const { t } = useTranslation();
 
   if (demo) {
-    return (
-      <div className={`${ui.cardDashed} ${styles.none}`}>
-        <p className={ui.note}>{t('tasks.demoNoList')}</p>
-      </div>
-    );
+    return <NothingHere>{t('tasks.demoNoList')}</NothingHere>;
   }
 
   if (waiting > 0) {
@@ -137,11 +123,7 @@ function Nothing({ demo, waiting, onAll }: { demo: boolean; waiting: number; onA
     );
   }
 
-  return (
-    <div className={`${ui.cardDashed} ${styles.none}`}>
-      <p className={ui.note}>{t('tasks.nothingDue')}</p>
-    </div>
-  );
+  return <NothingHere>{t('tasks.nothingDue')}</NothingHere>;
 }
 
 function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null; now: DateTime }) {
@@ -152,13 +134,11 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const zone = useZone();
   const { user } = useSession();
   const { complete } = useLog();
-  const mayLog = useMayLogIn();
   const mayManage = useMayManage();
-  const mayWith = useMayWith();
+  // Where a card's subject stands decides who may act on it: this list gathers tasks from every place at once.
+  const { grows, spaces, standingOf, mayOn, mayTick, nameOf } = useSubjects();
   const done = useTasks(true);
   const reminders = useReminders();
-  const grows = useGrows();
-  const spaces = useSpaces();
   const devices = useDevices();
   const [scope, setScope] = useState<Scope>(storedScope);
   /** The sheet: closed, open on a new rhythm, or open on the one behind a card. */
@@ -182,52 +162,22 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const shared = [...tasks, ...(done.data?.items ?? [])].some(task => task.assigneeId !== null && task.assigneeId !== myId);
   const shown = scope === 'all' || !shared ? tasks : tasks.filter(task => isMine(task, myId));
   const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || !shared || isMine(task, myId)));
-  const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
-  const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
-
-  /**
-   * Where a task's or a rhythm's subject stands, which is what decides who may
-   * act on it. This list is the one screen that gathers tasks from every place
-   * at once, so the question is asked per card; null while the grows have not
-   * answered, and a control is not drawn on a guess.
-   */
-  const standingOf = (subject: GrowOrSpaceRef): Standing | null => {
-    if (subject.type === 'space') return { ownerId: null, spaceId: subject.id };
-    const grow = (grows.data?.items ?? []).find(one => one.id === subject.id);
-
-    return grow ? growStanding(grow) : null;
-  };
-
-  /**
-   * Whether this session reaches a need on a subject. A rhythm is asked the
-   * same question the cards ask of a task, because the list reaches rhythms no
-   * card is drawing: a member may see the arrangements of the tent they were
-   * let into and may not rewrite them.
-   */
-  const mayOn = (subject: GrowOrSpaceRef, need: AccessNeed): boolean => {
-    const standing = standingOf(subject);
-
-    return standing !== null && enough(mayWith(standing), need);
-  };
-
-  /**
-   * What ticking one off really needs. Almost every task is a diary line and
-   * wants `log`, but a plan step is not a line: it moves the plan on and sends
-   * the next step's targets to the controller, which the decision record puts
-   * under `manage` and the Control tab already refuses. Two screens deciding
-   * the same thing differently is how a guest gets to do through the back door
-   * what the front door would not let them.
-   */
-  const mayTick = (task: Task): boolean => mayOn(task.subject, task.source === 'plan_step' ? 'manage' : 'log');
+  // Who ticked what somebody else did, by the people of the place it was done in: read only where there is such a tick.
+  const byOthers = ticked.filter(task => task.completion?.authorId && task.completion.authorId !== myId);
+  const members = useRoomsMembers([...new Set(byOthers.flatMap(task => standingOf(task.subject)?.spaceId ?? []))]);
+  const tickedBy = (task: Task): string | null =>
+    [...members.values()].flatMap(page => page?.people ?? []).find(person => person.id === task.completion?.authorId)?.handle ?? null;
 
   /** The places a rhythm can be hung on: a reminder is `manage` on its subject, so nothing else may be offered. */
-  const reminderGrows = openGrows.filter(grow => enough(mayWith(growStanding(grow)), 'manage'));
-  const reminderSpaces = (spaces.data?.items ?? []).filter(space => enough(space.youMay, 'manage'));
+  const reminderGrows = (grows ?? []).filter(grow => grow.endedAt === null && mayOn({ type: 'grow', id: grow.id }, 'manage'));
+  const reminderSpaces = (spaces ?? []).filter(space => enough(space.youMay, 'manage'));
 
-  // A rhythm is what repeats; a one-off stands under its day, and here only while that day is beyond the board.
-  const rhythms = [...(reminders.data?.items ?? [])]
-    .filter(reminder => reminder.everyDays !== null || !tasks.some(task => task.id === reminder.id))
-    .sort((one, other) => one.label.localeCompare(other.label));
+  // Every reminder, "fällig oder nicht": a one-off as a rhythm is, before its day, while it is due and once it is done -
+  // left out while it stood on the board, it came back once ticked, as if made again. A grow's end ends its reminders
+  // (the server deletes them); one a server from before that still answers is not listed under a grow that is over.
+  const over = (reminder: Reminder) =>
+    reminder.subject.type === 'grow' && (grows?.find(grow => grow.id === reminder.subject.id)?.endedAt ?? null) !== null;
+  const rhythms = [...(reminders.data?.items ?? [])].filter(reminder => !over(reminder)).sort((one, other) => one.label.localeCompare(other.label));
 
   /**
    * The controller whose plan a step belongs to, so that the card can say what
@@ -242,17 +192,8 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
     return here.length === 1 ? here[0].id : null;
   };
 
-  /**
-   * What the toast says the tick wrote: the line, not the task - "Watered ·
-   * Spring run". A plan step writes a line too, but what it really did is move
-   * the plan on, and the toast says that rather than naming a diary entry
-   * nobody was writing.
-   */
-  const doneLabel = (task: Task) => {
-    const what = task.source === 'plan_step' ? t('tasks.stepConfirmed') : t(`home.entryKind.${entryKindOf(task.kind)}`);
-    const name = nameOf(task);
-    return name ? `${what} · ${name}` : what;
-  };
+  /** What the toast says: the task that was ticked, by its own name, and where (`tickedLabel`). */
+  const doneLabel = (task: Task) => tickedLabel(t, task, nameOf(task.subject));
 
   /**
    * Ticking a plan step tells the plan to go on: the next step becomes the
@@ -264,7 +205,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const tick = (task: Task) => complete(task.id, doneLabel(task), { undoable: task.source !== 'plan_step' });
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <Head scope={shared ? scope : undefined} onScope={pickScope} />
       <RefreshFailed failedAt={failedAt} now={now} />
 
@@ -275,10 +216,10 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         if (members.length === 0) return null;
 
         return (
-          <section key={group} className={styles.group} aria-label={t(`tasks.group.${group}`)}>
-            <header className={styles.groupHead}>
+          <section key={group} className={`${ui.stack2} ${styles.group}`} aria-label={t(`tasks.group.${group}`)}>
+            <header className={ui.headRow}>
               <span className="label">{t(`tasks.group.${group}`)}</span>
-              {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
+              {group === 'today' ? <span className={styles.groupAside}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
             </header>
             <ul className={ui.group}>
               {members.map(task => {
@@ -287,12 +228,12 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                   <TaskCard
                     key={task.id}
                     task={task}
-                    name={nameOf(task)}
+                    name={nameOf(task.subject)}
                     reminder={reminder}
                     deviceId={deviceOf(task)}
                     me={user}
                     now={now}
-                    onDone={mayLog && mayTick(task) ? () => tick(task) : null}
+                    onDone={mayTick(task) ? () => tick(task) : null}
                     onEdit={mayOn(task.subject, 'manage') && reminder ? () => setEditing({ reminder }) : null}
                     why={task.source === 'plan_step' && !mayTick(task) ? t('tasks.stepIsManaged') : null}
                   />
@@ -304,42 +245,36 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       })}
 
       {ticked.length > 0 ? (
-        <section className={styles.group} aria-label={t('tasks.group.done')}>
-          <header className={styles.groupHead}>
+        <section className={`${ui.stack2} ${styles.group}`} aria-label={t('tasks.group.done')}>
+          <header className={ui.headRow}>
             <span className="label">{t('tasks.group.done')}</span>
-            <span className={`mono ${styles.groupAside}`}>
-              {dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}
-            </span>
+            <span className={styles.groupAside}>{dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}</span>
           </header>
           <ul className={ui.group}>
             {ticked.map(task => (
-              <DoneCard key={task.id} task={task} name={nameOf(task)} me={user} now={now} />
+              <DoneCard key={task.id} task={task} name={nameOf(task.subject)} by={tickedBy(task)} me={user} now={now} />
             ))}
           </ul>
         </section>
       ) : null}
 
-      {/* The rhythms themselves, and not only the turns of them that fall
-          inside the week the list looks over. A reminder set to every thirty
-          days produced no task for twenty-three of them and was on no screen
-          at all in between: it could not be read, corrected or stopped, and
-          the sheet that exists to correct one was reachable only through a
-          card the rhythm was not producing. */}
+      {/* The rhythms themselves, and not only their turns inside the week the list looks over:
+          one that comes round every thirty days can be read, corrected and stopped in between. */}
       {rhythms.length > 0 ? (
-        <section className={styles.group} aria-label={t('tasks.group.rhythms')}>
-          <header className={styles.groupHead}>
+        <section className={`${ui.stack2} ${styles.group}`} aria-label={t('tasks.group.rhythms')}>
+          <header className={ui.headRow}>
             <span className="label">
               {t('tasks.group.rhythms')}
               <Help topic="rhythms" />
             </span>
-            <span className={`mono ${styles.groupAside}`}>{t('tasks.rhythmsAside')}</span>
+            <span className={styles.groupAside}>{t('tasks.rhythmsAside')}</span>
           </header>
           <ul className={ui.group}>
             {rhythms.map(reminder => (
               <RhythmCard
                 key={reminder.id}
                 reminder={reminder}
-                name={subjectName(reminder.subject, grows.data?.items, spaces.data?.items)}
+                name={nameOf(reminder.subject)}
                 language={i18n.language}
                 onEdit={mayOn(reminder.subject, 'manage') ? () => setEditing({ reminder }) : null}
               />
@@ -348,12 +283,10 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         </section>
       ) : null}
 
-      <p className={ui.note}>{t('tasks.sources')}</p>
-
       {/* A rhythm has to hang on a grow or a place this account manages; with
           none of either there is nothing the sheet could write. */}
       {mayManage && (reminderGrows.length > 0 || reminderSpaces.length > 0) ? (
-        <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setEditing({ reminder: null })}>
+        <button type="button" className={ui.button} onClick={() => setEditing({ reminder: null })}>
           {t('tasks.add')}
         </button>
       ) : null}

@@ -106,7 +106,7 @@ const excursionOf = (run: Run, points: SeriesPoint[], stepSeconds: number, open:
 type HalfAt = (index: number) => { half: 'day' | 'night'; changing: boolean };
 
 /** The band one window of one metric is judged by, or none where nothing was held for it then. */
-type BandAt = (metric: Metric, index: number) => TargetBand | null;
+export type BandAt = (metric: Metric, index: number) => TargetBand | null;
 
 const bandsOf = (metric: Metric, targets: Setpoints | null): { dayBand: TargetBand | null; nightBand: TargetBand | null } => ({
   dayBand: bandAround(metric, targets?.day[metric]),
@@ -318,11 +318,7 @@ export const verdictOf = (
   };
   if (!series) return empty;
 
-  const halves = cycle ? null : halvesOf(series, targets?.active !== 'night');
-  const halfAt: HalfAt = cycle
-    ? scheduledHalves(series, cycle)
-    : index => ({ half: (halves?.[index] ?? targets?.active !== 'night') ? 'day' : 'night', changing: false });
-  const judgeAt = judgeOf(series, targets, halfAt, record, hardware, halves);
+  const judgeAt = bandsOverWindows(series, targets, cycle, record, hardware);
 
   // A metric with neither a reading nor a target here is not a row of nulls: it
   // is a metric this tent says nothing about.
@@ -353,6 +349,21 @@ export const verdictOf = (
     actuators: series.outputs.flatMap(output => runsOf(output, series.stepSeconds) ?? []),
     trend: trendOf(series.metrics.find(row => row.metric === 'temperature')?.points ?? [], 'temperature', series.endsAt, series.stepSeconds),
   };
+};
+
+/** The band each window of a series is held to, as the verdict judges it, for a caller that asks more of a window than the verdict answers. */
+export const bandsOverWindows = (
+  series: DeviceSeries,
+  targets: Setpoints | null,
+  cycle: Cycle | null = null,
+  record: readonly RecordedClimate[] = [],
+  hardware: Record<string, string> = {},
+): BandAt => {
+  const halves = cycle ? null : halvesOf(series, targets?.active !== 'night');
+  const halfAt: HalfAt = cycle
+    ? scheduledHalves(series, cycle)
+    : index => ({ half: (halves?.[index] ?? targets?.active !== 'night') ? 'day' : 'night', changing: false });
+  return judgeOf(series, targets, halfAt, record, hardware, halves);
 };
 
 /**

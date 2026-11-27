@@ -8,6 +8,7 @@ import { PasswordResetService } from '@modules/v1/account/password-reset.service
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
 import { accessOn, devicesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * What an account deletion leaves behind, which is the whole question: the rows
@@ -35,6 +36,7 @@ const AUTH = {
   selfRegistrationPassword: undefined,
   adminUsername: 'admin@test.invalid',
   adminPassword: 'Adm1n!pass',
+  termsUrl: null,
 };
 
 const PREMIUM = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };
@@ -51,6 +53,8 @@ const PASSWORD = 'Passw0rd!test';
 const db = useV1TestDatabase();
 let accounts: AccountsService;
 let deletion: AccountDeletionService;
+/** What the readings store was told to drop, in order. */
+let dropped: { deviceId: string; from: Date; to: Date }[];
 
 const build = (): void => {
   accounts = new AccountsService(
@@ -74,6 +78,12 @@ const build = (): void => {
     new AccountMailService({ send: async () => undefined } as never, { appUrlExternal: 'https://app.test.invalid' } as never),
   );
   const devices = devicesOn(db, accessOn(db));
+  dropped = [];
+  const data = {
+    dropEverySample: async (deviceId: string, from: Date, to: Date) => {
+      dropped.push({ deviceId, from, to });
+    },
+  };
 
   deletion = new AccountDeletionService(
     db.alerts,
@@ -98,6 +108,7 @@ const build = (): void => {
     sessions,
     resets,
     devices,
+    data as never,
     { ...AUTH },
   );
 };
@@ -283,7 +294,7 @@ describe('what belongs to somebody else', () => {
 
     await db.spaces.create({ id: 'our-tent', ownerId: leaving.id, kind: 'tent', name: 'Our tent' });
     await db.grows.create({ id: 'their-grow', ownerId: staying.id, name: 'Theirs', type: 'photoperiod', slug: 'theirs', startedAt: new Date() });
-    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, spaceId: 'our-tent' });
+    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, ...standingIn('our-tent') });
     await db.cameras.create({ id: 'their-camera', ownerId: staying.id, kind: 'rtsp', name: 'Theirs', spaceId: 'our-tent' });
 
     const aLine = (id: string, about: Record<string, string>) =>
@@ -401,7 +412,7 @@ describe('what belongs to somebody else', () => {
       startedAt: new Date(),
       placements: [{ id: 'placement-1', spaceId: 'our-tent', startedAt: new Date(), endedAt: null }],
     });
-    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, spaceId: 'our-tent' });
+    await db.devices.create({ id: 'their-device', type: 'fridge', ownerId: staying.id, ...standingIn('our-tent') });
     await db.cameras.create({ id: 'their-camera', ownerId: staying.id, kind: 'rtsp', name: 'Theirs', spaceId: 'our-tent' });
 
     await deletion.deleteAccount(leaving.id);
@@ -417,7 +428,7 @@ describe('what belongs to somebody else', () => {
 
 describe('the hardware', () => {
   const aDevice = async (ownerId: string): Promise<void> => {
-    await db.devices.create({ id: 'device-1', type: 'controller', ownerId, spaceId: 'space-1', name: 'The tent' });
+    await db.devices.create({ id: 'device-1', type: 'controller', ownerId, ...standingIn('space-1'), name: 'The tent' });
     await db.plans.create({ id: 'plan-1', deviceId: 'device-1', name: 'Nights off' });
     await db.alarmRules.create({
       id: 'rule-1',
@@ -444,11 +455,71 @@ describe('the hardware', () => {
     expect(device?.ownerId).toBeNull();
     expect(device?.spaceId).toBeNull();
     expect(device?.name).toBeNull();
+    // Nor what that owner called it, which the places of a device given up go on reading (`calledIn`).
+    expect(device?.state.released).toMatchObject({ by: 'account_deleted', ownerId: null, name: null });
 
     expect(await db.plans.countDocuments({})).toBe(0);
     expect(await db.alarmRules.countDocuments({})).toBe(0);
     expect(await db.alerts.countDocuments({})).toBe(0);
     expect(await db.entries.countDocuments({})).toBe(0);
+  });
+
+  it('takes what the device measured for the account with it, back past its first stay', async () => {
+    const leaving = await signUp('leaving');
+    await db.spaces.create({ id: 'space-1', ownerId: leaving.id, kind: 'tent', name: 'Tent' });
+    await aDevice(leaving.id);
+
+    await deletion.deleteAccount(leaving.id);
+
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toMatchObject({ deviceId: 'device-1', from: new Date(0) });
+  });
+
+  it('takes only what a second-hand device measured since the account claimed it', async () => {
+    const leaving = await signUp('leaving');
+    const claimedAt = new Date('2026-10-01T00:00:00Z');
+    await db.spaces.create({ id: 'space-1', ownerId: leaving.id, kind: 'tent', name: 'Tent' });
+    await db.devices.create({
+      id: 'device-1',
+      type: 'controller',
+      ownerId: leaving.id,
+      spaceId: 'space-1',
+      name: 'The tent',
+      state: { claimedAt },
+      placements: [
+        { spaceId: 'space-before', startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-09-01T00:00:00Z') },
+        { spaceId: 'space-1', startedAt: claimedAt, endedAt: null },
+      ],
+    });
+
+    await deletion.deleteAccount(leaving.id);
+
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toMatchObject({ deviceId: 'device-1', from: claimedAt });
+  });
+
+  it('takes what a device given up earlier measured in the account´s places, and nothing of somebody else´s standing there', async () => {
+    const leaving = await signUp('leaving');
+    const staying = await signUp('staying');
+    await db.spaces.create({ id: 'space-1', ownerId: leaving.id, kind: 'tent', name: 'Tent' });
+    const stay = { startedAt: new Date('2026-03-01T00:00:00Z'), endedAt: new Date('2026-04-01T00:00:00Z') };
+    await db.devices.create({
+      id: 'device-given-up',
+      type: 'controller',
+      ownerId: staying.id,
+      spaceId: null,
+      name: 'Now theirs',
+      placements: [
+        { spaceId: 'space-0', startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: stay.startedAt },
+        { spaceId: 'space-1', ...stay },
+        { spaceId: 'space-2', startedAt: new Date('2026-05-01T00:00:00Z'), endedAt: null },
+      ],
+    });
+    await db.devices.create({ id: 'device-theirs', type: 'fan', ownerId: staying.id, ...standingIn('space-1'), name: 'Their fan' });
+
+    await deletion.deleteAccount(leaving.id);
+
+    expect(dropped).toEqual([{ deviceId: 'device-given-up', from: stay.startedAt, to: stay.endedAt }]);
   });
 
   /**

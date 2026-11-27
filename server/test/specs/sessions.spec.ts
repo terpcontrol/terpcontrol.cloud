@@ -1,4 +1,6 @@
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
+import { waitForMail } from '../support/control';
+import { setRow } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
 
 /**
@@ -158,6 +160,17 @@ describe('an account an administrator changes underneath it', () => {
     await user.client.get('/v1/me').expect(200);
   });
 
+  it('sends a code that was never used again when its account signs in, as the refusal says', async () => {
+    const user = await createAccount('unactivated');
+    await setRow('users', { id: user.userId }, { isActive: false, activationCode: 'resent-activation-code' });
+
+    const refused = await anonymous().post('/v1/sessions').send({ email: user.username, password: user.password }).expect(403);
+    expect(refused.body.code).toBe('account_not_activated');
+
+    const mail = await waitForMail(one => one.to.includes(user.username));
+    expect(mail.body).toContain('resent-activation-code');
+  });
+
   it('is an administrator for exactly as long as the row says so', async () => {
     const made = await anAdminAccount('demoted');
     await made.session.client.get('/v1/admin/users').expect(200);
@@ -185,12 +198,12 @@ describe('the callers that are not a user session', () => {
     await anonymous().get(`/v1/media/${picture.id}?token=${user.imageToken}`).expect(200);
 
     // It opens the picture and nothing else, even carried as a bearer: the
-    // diary, report and weeks around that picture are nobody's to that key.
+    // diary and report around that picture are nobody's to that key.
     const asBearer = { Authorization: `Bearer ${user.imageToken}` };
     await anonymous().get(`/v1/media/${picture.id}/content`).set(asBearer).expect(200);
     await anonymous().get(`/v1/entries?growId=${grow.id}`).set(asBearer).expect(404);
     await anonymous().get(`/v1/grows/${grow.id}/report`).set(asBearer).expect(404);
-    await anonymous().get(`/v1/grows/${grow.id}/weeks`).set(asBearer).expect(404);
+    await anonymous().get(`/v1/grows/${grow.id}/diary`).set(asBearer).expect(404);
 
     // And it is the session's, not a thirty-day key of its own: ending the
     // session ends what the URL can ask for too.

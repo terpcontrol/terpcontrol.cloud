@@ -174,6 +174,64 @@ describe('the migration command', () => {
     expect(second.output).toContain('Nothing to do.');
   }, 120_000);
 
+  /**
+   * An install that ran the model from before a device kept its placements,
+   * names were unique and rooms were the server's: its database is in the new
+   * shapes, with rooms and repeated names in it that the old cloud never had.
+   */
+  it('gives a database already in the new shapes its placements, ends its empty rooms and makes its names unique', async () => {
+    await migrate('--allow-rejects');
+    const spaces = database.collection('spaces');
+    const devices = database.collection('devices');
+    // One open placement for each claimed device carried over, from the day it registered; none for the unclaimed one.
+    expect(await devices.countDocuments({ placements: { $exists: false } })).toBe(0);
+    expect(await devices.countDocuments({ spaceId: { $ne: null }, placements: { $size: 1 }, 'placements.0.endedAt': null })).toBe(6);
+    expect(await devices.findOne({ id: fixture.devices.light })).toMatchObject({ spaceId: null, placements: [] });
+    const tent = (await devices.findOne({ id: fixture.devices.controller }))!;
+    expect(tent.placements[0]).toMatchObject({ spaceId: tent.spaceId, startedAt: tent.createdAt });
+
+    // Back to before the three steps, with what such an install can hold.
+    const owner = (await spaces.findOne({ id: tent.spaceId }))!.ownerId as string;
+    const row = (id: string, kind: string, name: string, more: Record<string, unknown> = {}) => ({
+      id,
+      ownerId: owner,
+      kind,
+      name,
+      roomId: null,
+      presetPrompt: 'ask',
+      retention: { climateDays: null },
+      isDemo: false,
+      archivedAt: null,
+      createdAt: new Date(AT + 1000),
+      ...more,
+    });
+    await spaces.insertMany([
+      row('room-empty', 'room', 'Cellar'),
+      row('room-used', 'room', 'Cellar', { createdAt: new Date(AT + 2000) }),
+      row('tent-twin', 'tent', ' tent', { roomId: 'room-used' }),
+      row('tent-ended', 'tent', 'Tent', { roomId: 'room-empty', archivedAt: new Date(AT) }),
+    ]);
+    await devices.updateMany({}, { $unset: { placements: '' } });
+    await database.collection('migrations').deleteMany({ name: { $in: ['026-device-placements', '027-empty-rooms', '028-unique-place-names'] } });
+
+    const run = await migrate('--allow-rejects');
+    expect(run.code).toBe(0);
+    expect(run.output).toContain('Migrations: applying 026-device-placements, 027-empty-rooms, 028-unique-place-names');
+    expect(run.output).toContain('rooms.ended=1');
+    expect(run.output).toContain('spaces.renamed=1');
+
+    expect(await devices.countDocuments({ spaceId: { $ne: null }, placements: { $size: 1 }, 'placements.0.endedAt': null })).toBe(6);
+    expect(await spaces.findOne({ id: 'room-empty' })).toMatchObject({ archivedAt: expect.any(Date) });
+    expect(await spaces.findOne({ id: 'tent-ended' })).toMatchObject({ roomId: null, name: 'Tent' });
+    // The empty room has ended, so the one that stays is the only "Cellar" and keeps its name.
+    expect(await spaces.findOne({ id: 'room-used' })).toMatchObject({ archivedAt: null, name: 'Cellar' });
+    expect(await spaces.findOne({ id: tent.spaceId })).toMatchObject({ name: 'Tent' });
+    expect(await spaces.findOne({ id: 'tent-twin' })).toMatchObject({ name: 'tent 2', roomId: 'room-used' });
+
+    const again = await migrate('--allow-rejects');
+    expect(again.output).toContain('Nothing to do.');
+  }, 180_000);
+
   it('reports as it goes, so a run over a big database is not silence until it ends', async () => {
     const { output } = await migrate('--allow-rejects');
     const lines = output.split('\n');

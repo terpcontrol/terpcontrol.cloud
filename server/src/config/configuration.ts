@@ -79,6 +79,11 @@ export const authConfig = registerAs('auth', () => ({
   selfRegistrationPassword: process.env.SELF_REGISTRATION_PASSWORD,
   adminUsername: process.env.ADMINUSER_USERNAME!,
   adminPassword: process.env.ADMINUSER_PASSWORD!,
+  /**
+   * The terms of use a sign-up accepts, null where the install has none. The
+   * address is the version: a new one is terms nobody has accepted yet.
+   */
+  termsUrl: process.env.TERMS_URL?.trim() || null,
 }));
 
 /**
@@ -188,6 +193,32 @@ export const migrationConfig = registerAs('migration', () => ({
   allowRejects: flag(process.env.MIGRATION_ALLOW_REJECTS),
 }));
 
+/**
+ * Where the bytes of pictures, films and exports go. Without a bucket they stay
+ * in MongoDB's GridFS, as they always have; with one, new files go to the
+ * bucket and the ones still in GridFS keep being served from there until
+ * `npm run media:to-s3` has moved them.
+ *
+ * An endpoint is what makes this any S3-compatible service rather than AWS;
+ * most of those want path-style addressing, because the bucket is not a host
+ * name they serve.
+ */
+export const storageConfig = registerAs('storage', () => ({
+  s3: process.env.S3_BUCKET
+    ? {
+        bucket: process.env.S3_BUCKET,
+        region: process.env.S3_REGION!,
+        endpoint: process.env.S3_ENDPOINT || undefined,
+        accessKeyId: process.env.S3_ACCESS_KEY_ID || undefined,
+        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || undefined,
+        forcePathStyle: flag(process.env.S3_FORCE_PATH_STYLE),
+        prefix: process.env.S3_PREFIX ?? '',
+      }
+    : null,
+}));
+
+export type S3Settings = NonNullable<ConfigType<typeof storageConfig>['s3']>;
+
 export const configNamespaces = [
   appConfig,
   databaseConfig,
@@ -200,4 +231,5 @@ export const configNamespaces = [
   migrationConfig,
   retentionConfig,
   notificationsConfig,
+  storageConfig,
 ];

@@ -2,30 +2,12 @@
    rule is, and the fields. The card, the chip, the switch and the field are
    the app's own, so nothing here restates a surface or a colour. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 /* A device's groups are sections of the page, a section's step apart; a
    group's own cards stay close under its label. */
 .device {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.deviceName {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-heading);
-  line-height: var(--line-tight);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* The label and, for the stage's group, what it means. On a phone the two do
@@ -39,8 +21,19 @@
   gap: var(--space-1) var(--space-3);
 }
 
+/* A group's heading in the label's look, and its (i) beside it rather than inside it. */
+.groupName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.groupTitle {
+  letter-spacing: 0;
+}
+
+/* Beside the heading where it fits, and under it - from the left, as the heading - where it does not (320). */
 .groupAside {
-  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--muted);
   white-space: nowrap;
@@ -55,12 +48,8 @@
   padding: var(--space-3) var(--space-4);
 }
 
-/* The rule an alert linked to. "The one you followed" is not a state the rule
-   is in, so it is not drawn as one: green all round the card is how the app
-   says something is running now, and a ring in it here would read as a rule
-   that has just gone off. A bar down the left edge in plain ink is a pointing
-   finger instead, and says the same thing in both modes without borrowing a
-   colour that already means something else. */
+/* The rule an alert linked to: a bar down the left edge in plain ink. Green
+   round the card would read as a rule that has just gone off. */
 .card[data-highlight] {
   box-shadow: inset 3px 0 0 var(--ink);
 }
@@ -72,20 +61,15 @@
   flex: 1;
   flex-direction: column;
   align-items: stretch;
+  justify-content: center;
   gap: var(--space-1);
   min-width: 0;
+  min-height: var(--control-height);
   padding: 0;
   background: none;
   border: 0;
   color: var(--ink);
   text-align: left;
-}
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* A rule that stands triggered right now. */
@@ -99,7 +83,7 @@
 
 .name {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
 }
 
@@ -123,15 +107,24 @@
 
 /* A rule that reaches nobody, with the way to change that: a line of its own
    across the card, under the rule it is about, in the warning's colour. */
-.card:has(> .fix) {
+.card:has(> .fix, > .refused) {
   flex-wrap: wrap;
 }
 
+/* A silence the server refused, said across the card under the chip that asked. */
+.refused {
+  flex-basis: 100%;
+}
+
+/* A tap target of its own height, drawn as the line it is: the room above and below is the card's. */
 .fix {
   flex-basis: 100%;
-  margin-top: calc(-1 * var(--space-2));
+  display: flex;
+  align-items: center;
+  min-height: var(--action-height);
+  margin-block: calc(-1 * var(--space-2));
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
   text-decoration: none;
 }
@@ -156,80 +149,15 @@
   gap: var(--space-2);
 }
 
+/* The chip under the switch is a finger high where it is tapped, as the switch is. */
+.side > button:not([role='switch']) {
+  height: var(--control-height);
+}
+
 /* The switch's place, for a reader who may not throw it: the fact alone. */
 .state {
   font-size: var(--text-xs);
   color: var(--muted);
-}
-
-.add {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-.fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-}
-
-.bounds {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
-.figure {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--card-2);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-}
-
-.figureLabel {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.figureInput {
-  width: 72px;
-  min-width: 0;
-  background: none;
-  border: 0;
-  color: var(--ink);
-  font-size: var(--text-md);
-  text-align: right;
-}
-
-.figureInput:focus {
-  outline: none;
-}
-
-.figureUnit {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  color: var(--label);
-}
-
-.duration {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.number {
-  width: 88px;
 }
 
 .textarea {
@@ -243,33 +171,8 @@
   width: 100%;
 }
 
-/* That the device below is being worked on: the state, and the way out of it.
-   It stands over the rules because it decides what all of them are doing, and
-   it wraps rather than shrinking the button away on a narrow screen. */
-.maintenance {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-
-.maintenanceText {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 /* The four alarms most tents want, each a tap from a rule: a card per alarm,
    two across on a phone, its name over the line it would trip at. */
-.templates {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .templateList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -313,7 +216,7 @@
 }
 
 .templateName {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .templateLine {
@@ -328,11 +231,4 @@
   gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--muted);
-}
-
-/* One answer a webhook template asks for, with its name above it. */
-.templateField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }

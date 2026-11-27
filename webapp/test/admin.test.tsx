@@ -1,11 +1,12 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { LogProvider } from '@/log/LogProvider';
+import { Me } from '@/screens/Me';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
@@ -89,6 +90,19 @@ const device = (over: Partial<Device> & { id: string }): Device =>
     ...over,
   });
 
+/** A fan and a lamp module, each in support's view: the cloud keeps leaf offsets and a lux factor beside every device. */
+const SUPPORTED: Device[] = [
+  device({ id: 'af-31', type: 'fan', classId: 'class-fan', name: 'Exhaust', configuration: { day: { temperature: 26 } } }),
+  device({
+    id: 'lm-12',
+    type: 'light',
+    classId: 'class-light',
+    name: 'Lamp',
+    configuration: { lights: { limit: 80 } },
+    state: { ...deviceWith({}).state, limitBeforeDark: 100 },
+  }),
+];
+
 const DEVICES: Device[] = [
   device({ id: 'tc-7f3a', name: 'Tent 1' }),
   device({
@@ -98,7 +112,13 @@ const DEVICES: Device[] = [
     ownerId: 'user-3',
     state: { ...device({ id: 'x' }).state, lastSeenAt: NOW.minus({ days: 3 }).toISO()!, firmwareId: 'build-old', hardware: {} },
   }),
-  device({ id: 'tc-00d4', ownerId: null, spaceId: null, state: { ...device({ id: 'x' }).state, lastSeenAt: null, firmwareId: null } }),
+  device({
+    id: 'tc-00d4',
+    name: 'controller',
+    ownerId: null,
+    spaceId: null,
+    state: { ...device({ id: 'x' }).state, lastSeenAt: null, firmwareId: null },
+  }),
 ];
 
 const PEOPLE: User[] = [
@@ -169,6 +189,7 @@ const camera = (over: Partial<Camera> & { id: string }): Camera => ({
   tunnel: false,
   model: null,
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: false,
@@ -208,6 +229,8 @@ const server = {
   fleet: FLEET,
   stats: (() => json(STATS)) as () => Response,
   cameras: [[]] as Camera[][],
+  // What the device said lately.
+  lines: [] as unknown[],
 };
 
 const BROKEN = { status: 500, code: 'internal', title: 'Something went wrong', detail: '', errors: [] };
@@ -235,10 +258,29 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json({ items: server.cameras[at] ?? [], nextCursor: at + 1 < server.cameras.length ? `page-${at + 1}` : null });
   }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
+  const other = SUPPORTED.find(one => path === `/devices/${one.id}`);
+  if (other) return json(other);
   if (path === '/devices/tc-7f3a') {
-    return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800 }, workmode: 'small' } });
+    return json({
+      ...DEVICES[0],
+      // Its light sensor reports lux, so the lux factor is one of its figures.
+      state: { ...DEVICES[0].state, hardware: { ...DEVICES[0].state.hardware, ppfd: 'on' } },
+      configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800, linearChange: 1 }, co2: { sunsetOff: 1 }, workmode: 'small' },
+      control: {
+        running: true,
+        drying: false,
+        mode: 'standard',
+        energySaving: false,
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+        preset: null,
+      },
+    });
   }
-  if (path.startsWith('/entries')) return json({ items: [], nextCursor: null });
+  // Nobody's: its owner deleted their account with it two days ago.
+  if (path === '/devices/tc-00d4') {
+    return json({ ...DEVICES[2], state: { ...DEVICES[2].state, released: { at: NOW.minus({ days: 2 }).toISO()!, by: 'account_deleted' } } });
+  }
+  if (path.startsWith('/entries')) return json({ items: server.lines, nextCursor: null });
   if (path === '/spaces/space-1/overview') return json({ spaceId: 'space-1', name: 'Blue Dream tent' });
 
   return json(NOT_FOUND, 404);
@@ -258,36 +300,40 @@ beforeEach(() => {
   server.stats = () => json(STATS);
   server.devices = DEVICES;
   server.cameras = [[]];
+  server.lines = [];
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the way in', () => {
-  it('gives an administrator the four fleet screens on the rail, and nobody a tab for them', () => {
+  it('gives an administrator one row under Ich that leads to the fleet, and the rail none', () => {
     wrapped(
       <LogProvider>
         <Rail />
+        <main>
+          <Me />
+        </main>
       </LogProvider>,
     );
 
-    const links = screen.getAllByRole('link').map(link => link.getAttribute('href'));
-    expect(links).toContain('/admin/fleet');
-    expect(links).toContain('/admin/firmware');
-    expect(links).toContain('/admin/users');
-    expect(links).toContain('/admin/demo');
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    const page = within(screen.getByRole('main'));
+    expect(page.getByRole('link', { name: /^Admin/ })).toHaveTextContent('admin only');
+    expect(
+      page
+        .getAllByRole('link')
+        .map(link => link.getAttribute('href'))
+        .filter(to => to?.startsWith('/admin')),
+    ).toEqual(['/admin/fleet']);
+    const rail = within(screen.getByRole('navigation', { name: 'Main navigation' }));
+    expect(rail.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
   });
 
-  it('shows an ordinary account no admin section at all', () => {
+  it('shows an ordinary account no admin row at all', () => {
     session.who = 'grower';
-    wrapped(
-      <LogProvider>
-        <Rail />
-      </LogProvider>,
-    );
+    wrapped(<Me />);
 
     expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain('/admin/fleet');
-    expect(screen.queryByText('Admin')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Admin/ })).not.toBeInTheDocument();
   });
 
   it('answers an account that follows the link anyway with the reason, and asks the server for nothing', () => {
@@ -318,8 +364,89 @@ describe('a window too narrow for a table a dozen columns wide', () => {
       </AdminOnly>,
     );
 
-    expect(screen.getByText('Made for a wide window')).toBeInTheDocument();
+    // Under the heading the row on Ich carries, with the way back there: the arrow and the button.
+    expect(screen.getByRole('heading', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.getByText(/there is no phone layout of them\. Open this on a desktop, 900 px or wider\./)).toBeInTheDocument();
+    const back = screen.getAllByRole('link', { name: 'Back to Me' });
+    expect(back).toHaveLength(2);
+    for (const way of back) expect(way).toHaveAttribute('href', '/me');
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
     expect(server.asked).toHaveLength(0);
+  });
+});
+
+/**
+ * Ich has one row for the four screens, so the way from one to the next is
+ * the strip under the head, and the way out is the arrow back to Ich.
+ */
+describe('the head of an admin screen', () => {
+  const drawScreens = (at: string) =>
+    drawAt(
+      <ThemeProvider>
+        <Routes>
+          <Route path="/me" element={<h1>Me</h1>} />
+          <Route path="/admin/fleet" element={<Fleet />} />
+          <Route path="/admin/firmware" element={<FirmwareScreen />} />
+          <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/demo" element={<h1>Demo device</h1>} />
+        </Routes>
+      </ThemeProvider>,
+      { at },
+    );
+
+  const strip = () => within(screen.getByRole('navigation', { name: 'Admin' }));
+  const tabs = () => strip().getAllByRole('link');
+
+  it('names the four screens as tabs, the one on screen marked, and each of the others one tap away', async () => {
+    drawScreens('/admin/users');
+    await screen.findByText('@mo');
+
+    expect(tabs().map(tab => [tab.textContent, tab.getAttribute('href'), tab.getAttribute('aria-current')])).toEqual([
+      ['Fleet', '/admin/fleet', null],
+      ['Firmware', '/admin/firmware', null],
+      ['Users', '/admin/users', 'page'],
+      ['Demo device', '/admin/demo', null],
+    ]);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Firmware' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Firmware' })).toBeInTheDocument();
+    expect(tabs().map(tab => tab.getAttribute('aria-current'))).toEqual([null, 'page', null, null]);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Fleet' }));
+    expect(await screen.findByText('tc-7f3a')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Fleet' })).toBeInTheDocument();
+
+    fireEvent.click(strip().getByRole('link', { name: 'Demo device' }));
+    expect(await screen.findByRole('heading', { name: 'Demo device' })).toBeInTheDocument();
+  });
+
+  it('explains a screen behind the help button beside its heading, with no paragraph over its controls', async () => {
+    drawScreens('/admin/users');
+    await screen.findByText('@mo');
+    expect(
+      within(screen.getByRole('columnheader', { name: /^Address/ })).getByRole('button', { name: 'About Addresses' }),
+    ).toHaveAccessibleDescription(/^An address is on this screen and on no other in the app\./);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Firmware' }));
+    expect(await screen.findByRole('button', { name: 'About Device classes' })).toHaveAccessibleDescription(/^A channel points at a build/);
+    expect(screen.getByRole('button', { name: 'About Register a build' })).toHaveAccessibleDescription(
+      /^A build is registered before it has any bytes/,
+    );
+
+    fireEvent.click(strip().getByRole('link', { name: 'Fleet' }));
+    expect(await screen.findByRole('button', { name: 'About Firmware rollout' })).toHaveAccessibleDescription(/^A class hands its build out/);
+    expect(screen.queryByText(/A class hands its build out/, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
+  it('leads back to Ich by its arrow', async () => {
+    drawScreens('/admin/firmware');
+
+    const back = await screen.findByRole('link', { name: 'Back to Me' });
+    expect(back).toHaveAttribute('href', '/me');
+    fireEvent.click(back);
+
+    expect(await screen.findByRole('heading', { name: 'Me' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
   });
 });
 
@@ -340,6 +467,10 @@ describe('the fleet table', () => {
     // server said is online - never a count of the rows that happen to be here.
     expect(screen.getByText('4 devices · 1 online')).toBeInTheDocument();
     expect(screen.getByText(/showing 3 of 3 loaded · 4 devices on this install/)).toBeInTheDocument();
+    // Nothing else on the screen dates it: the pill beside the title says how old the read is - a read of a moment
+    // ago in words, never "as of 0 s ago".
+    expect(screen.getByText('as of just now')).toBeInTheDocument();
+    expect(screen.queryByText(/as of 0 s ago/)).not.toBeInTheDocument();
   });
 
   it("follows the camera list past its first page, so a standalone cam on the second page is a row and the reader's own cams are counted whole", async () => {
@@ -355,7 +486,7 @@ describe('the fleet table', () => {
     expect(within(rows.find(row => within(row).queryByText('tc-mine'))!).getByText('6 · 1')).toBeInTheDocument();
     // Somebody else's controller: the account's camera list cannot count its cams, so the cell says nothing rather than zero.
     expect(within(rows.find(row => within(row).queryByText('tc-7f3a'))!).getByText('6 · —')).toBeInTheDocument();
-    expect(screen.getByText(/cams and the camera rows are the ones this account can see/)).toBeInTheDocument();
+    expect(screen.getByText(/cameras and the camera rows are the ones this account can see/)).toBeInTheDocument();
     // Every camera read asks for the biggest page there is, and the second hands the cursor back.
     const cameraReads = server.asked.filter(path => path.startsWith('/cameras'));
     expect(cameraReads.length).toBeGreaterThanOrEqual(2);
@@ -369,11 +500,15 @@ describe('the fleet table', () => {
 
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]).getByText('@mo')).toBeInTheDocument();
-    expect(screen.getByText('unclaimed')).toBeInTheDocument();
+    expect(screen.getByText('not added by anyone yet')).toBeInTheDocument();
     // The build is drawn under the name it was registered with, and the row for
     // a build this install has no record of keeps the opaque id.
     expect(screen.getAllByText('Spring build').length).toBeGreaterThan(0);
     expect(screen.getByText('build-old')).toBeInTheDocument();
+    // A claim stores the type where nobody named the device: the row says the type in words, never the key as a name.
+    const unnamed = rows.find(row => row.textContent.includes('tc-00d4'))!;
+    expect(unnamed).not.toHaveTextContent(/· controller/);
+    expect(within(unnamed).getByText('Controller')).toBeInTheDocument();
   });
 
   it('narrows to one type, to what has been quiet for a day, and to what is not on stable', async () => {
@@ -390,7 +525,7 @@ describe('the fleet table', () => {
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Device type'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Not on stable' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Not on Stable' }));
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
     expect(screen.getByText('fg-1102')).toBeInTheDocument();
   });
@@ -416,8 +551,8 @@ describe('the fleet table', () => {
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(2);
-    expect(within(rows[1]).getByText(/No device matches "Blue Dream"/)).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/not the place it stands in/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/No device matches “Blue Dream”/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/not the place it is in/)).toBeInTheDocument();
 
     // One press shows everything again, the search included.
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Show everything' }));
@@ -496,19 +631,125 @@ describe('support for a customer', () => {
       { at: '/admin/devices/tc-7f3a' },
     );
 
-    expect(await screen.findByText('day.temperature')).toBeInTheDocument();
-    expect(screen.getByText('26')).toBeInTheDocument();
-    expect(screen.getByText('workmode')).toBeInTheDocument();
+    // Each setting in the words the app gives it, with where the firmware keeps it.
+    const row = (stored: string) => screen.getByText(stored).closest('tr')!;
+    expect(await screen.findByText('day.temperature = 26')).toBeInTheDocument();
+    expect(row('day.temperature = 26')).toHaveTextContent(/^Day temperature.*26 °C$/);
+    expect(row('workmode = small')).toHaveTextContent(/^Operation.*standard$/);
+    // One device of the fleet's: it leads back there, and is none of the four tabs.
+    expect(screen.getByRole('link', { name: 'Back to the fleet' })).toHaveAttribute('href', '/admin/fleet');
+    // What the window is titled from: the view and whose it is, as two parts.
+    expect(screen.getByRole('heading', { level: 1, name: 'Support view' })).toHaveAttribute('data-title', 'Support view · tc-7f3a');
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
     expect(await screen.findByText('@mo · mo@example.invalid')).toBeInTheDocument();
-    // A time of day is kept as seconds past midnight UTC, and read beside them as the clock times they are, the customer's included.
-    expect(await screen.findByText('21600 · 06:00 UTC · 06:00 for the customer')).toBeInTheDocument();
-    expect(screen.getByText('64800 · 18:00 UTC · 18:00 for the customer')).toBeInTheDocument();
+    // A time of day is kept as seconds past midnight UTC, and read as the clock times it is, the customer's included.
+    expect(await screen.findByText('06:00 UTC · 06:00 for the customer')).toBeInTheDocument();
+    expect(row('daynight.day = 21600')).toHaveTextContent(/^Light on at/);
+    expect(row('daynight.night = 64800')).toHaveTextContent(/^Light off at.*18:00 UTC · 18:00 for the customer$/);
     expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
-    expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('href', '/charts?space=space-1');
     expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
+    // What the server writes into a fridge's document, and what the cloud keeps beside it, in words as well.
+    expect(row('co2.sunsetOff = 1')).toHaveTextContent(/^No CO₂ during sunset.*on$/);
+    expect(row('daynight.linearChange = 1')).toHaveTextContent(/^Targets glide through sunrise and sunset.*on$/);
+    expect(row('vpdLeafOffsetDay = -2')).toHaveTextContent(/^Leaf against air · day.*-2 °C$/);
+    expect(row('ppfdLuxFactor = 0.015')).toHaveTextContent(/^Lux to PPFD factor.*0\.015$/);
+    expect(row('control.running = true')).toHaveTextContent(/^Control.*on$/);
+    expect(row('control.mode = standard')).toHaveTextContent(/^Operating mode.*Standard$/);
+    expect(row('control.germinationChoices.humidifierHolds = true')).toHaveTextContent(/^Germination · hold the humidity/);
+    expect(row('control.preset = null')).toHaveTextContent(/^Climate preset.*–$/);
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);
+  });
+
+  /** A fan's and a lamp module's support view listed leaf offsets and a lux-to-PPFD factor they have no use for. */
+  it('lists of a fan and a lamp module only the figures they have a use for', async () => {
+    for (const { id } of SUPPORTED) {
+      drawAt(
+        <ThemeProvider>
+          <Routes>
+            <Route
+              path="/admin/devices/:deviceId"
+              element={
+                <AdminOnly>
+                  <DeviceDiagnosis />
+                </AdminOnly>
+              }
+            />
+          </Routes>
+        </ThemeProvider>,
+        { at: `/admin/devices/${id}` },
+      );
+
+      // Its own document is listed, so its figures are on the page.
+      expect(await screen.findByText(id === 'af-31' ? 'day.temperature = 26' : 'lights.limit = 80')).toBeInTheDocument();
+      expect(screen.queryByText(/^vpdLeafOffset/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^ppfdLuxFactor/)).not.toBeInTheDocument();
+      // A lamp its place keeps dark carries the brightness it gets back beside its limit.
+      if (id === 'lm-12') expect(screen.getByText('limitBeforeDark = 100')).toBeInTheDocument();
+      cleanup();
+    }
+  });
+
+  it('says of a device nobody owns that its owner deleted their account with it, not that nobody ever added it', async () => {
+    drawAt(
+      <ThemeProvider>
+        <Routes>
+          <Route
+            path="/admin/devices/:deviceId"
+            element={
+              <AdminOnly>
+                <DeviceDiagnosis />
+              </AdminOnly>
+            }
+          />
+        </Routes>
+      </ThemeProvider>,
+      { at: '/admin/devices/tc-00d4' },
+    );
+
+    expect(await screen.findByText(/^nobody – its owner deleted their account on \d+ \w+ \d{4}$/)).toBeInTheDocument();
+    expect(screen.queryByText('not added by anyone yet')).not.toBeInTheDocument();
+  });
+
+  /**
+   * What the device said is read as the diary's own line - the words every list says - stamped with its hour
+   * on another day too, since support reads when a restart fell, and without the mark of a line among a
+   * grower's: every line here is the device's.
+   */
+  it('lists what the device said as lines of the diary, each with the hour it fell on', async () => {
+    const at = NOW.minus({ days: 2 }).set({ hour: 3, minute: 12 });
+    server.lines = [
+      {
+        id: 'line-1',
+        kind: 'system',
+        source: 'device',
+        occurredAt: at.toISO(),
+        authorId: null,
+        severity: null,
+        text: null,
+        message: { key: 'message-co2-low', params: [] },
+        values: { kind: 'system' },
+        mediaIds: [],
+      },
+    ];
+    drawAt(
+      <Routes>
+        <Route
+          path="/admin/devices/:deviceId"
+          element={
+            <AdminOnly>
+              <DeviceDiagnosis />
+            </AdminOnly>
+          }
+        />
+      </Routes>,
+      { at: '/admin/devices/tc-7f3a' },
+    );
+
+    const line = (await screen.findByText(/Low CO₂/)).closest('li')!;
+    expect(line).toHaveTextContent(new RegExp(`^${at.toFormat('d LLL HH:mm')}System: Low CO₂`));
+    expect(line).not.toHaveTextContent('automatic');
   });
 
   it('flattens a document into the paths a support reader can search with the eye', () => {
@@ -597,7 +838,7 @@ describe('the health card', () => {
     server.stats = () => json(BROKEN, 500);
     await drawFleet();
 
-    expect(await screen.findByText("Could not read the install's own figures.")).toBeInTheDocument();
+    expect(await screen.findByText('Could not read the install’s own figures.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     // Nothing that only the stats route answers is drawn from anything else.
     expect(screen.queryByText(/pictures \d/)).not.toBeInTheDocument();
@@ -636,7 +877,7 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     expect(server.wrote).toHaveLength(0);
 
     // What it would reach, before it is pressed and again in the sheet.
-    expect(screen.getAllByText(/beta will point at Spring build/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Beta will point at Spring build/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Apply the change' }));
@@ -647,6 +888,63 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     // `DeviceClassUpdate` is partial, and a class is one document: the rollout,
     // the pace and the failure limit were not touched, so they are not sent.
     expect(server.wrote[0].body).toEqual({ firmwareIds: { stable: 'build-1', beta: 'build-1', alpha: null } });
+  });
+
+  /** The classes were headed by their keys ("controller", "plug"), the channels in two cases, the switch a chip's height. */
+  it('names a class by its type in words, every channel in one case, and its rollout switch a step high', async () => {
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Device classes');
+
+    expect(screen.getAllByText('Controller').length).toBeGreaterThan(0);
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Stable · /)).toBeInTheDocument();
+    expect(screen.getByText(/^Beta · /)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Running' }).className).toMatch(/runs/);
+  });
+
+  /**
+   * A class the server seeded is described in English words for its kind ("Light Controller" under "Licht"); a model's
+   * own name stays. A build's counts are facts that break between them: one line was cut by the pinned actions
+   * ("21 auf…").
+   */
+  it('says a seeded class´s words in the reader´s language, and a build´s counts as facts that break between them', async () => {
+    await translate(['en', 'de'], 'de');
+    // Awaited: the next test renders in English only once the language is back.
+    onTestFinished(() => translate());
+    server.fleet = {
+      ...FLEET,
+      classes: [{ ...FLEET.classes[0], firmwares: [{ ...FLEET.classes[0].firmwares[0], total: 7, online: 4, failed: 21 }] }],
+    };
+    const light = {
+      ...CLASS,
+      id: 'class-light',
+      name: 'light',
+      description: 'Light Controller',
+      firmwareIds: { stable: null, beta: null, alpha: null },
+    };
+    const classes = vi.fn(() => json({ items: [CLASS, light], nextCursor: null }));
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/admin/device-classes') ? classes() : before(input, init),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Spring build');
+
+    expect(screen.getByText(/· Lichtsteuerung$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Light Controller/)).not.toBeInTheDocument();
+    expect(screen.getByText(/· FG Controller 2\.0$/)).toBeInTheDocument();
+    const counts = screen.getByText('21 aufgegeben').closest('td')!;
+    expect(counts.className).not.toMatch(/mono/);
+    expect([...counts.querySelectorAll('span')].some(one => one.textContent === '4 online')).toBe(true);
   });
 
   it('refuses to delete a build a channel still points at, with the reason the server would give', async () => {
@@ -660,6 +958,24 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
     expect(screen.getByText('A channel still points at this build. Point it elsewhere first.')).toBeInTheDocument();
   });
+
+  /** A build's name is a label over its version: put right in the sheet every name is, and taken away by an empty one. */
+  it('relabels a build, and takes its name away where the field is left empty', async () => {
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Spring build');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const sheet = screen.getByRole('dialog', { name: 'Rename the build' });
+    expect(sheet).toHaveTextContent(BUILD.version);
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Name' }), { target: { value: '  ' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.wrote).toEqual([{ method: 'PATCH', path: '/admin/firmwares/build-1', body: { name: null } }]));
+  });
 });
 
 describe('the accounts', () => {
@@ -672,7 +988,11 @@ describe('the accounts', () => {
     await screen.findByText('@mo');
 
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-    expect(await screen.findByText(/This is somebody else's account: @mo/)).toBeInTheDocument();
+    expect(await screen.findByText(/This is somebody else’s account: @mo/)).toBeInTheDocument();
+    // Drawn outside the table: inside the row's pinned cell the cells of the rows after it stood over its scrim.
+    const sheet = screen.getByRole('dialog');
+    expect(sheet.closest('table')).toBeNull();
+    expect(within(sheet).getByLabelText('May run this install').closest('label')?.className).toMatch(/check/);
 
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'a new one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -761,8 +1081,8 @@ describe("the administrator's own row", () => {
     expect(server.wrote).toHaveLength(0);
     expect(await screen.findByText('Change your own account?')).toBeInTheDocument();
 
-    // Back keeps the draft; the second press is the one that writes.
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    // Cancelling the question keeps the draft; the second press is the one that writes.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByLabelText('May run this install')).not.toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
@@ -790,13 +1110,16 @@ describe("the administrator's own row", () => {
     const rows = await drawUsers();
 
     fireEvent.click(within(rows[2]).getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByText(/What they wrote in other people's places stays there and loses their name/)).toBeInTheDocument();
+    expect(await screen.findByText(/What they wrote in other people’s places stays there and loses their name/)).toBeInTheDocument();
     expect(screen.queryByText(/the server keeps it/)).not.toBeInTheDocument();
     // The prompt is set in small caps and a phone capitalises the first
     // letter, so the handle counts however it is cased.
     fireEvent.change(screen.getByLabelText('Type mo to confirm'), { target: { value: 'Mo' } });
     expect(screen.getByRole('button', { name: 'Delete the account' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('button', { name: 'Delete the account' }).className).toMatch(/dangerFilled/);
+    // The one danger confirm: the yes, and "Cancel" beside it, which writes nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('button', { name: 'Delete the account' })).not.toBeInTheDocument();
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText(/the server keeps it/)).toBeInTheDocument();

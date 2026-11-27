@@ -17,16 +17,19 @@ import type {
 } from '@fg2/shared-types/v1';
 import {
   CRITICAL_REPEAT_SECONDS,
+  alertCategory,
   inQuietWindow,
   mailFloorSecondsOf,
   repeatSecondsOf,
   silenceOf,
 } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/ui/units';
-import { CO2_HOLDERS, hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
+import { CO2_HOLDERS, hasCo2Sensor, outputWord, outputsOf } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
-import { isAhead } from '@/ui/age';
-import { zoneOf } from '@/ui/zone';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
+import { timeOf } from '@/screens/notifications/settings';
+import { durationLabel, isAhead } from '@/ui/age';
+import { clock, zoneOf } from '@/ui/zone';
 
 /**
  * What the alarm screen knows about a rule that the contract does not say in so
@@ -51,71 +54,17 @@ export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: Al
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
 /** How often a rule really repeats: its own interval, or the mail floor for a rule that e-mails. */
-export const repeatsEvery = (rule: AlarmRule): number => Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
+export const repeatsEvery = (rule: Pick<AlarmRule, 'repeatSeconds' | 'delivery'>): number =>
+  Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
 
 /** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
-/**
- * What a preset's rules are called, by what each watches. The catalogue has
- * one name per band rather than per preset, because a stage writes the same
- * four rules whichever preset it stands on.
- */
-const PRESET_TITLE: Record<string, string> = {
-  'temperature-upper': 'tooHot',
-  'temperature-lower': 'tooCold',
-  'humidity-upper': 'tooHumid',
-  'co2-upper': 'co2High',
-};
+/** What a rule is called, here and wherever else it is named. */
+export { metricName, ruleTitle } from '@/i18n/alarm-line';
 
-const presetTitle = (watch: AlarmWatch): string | null => {
-  if (watch.kind !== 'reading') return null;
-  const side = watch.upper !== null ? 'upper' : watch.lower !== null ? 'lower' : null;
-
-  return side ? (PRESET_TITLE[`${watch.metric}-${side}`] ?? null) : null;
-};
-
-/**
- * What a rule is called on the card.
- *
- * A name the server wrote is English wherever it was written, so the two kinds
- * of rule nobody here named - the one the cloud keeps for every device and the
- * four a stage applies - are titled from what they watch instead, and read in
- * the language the page is in. A rule somebody wrote, by hand or through the
- * firmware, keeps the name it was given.
- *
- * Because the cloud's own rule is never titled from its name, the sheet does
- * not offer a field for one: a rule whose name no screen reads should not ask
- * anybody to type it. It is "Gerät offline" wherever it is shown - the
- * cockpit, Steuerung › Alarme and an alert - rather than the device's own name
- * here and the generic word there: a list of several devices' rules is headed
- * by each device's name already, and an alert names its device beside it.
- */
-export const ruleTitle = (t: Translate, rule: AlarmRule): string => {
-  if (rule.origin === 'always') return t('alarms.offlineRule');
-  if (rule.origin === 'preset') {
-    const title = presetTitle(rule.watch);
-    if (title) return t(`alarms.presetRule.${title}`);
-  }
-
-  return rule.name;
-};
-
-/**
- * The outputs each kind of hardware drives, from the list of what every type
- * reports in `docs/device-protocol.md`, section 5.4. A rule can only watch a
- * series the device actually sends, so a tent controller is not offered the
- * fridge's three fans and a fridge is not offered a relay.
- */
-const OUTPUTS_OF: Record<string, OutputMetric[]> = {
-  controller: ['dehumidifier', 'heater', 'light', 'co2'],
-  fridge: ['co2', 'dehumidifier', 'heater', 'light', 'fanInternal', 'fanExternal', 'fanBackwall'],
-  plug: ['relais'],
-  fan: ['fan'],
-  light: ['light'],
-};
-
-export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
+/** A rule can only watch a series the device actually sends, so a tent controller is not offered the fridge's three fans and a fridge is not offered a relay. */
+export { outputsOf };
 
 /** What an output is called on this kind of hardware, so "Kompressor läuft dauerhaft" is found where it is looked for. */
 export const outputName = (t: Translate, output: OutputMetric, deviceType: string | null): string =>
@@ -136,7 +85,7 @@ const HARDWARE_KEY: Record<Sensor, string> = { co2: 'co2', leaf: 'leaf_temp', li
 
 /**
  * Whether the device has the sensor. On a controller or a fridge CO2 is fitted
- * unless the device says it is not - the rule the cockpit's CO2 tile and the
+ * unless the device says it is not - the rule Start's CO₂ reading and the
  * targets' CO2 slider go by, so a fridge whose report says nothing about the
  * sensor but whose readings are on Start is offered "CO₂" here as well. The
  * leaf and light sensors, and a plug's CO2, are extras that are only there
@@ -171,11 +120,13 @@ const READINGS_OF: Record<string, Metric[]> = {
   light: ['temperature', 'humidity', 'vpd'],
 };
 
-export const readingsOf = (device: Device): Metric[] =>
-  (READINGS_OF[device.type] ?? []).filter(metric => {
-    const sensor = SENSOR_OF[metric];
-    return sensor === undefined || isFitted(device, sensor);
-  });
+/** Whether the device reports this reading: its kind of hardware measures it, and the sensor is fitted. */
+export const measures = (device: Device, metric: Metric): boolean => {
+  const sensor = SENSOR_OF[metric];
+  return (READINGS_OF[device.type] ?? []).includes(metric) && (sensor === undefined || isFitted(device, sensor));
+};
+
+export const readingsOf = (device: Device): Metric[] => (READINGS_OF[device.type] ?? []).filter(metric => measures(device, metric));
 
 /**
  * What an output's series actually carries, from `docs/device-protocol.md`
@@ -223,7 +174,7 @@ export const unitOf = (watch: AlarmWatch): string => {
 const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : looseFigure(value));
 
 /** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */
-export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
+const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
   if (watch.kind === 'output_running') return { upper: null, lower: null };
   const unit = unitOf(watch);
   const one = (value: number | null) => (value === null ? null : `${figureOf(watch, value)}${unit ? ` ${unit}` : ''}`);
@@ -235,7 +186,7 @@ export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: stri
  * "über 30 °C", "unter 16 °C", both with a dot between; an output watched for
  * running has no bound and answers nothing. In words rather than as "› 30" -
  * the same angle is the arrow every link on the page ends in, and the
- * templates and the cockpit already said "über".
+ * templates already said "über".
  */
 export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
   const { upper, lower } = boundsOf(watch);
@@ -246,29 +197,48 @@ export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
 };
 
 /**
- * Why nothing at all would be said right now, or null while the account is
- * being listened to.
+ * What an alarm will do to reach this account from now on, in the words every
+ * screen says it in: a rule under Steuerung › Alarme and an open alert's card.
+ * It is asked of the grade the alarm is announced at and of the rule that
+ * addresses it - null for what the health loop raises without one, which is
+ * routed and never repeats.
  *
- * Routing is only half of what decides whether a rule reaches anybody: the
- * server holds every message back while the account is muted and everything
- * short of critical during quiet hours, by the contract's `silenceOf`. A rules
- * page that reads only the grid therefore promised "goes to you by e-mail ·
- * repeats every 30 min" for an account that had muted itself a tab away and
- * would have been sent nothing at all.
- *
- * Quiet hours are read in the account's own zone, because that is the zone the
- * window was set in and the one the server reads it in, and not on the
- * browser's clock. Only a rule routed through the account's grid is subject to
- * it: a rule delivering to a target of its own goes out through the alarm's own
- * delivery and is unaffected by either.
+ * It decides in the server's order. A silenced rule tells nobody. A rule with
+ * a target of its own sends whatever the account has set. An info alarm is on
+ * no row of the grid. A row none of whose channels is set up reaches nobody:
+ * `unreached`, said by whoever offers the way to change that. A mute holds
+ * everything back and quiet hours everything short of critical (`silenceOf`),
+ * read in the account's zone; what was held back is not sent later, so only a
+ * rule that repeats is promised to say itself once the night is over.
  */
-export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
-  if (!me) return null;
+export const willTell = (
+  t: Translate,
+  severity: Severity,
+  rule: Pick<AlarmRule, 'delivery' | 'repeatSeconds' | 'silencedUntil'> | null,
+  me: Me | undefined,
+  now: DateTime,
+): { said: string[]; unreached: boolean } => {
   const zone = zoneOf(me);
+  const said = (...parts: (string | null)[]) => ({ said: parts.filter(part => part !== null), unreached: false });
+  const repeats = rule !== null && rule.repeatSeconds > 0;
+  const again = repeats ? t('alarms.tell.repeats', { length: durationLabel(repeatsEvery(rule)) }) : t('alarms.tell.once');
+
+  if (rule && isAhead(rule.silencedUntil, now)) return said(t('alarms.tell.silenced', { time: clock(rule.silencedUntil!, zone) }));
+  if (rule?.delivery.mode === 'custom')
+    return said(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.tell.ownTarget'), again);
+  if (!me) return said(again);
+  if (alertCategory(severity) === null) return said(t('alarms.tell.nowhere'));
+
+  const routed = routedChannels(me, severity);
+  if (!routed.some(channel => channel.configured)) return { said: [], unreached: true };
+
   const local = zone ? now.setZone(zone) : now;
   const quiet = inQuietWindow(me.notifications.quietHours, local.hour * 60 + local.minute);
+  const held = silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
+  if (held === 'muted') return said(t('alarms.tell.muted', { time: clock(me.notifications.mutedUntil!, zone) }));
+  if (held === 'quiet') return said(t(`alarms.tell.${repeats ? 'afterQuiet' : 'quiet'}`, { time: timeOf(me.notifications.quietHours!.toMinute) }));
 
-  return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
+  return said(t('alarms.tell.toYou', { channels: channelsLabel(t, routed) }), quiet ? t('alarms.tell.through') : null, again);
 };
 
 /**
@@ -401,6 +371,16 @@ const numberOrNull = (field: string): number | null => (field.trim() === '' || N
 export const wantsBound = (draft: RuleDraft): boolean => draft.watch.kind !== 'output_running' && !watchesOffline(draft.watch);
 
 export const hasBound = (draft: RuleDraft): boolean => !wantsBound(draft) || numberOrNull(draft.upper) !== null || numberOrNull(draft.lower) !== null;
+
+/**
+ * Whether the two edges contradict each other: a rule fires above its upper edge or below its lower one, so a
+ * lower edge at or over the upper fires at every value ("over 70, under 80"). Refused before the server has to.
+ */
+export const boundsContradict = (draft: RuleDraft): boolean => {
+  const upper = numberOrNull(draft.upper);
+  const lower = numberOrNull(draft.lower);
+  return wantsBound(draft) && upper !== null && lower !== null && lower >= upper;
+};
 
 export const watchOf = (draft: RuleDraft): AlarmWatch => {
   if (draft.watch.kind === 'reading')

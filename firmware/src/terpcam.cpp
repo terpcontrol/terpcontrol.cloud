@@ -5,6 +5,8 @@
 #include <esp_task_wdt.h>
 #include <algorithm>
 #include "mbedtls/aes.h"
+#include "lwip/etharp.h"
+#include "lwip/priv/tcpip_priv.h"
 
 #include "terpcam.h"
 #include "settings.h"
@@ -578,7 +580,7 @@ namespace fg {
 
   // Alphanumeric, 12 characters: comfortably inside what the camera accepts, and
   // free of punctuation so it survives a CGI query string unescaped.
-  std::string generatePassword() {
+  std::string terpCamGeneratePassword() {
     static const char ALPHABET[] = "abcdefghijkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789";
     std::string password;
     for(int i = 0; i < 12; i++) {
@@ -609,7 +611,7 @@ namespace fg {
     IPAddress peer_ip;
     uint16_t peer_port = 0;
     bool secured = false;
-    const std::string password = generatePassword();
+    const std::string password = terpCamGeneratePassword();
 
     // Straight after pairing the camera is still joining the network, so the
     // first attempts find nothing. Keep trying for a while rather than giving up
@@ -658,6 +660,16 @@ namespace fg {
           }
           delay(5);
         }
+      }
+
+      // The camera burns its clock into every picture by default. The cloud
+      // stores stills without overlays and draws the time on display, so the
+      // OSD is switched off once, here, while the session is open anyway.
+      // Fire and forget: a camera that misses it only keeps its timestamp.
+      snprintf(cgi, sizeof(cgi), "camera_control.cgi?param=10&value=0&%s", secured ? probe_auth.c_str() : camAuth().c_str());
+      for(int i = 0; i < 2; i++) {
+        sendPacket(udp, peer_ip, peer_port, buildCgi(CMD_CHANNEL, 3, cgi));
+        for(int j = 0; j < 4; j++) { delay(100); esp_task_wdt_reset(); }
       }
     }
 
@@ -1046,7 +1058,7 @@ namespace fg {
     // The camera's P2P id may still be unknown; the relay learns it first then.
     std::string uid(fg::settings().getStr("webcam_uid").c_str());
     if(settingIsEmpty(uid)) uid.clear();
-    if(!camIsPaired() || token.empty()) return false;
+    if(!camIsPaired() || token.empty() || terpCamStreams()) return false;
 
     RelayArgs* args = new RelayArgs{ false, {}, 0, {}, token, uid, {} };
     if(!parseRelayUrl(url, *args) || !parseHex(key, args->key, sizeof(args->key))) {   // never bridge in the clear
@@ -1071,6 +1083,215 @@ namespace fg {
 
   void terpCamReportPending(Fridgecloud* cloud) {
     if(!g_relay_active) reportCamIp(cloud);
+  }
+
+  // --- The camera's own RTSP stream ------------------------------------
+  //
+  // A camera switched at pairing to serve its stream is never spoken to over
+  // P2P: the cloud opens the stream itself, through this device's tunnel, and
+  // all the device does is keep knowing where the camera is on the LAN. DHCP
+  // moves it, and the stream gives no clue whose camera it is, so its address
+  // is found again by sweeping the subnet for the stream port and telling the
+  // paired camera from any other by its MAC.
+
+  namespace {
+    constexpr uint32_t STREAM_CHECK_MS         = 5UL * 60UL * 1000UL;  // how often its address is checked
+    constexpr uint32_t STREAM_SWEEP_CONNECT_MS = 150;   // a host on the LAN answers well within this
+    constexpr uint32_t STREAM_READ_MS          = 1500;
+    constexpr uint8_t  STREAM_HOSTS_PER_TICK   = 3;
+
+    struct StreamSweep {
+      uint8_t   prefix[3] = {};
+      uint8_t   self = 0;
+      uint16_t  next = 0;       // the next host to probe; 0 while no sweep runs
+      uint8_t   answered = 0;   // streams seen in this sweep, whoever's
+      IPAddress only;           // the last of them
+    };
+    StreamSweep g_sweep;
+    uint32_t g_stream_checked_at = 0;
+    bool g_stream_checked = false;
+    bool g_stream_lost = false;   // told the cloud it is not found, until it is again
+
+    std::string storedMac() {
+      return std::string(fg::settings().getStr(TERP_CAM_MAC_NVS_KEY).c_str());
+    }
+
+    // lwIP's ARP table belongs to its own thread, so it is read there.
+    struct ArpLookup {
+      struct tcpip_api_call_data call;
+      ip4_addr_t ip;
+      uint8_t mac[6];
+      bool found;
+    };
+
+    err_t arpLookup(struct tcpip_api_call_data* data) {
+      ArpLookup* query = (ArpLookup*)data;
+      for(size_t i = 0; i < ARP_TABLE_SIZE; i++) {
+        ip4_addr_t* ip;
+        struct netif* netif;
+        struct eth_addr* eth;
+        if(etharp_get_entry(i, &ip, &netif, &eth) && ip4_addr_cmp(ip, &query->ip)) {
+          memcpy(query->mac, eth->addr, 6);
+          query->found = true;
+          break;
+        }
+      }
+      return ERR_OK;
+    }
+
+    bool isOurStream(const IPAddress& ip, uint32_t connect_ms) {
+      if(!terpCamStreamAnswers(ip, connect_ms)) return false;
+      const std::string mac = storedMac();
+      return mac.empty() || terpCamMacOf(ip) == mac;
+    }
+
+    void adoptStream(const IPAddress& ip) {
+      rememberCamIp(ip);
+      if(storedMac().empty()) {
+        const std::string mac = terpCamMacOf(ip);
+        if(!mac.empty()) {
+          fg::settings().setStr(TERP_CAM_MAC_NVS_KEY, mac.c_str());
+          fg::settings().commit();
+        }
+      }
+    }
+
+    bool sweepStart() {
+      g_sweep.next = 0;
+      if(!WiFi.isConnected()) return false;
+      const IPAddress local = WiFi.localIP();
+      if(local[0] == 0) return false;
+      for(int i = 0; i < 3; i++) g_sweep.prefix[i] = local[i];
+      g_sweep.self = local[3];
+      g_sweep.answered = 0;
+      g_sweep.next = 1;
+      return true;
+    }
+
+    enum : uint8_t { SWEEP_RUNNING, SWEEP_FOUND, SWEEP_EXHAUSTED };
+
+    // Probes up to `hosts` more addresses. Without a stored MAC a camera is only
+    // taken when it was the one stream on the whole network: a guess between two
+    // would hand the cloud a neighbour's tent.
+    uint8_t sweepStep(uint16_t hosts) {
+      const std::string mac = storedMac();
+      for(uint16_t n = 0; n < hosts && g_sweep.next != 0; n++) {
+        const uint8_t host = (uint8_t)g_sweep.next;
+        g_sweep.next = host >= 254 ? 0 : host + 1;
+        if(host == g_sweep.self) continue;
+        const IPAddress ip(g_sweep.prefix[0], g_sweep.prefix[1], g_sweep.prefix[2], host);
+        esp_task_wdt_reset();
+        if(!terpCamStreamAnswers(ip, STREAM_SWEEP_CONNECT_MS)) continue;
+        const std::string seen = terpCamMacOf(ip);
+        Serial.printf("[cam] stream at %s (%s)\n", ip.toString().c_str(), seen.c_str());
+        g_sweep.answered++;
+        g_sweep.only = ip;
+        if(!mac.empty() && seen == mac) {
+          g_sweep.next = 0;
+          adoptStream(ip);
+          return SWEEP_FOUND;
+        }
+      }
+      if(g_sweep.next != 0) return SWEEP_RUNNING;
+      if(mac.empty() && g_sweep.answered == 1) {
+        adoptStream(g_sweep.only);
+        return SWEEP_FOUND;
+      }
+      return SWEEP_EXHAUSTED;
+    }
+
+    // Says so once when it is lost and once when it is back, not on every check.
+    void reportStreamSearch(Fridgecloud* cloud, bool found) {
+      reportCamIp(cloud);
+      if(cloud == nullptr || found != g_stream_lost) return;
+      g_stream_lost = !found;
+      cloud->log(found ? "message-terp-cam-found" : "message-terp-cam-not-found", found ? 0 : 1);
+    }
+  }
+
+  bool terpCamStreams() {
+    return camIsPaired() && std::string(fg::settings().getStr(TERP_CAM_STREAM_NVS_KEY).c_str()) == "1";
+  }
+
+  bool terpCamStreamAnswers(const IPAddress& ip, uint32_t connect_ms) {
+    WiFiClient client;
+    if(!client.connect(ip, TERP_CAM_STREAM_PORT, (int32_t)connect_ms)) return false;
+    client.printf("OPTIONS rtsp://%s:%u%s RTSP/1.0\r\nCSeq: 1\r\n\r\n",
+                  ip.toString().c_str(), (unsigned)TERP_CAM_STREAM_PORT, TERP_CAM_STREAM_PATH);
+    char head[13];
+    size_t n = 0;
+    const uint32_t until = millis() + STREAM_READ_MS;
+    while(n < sizeof(head) - 1 && (int32_t)(until - millis()) > 0) {
+      const int c = client.available() > 0 ? client.read() : -1;
+      if(c >= 0) { head[n++] = (char)c; continue; }
+      if(!client.connected()) break;
+      delay(5);
+    }
+    head[n] = 0;
+    client.stop();
+    return strcmp(head, "RTSP/1.0 200") == 0;
+  }
+
+  std::string terpCamMacOf(const IPAddress& ip) {
+    ArpLookup query = {};
+    ip4_addr_set_u32(&query.ip, (uint32_t)ip);
+    if(tcpip_api_call(arpLookup, &query.call) != ERR_OK || !query.found) return "";
+    char out[13];
+    snprintf(out, sizeof(out), "%02X%02X%02X%02X%02X%02X",
+             query.mac[0], query.mac[1], query.mac[2], query.mac[3], query.mac[4], query.mac[5]);
+    return std::string(out);
+  }
+
+  bool terpCamFindStream(Fridgecloud* cloud, uint32_t budget_ms) {
+    if(!terpCamStreams()) return false;
+    IPAddress cached;
+    const bool have_cached = cached.fromString(cachedCamIp().c_str());
+    const uint32_t until = millis() + budget_ms;
+    bool found = false;
+    do {
+      found = have_cached && isOurStream(cached, 500);
+      if(!found && sweepStart()) {
+        uint8_t step;
+        while((step = sweepStep(8)) == SWEEP_RUNNING && (int32_t)(until - millis()) > 0) {}
+        g_sweep.next = 0;
+        found = step == SWEEP_FOUND;
+      }
+      // A camera that was just handed the Wi-Fi takes a while to join it.
+      for(int i = 0; !found && i < 20 && (int32_t)(until - millis()) > 0; i++) { delay(100); esp_task_wdt_reset(); }
+    } while(!found && (int32_t)(until - millis()) > 0);
+    g_stream_checked = true;
+    g_stream_checked_at = millis();
+    reportStreamSearch(cloud, found);
+    return found;
+  }
+
+  bool terpCamTickStream(Fridgecloud* cloud) {
+    // Called on every loop pass, so between checks it costs a comparison, not NVS reads.
+    if(g_sweep.next == 0 && g_stream_checked && (millis() - g_stream_checked_at) < STREAM_CHECK_MS) return false;
+    const bool due = g_sweep.next == 0;
+    if(due) {
+      g_stream_checked = true;
+      g_stream_checked_at = millis();
+    }
+    if(!terpCamStreams()) {
+      g_sweep.next = 0;
+      return false;
+    }
+    if(!due) {
+      const uint8_t step = sweepStep(STREAM_HOSTS_PER_TICK);
+      if(step == SWEEP_RUNNING) return true;
+      reportStreamSearch(cloud, step == SWEEP_FOUND);
+      return false;
+    }
+
+    IPAddress cached;
+    if(cached.fromString(cachedCamIp().c_str()) && isOurStream(cached, 500)) {
+      reportStreamSearch(cloud, true);
+      return false;
+    }
+    if(!sweepStart()) return false;
+    Serial.println("[cam] looking for the camera's stream on the network");
+    return true;
   }
 
 }

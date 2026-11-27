@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { Device, DeviceSettings, DeviceState } from '@fg2/shared-types/v1';
+import type { AppliedClimate, Device, DeviceRelease, DeviceSettings, DeviceState, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
 import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -18,6 +18,15 @@ interface StoredDeviceMqtt {
 }
 
 /** A zone and its offset from UTC in minutes: the clock a device's times of day were meant on. */
+
+/** A preset waiting for a device's first settings (`StoredDevice.awaitedClimate`). */
+export interface AwaitedClimate {
+  spaceId: string;
+  stage: GrowthStage;
+  preset: string | null;
+  choices: Partial<GerminationChoices> | null;
+}
+
 export interface ScheduleClock {
   zone: string;
   offset: number;
@@ -27,6 +36,7 @@ export interface StoredDeviceState extends Omit<
   DeviceState,
   | 'lastSeenAt'
   | 'claimedAt'
+  | 'released'
   | 'updateStartedAt'
   | 'updateEndedAt'
   | 'updateFailedAt'
@@ -36,16 +46,44 @@ export interface StoredDeviceState extends Omit<
 > {
   lastSeenAt: Date | null;
   claimedAt: Date | null;
+  /**
+   * Where the readings its holder may read of the device itself begin: its claim, when somebody held it before, so
+   * the next owner is shown nothing the last one measured. Null for its first holder, who reads back to before the
+   * claim - the hour between plugging it in and adding it is theirs. Absent on a row from before it was kept.
+   */
+  readsFrom?: Date | null;
+  /**
+   * Absent on a row from before it was kept, which reads as never released. `ownerId` and `name` are who held it and
+   * what they called it, so the record of a place it stood in still names it while nobody holds it.
+   */
+  released?: { at: Date; by: DeviceRelease; ownerId?: string | null; name?: string | null } | null;
   updateStartedAt: Date | null;
   updateEndedAt: Date | null;
   updateFailedAt: Date | null;
   maintenanceUntil: Date | null;
   socketStateChangedAt: Record<string, Date>;
   socketsReportedAt: Date | null;
+  /** When `hardware.light_hold` arrived. Kept here only: the API serves it as part of the socket page's `lightHold`. */
+  lightHoldReportedAt?: Date | null;
+}
+
+/** One stay of a device in a place. `endedAt: null` is where it stands now, and at most one is open. */
+export interface DevicePlacement {
+  spaceId: string;
+  startedAt: Date;
+  endedAt: Date | null;
 }
 
 export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'control'> {
   createdAt: Date;
+  /**
+   * Where the device stood and when, oldest first, so that what is read about a
+   * stretch of time keeps a device for the days it stood in a place
+   * (`common/v1/device-placements.ts`). `spaceId` is the open one's place and is
+   * written with it. Stored rather than served: no screen reads a device's past
+   * places, the reads about a place's past do.
+   */
+  placements: DevicePlacement[];
   mqtt: StoredDeviceMqtt | null;
   /**
    * When the climate retention sweep last reached this device. Stored rather
@@ -92,6 +130,11 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    */
   beforeGermination?: Record<string, number> | null;
   /**
+   * A lamp module's brightness from before its place went dark - germinating or drying (ADR 0007) -, which the dark
+   * put to nothing and gives back when it ends. Null while it is not held dark.
+   */
+  limitBeforeDark?: number | null;
+  /**
    * What the grower chose germination to do about the humidity: whether the
    * "too humid" alarms warn and whether a humidifier socket holds the night's
    * humidity while the device germinates. Null - or a choice it does not state -
@@ -99,6 +142,27 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * the firmware has no word for either, and served as `control`.
    */
   germinationChoices?: { warnTooHumid?: boolean; humidifierHolds?: boolean } | null;
+  /**
+   * The climate preset the device was last put on - saved with its targets, a
+   * phase's climate, a preset applied to its place, a plan step's stage -
+   * which names one on Steuerung rather than figures that happen to match.
+   * Absent on a device none was applied to since it is kept.
+   */
+  appliedClimate?: AppliedClimate | null;
+  /**
+   * The climate preset the device was named by when a germination or a drying spell began, kept until the spell ends:
+   * ended by its own button the device comes back to it with its figures, and its place's thresholds follow it. Null
+   * where it had none; absent while no spell runs, and for one begun at the device's own menu.
+   */
+  climateBeforeSpell?: AppliedClimate | null;
+  /**
+   * A climate preset put on the device's place before it had sent its settings,
+   * which it is put on as they arrive (`ClimatePresetsService.settingsArrived`):
+   * a phase chosen at the claim reached no device and was never written. Kept
+   * with the place it was asked for, so a device moved since is not put on it.
+   * Absent where none was waiting since it is kept.
+   */
+  awaitedClimate?: AwaitedClimate | null;
   /**
    * The humidity band of the document - `daynight.targetHumidityDiff`, which a
    * controller's dehumidifier switches by - from before a humidifier was rested
@@ -121,6 +185,15 @@ const mqttSchema = new Schema<StoredDeviceMqtt>(
   {
     username: { type: String, required: true },
     passwordHash: { type: String, required: true },
+  },
+  { _id: false, versionKey: false },
+);
+
+const placementSchema = new Schema<DevicePlacement>(
+  {
+    spaceId: { type: String, required: true },
+    startedAt: { type: Date, required: true },
+    endedAt: { type: Date, default: null },
   },
   { _id: false, versionKey: false },
 );
@@ -166,6 +239,22 @@ const stateSchema = new Schema<StoredDeviceState>(
   {
     lastSeenAt: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
+    readsFrom: { type: Date, default: null },
+    // When its last owner let it go and how, until somebody claims it again: support tells a device given up from
+    // one nobody ever added by it, which `ownerId: null` alone cannot say. Who that was and the name they gave it are
+    // what the places it stood in go on calling it by.
+    released: {
+      type: new Schema(
+        {
+          at: { type: Date, required: true },
+          by: { type: String, required: true },
+          ownerId: { type: String, default: null },
+          name: { type: String, default: null },
+        },
+        { _id: false, versionKey: false },
+      ),
+      default: null,
+    },
     firmwareId: { type: String, default: null },
     updateStartedAt: { type: Date, default: null },
     updateEndedAt: { type: Date, default: null },
@@ -185,6 +274,8 @@ const stateSchema = new Schema<StoredDeviceState>(
     // it had left then and never an instant, so without this the countdown a
     // person watches would restart on every read.
     socketsReportedAt: { type: Date, default: null },
+    // When the hold on the light output was last reported, for the same reason.
+    lightHoldReportedAt: { type: Date, default: null },
   },
   { _id: false, versionKey: false, minimize: false },
 );
@@ -200,6 +291,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     serialNumber: { type: Number, default: null },
     ownerId: { type: String, default: null },
     spaceId: { type: String, default: null },
+    placements: { type: [placementSchema], required: true, default: [] },
     name: { type: String, default: null },
     // Never served: the contract has no field for it. Read by `MqttAuthService`
     // alone, which asks for it explicitly.
@@ -212,7 +304,12 @@ export const devicesSchema = new Schema<StoredDevice>(
     standardWorkmode: { type: String, default: null },
     beforeDrying: { type: Schema.Types.Mixed, default: null },
     beforeGermination: { type: Schema.Types.Mixed, default: null },
+    limitBeforeDark: { type: Number, default: null },
     germinationChoices: { type: Schema.Types.Mixed, default: null },
+    appliedClimate: { type: Schema.Types.Mixed, default: null },
+    // No default: absent is a spell nobody put a name aside for.
+    climateBeforeSpell: { type: Schema.Types.Mixed },
+    awaitedClimate: { type: Schema.Types.Mixed, default: null },
     restedHumidityBand: { type: Number, default: null },
     // Never served, and not read unless asked for: the camera's password.
     cameraSecret: { type: String, default: null, select: false },
@@ -235,6 +332,8 @@ devicesSchema.index({ 'mqtt.username': 1 }, { unique: true, partialFilterExpress
 // A person's devices, and the devices of one space's card.
 devicesSchema.index({ ownerId: 1 });
 devicesSchema.index({ spaceId: 1 });
+// Which devices stood in a place over a stretch of time: a place's curves, a grow's days, an export.
+devicesSchema.index({ 'placements.spaceId': 1 });
 // The rollout counts a class by the build its devices run, and picks the next ones to update.
 devicesSchema.index({ classId: 1, 'state.firmwareId': 1 });
 // The retention sweep's rotation: least recently swept first, oldest first

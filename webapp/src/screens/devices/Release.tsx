@@ -1,0 +1,91 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useDevices, useReleaseDevice } from '@/api/devices';
+import { useSpaces } from '@/api/spaces';
+import { leaveUnderSheet } from '@/app/places';
+import { Sheet } from '@/ui/Sheet';
+import { Answered, SheetAnswer } from '@/ui/SheetParts';
+import ui from '@/ui/ui.module.css';
+import { deviceTitle, standingWith } from '@/ui/naming';
+import { camCoupled } from '@/screens/claim/steps';
+import sheet from './Maintenance.module.css';
+
+/**
+ * Giving a device up: after a sale, a move to another account or a swap, the
+ * hardware leaves this account and whoever holds it next adds it with the
+ * code its display shows. Without it a used device stays locked to its first
+ * owner for good.
+ *
+ * It is the owner's alone and the last row of the device's page, and it is
+ * asked twice, with two different buttons: what goes with the device and what
+ * stays, then whether it is meant - because it cannot be taken back from here.
+ */
+export function ReleaseSheet({ deviceId, onClose, onReleased }: { deviceId: string; onClose: () => void; onReleased: () => void }) {
+  const { t } = useTranslation();
+  const devices = useDevices();
+  const spaces = useSpaces();
+  const { release, forget } = useReleaseDevice(deviceId);
+  const [sure, setSure] = useState(false);
+  const device = devices.data?.items.find(one => one.id === deviceId);
+  if (!device) return null;
+
+  const name = deviceTitle(device, t, standingWith(device, devices.data?.items));
+  const place = spaces.data?.items.find(space => space.id === device.spaceId)?.name ?? null;
+  // The device is still in the list while the answer is read; it is let go of
+  // with the sheet, and its page with it - whose entry of the history is the one `onReleased` replaces.
+  const done = () =>
+    leaveUnderSheet(() => {
+      onClose();
+      forget();
+      onReleased();
+    });
+
+  const actions =
+    sure || release.isSuccess ? (
+      <SheetAnswer done={release.isSuccess} error={release.error} onClose={onClose} onDone={done}>
+        <button type="button" className={`${ui.button} ${ui.dangerFilled}`} disabled={release.isPending} onClick={() => release.mutate()}>
+          {t(release.isPending ? 'release.releasing' : 'release.yes')}
+        </button>
+      </SheetAnswer>
+    ) : (
+      <>
+        <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setSure(true)}>
+          {t('release.next')}
+        </button>
+        <button type="button" className={ui.button} onClick={onClose}>
+          {t('maintenance.cancel')}
+        </button>
+      </>
+    );
+
+  return (
+    <Sheet
+      title={t(sure && !release.isSuccess ? 'release.sureTitle' : 'release.title', { name })}
+      onClose={release.isSuccess ? done : onClose}
+      actions={actions}
+    >
+      <div className={sheet.body}>
+        {release.isSuccess ? (
+          <Answered>{t('release.done', { name })}</Answered>
+        ) : sure ? (
+          <p>{t('release.sure', { name })}</p>
+        ) : (
+          <>
+            <p>{t('release.what', { name })}</p>
+            {/* Only a fridge module and a controller run a plan; the others take their alarms, and the camera paired at them if there is one. */}
+            <p>
+              {t(
+                device.type === 'fridge' || device.type === 'controller'
+                  ? 'release.goes'
+                  : camCoupled(device)
+                    ? 'release.goesAlarmsAndCam'
+                    : 'release.goesAlarms',
+              )}
+            </p>
+            <p className={ui.note}>{place ? t('release.stays', { place }) : t('release.staysNowhere')}</p>
+          </>
+        )}
+      </div>
+    </Sheet>
+  );
+}

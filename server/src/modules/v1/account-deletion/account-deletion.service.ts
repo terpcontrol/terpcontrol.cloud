@@ -30,6 +30,8 @@ import { logger } from '@utils/logger';
 import { AccountsService } from '../account/accounts.service';
 import { PasswordResetService } from '../account/password-reset.service';
 import { DevicesService } from '../device/devices.service';
+import { DataService } from '@modules/data/data.service';
+import { readsFromOf } from '@common/v1/device-placements';
 import { SessionsService } from '../sessions/sessions.service';
 
 /**
@@ -67,10 +69,24 @@ import { SessionsService } from '../sessions/sessions.service';
  *
  * What is deliberately not deleted: the device rows and their broker
  * credentials, because the hardware is still out there and the record says an
- * unclaimed device stays claimable; and the climate series, because a released
- * device keeps the readings it took and dropping them is the retention
- * mechanism's decision rather than a side effect of this one.
+ * unclaimed device stays claimable. What the devices measured while they were
+ * the account's does go: a climate series is a record of somebody's home, and
+ * the next owner of the hardware is owed none of it.
  */
+
+/** Where a first stay of a device is read back to, and so where what it measured for its first holder begins. */
+const THE_BEGINNING = new Date(0);
+
+/** Stretches that overlap or touch, joined: one delete each. */
+const merged = (stretches: { from: Date; to: Date }[]): { from: Date; to: Date }[] =>
+  [...stretches]
+    .sort((one, other) => one.from.getTime() - other.from.getTime())
+    .reduce<{ from: Date; to: Date }[]>((joined, stretch) => {
+      const last = joined[joined.length - 1];
+      if (last && stretch.from <= last.to) last.to = new Date(Math.max(last.to.getTime(), stretch.to.getTime()));
+      else if (stretch.to > stretch.from) joined.push({ ...stretch });
+      return joined;
+    }, []);
 
 const RESUME_START_DELAY_MS = 5_000;
 const RESUME_INTERVAL_MS = 60 * 60 * 1000;
@@ -120,6 +136,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     private readonly sessions: SessionsService,
     private readonly resets: PasswordResetService,
     private readonly devices: DevicesService,
+    private readonly data: DataService,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
   ) {}
 
@@ -194,6 +211,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.accounts.beginDeletion(userId);
 
     await this.eraseCameras(userId, tally);
+    await this.eraseReadings(userId);
     await this.unclaimDevices(userId, tally);
     await this.eraseGrows(userId, tally);
     await this.eraseSpaces(userId, tally);
@@ -253,6 +271,34 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
   }
 
   /**
+   * What the account's devices measured for it: every stay of a device in one
+   * of its places, and what a device it holds measured since it became the
+   * account's, wherever it stands. A device stands only in a place of its
+   * owner, so a stay in these places is the account's; a device somebody else
+   * still has standing here is the one exception the record allows, and its
+   * readings are its owner's. A first stay reaches back past its start, as every
+   * read of it does. Before the claims are released and the places go, which is
+   * what the stretches are read from, so a run picked up again finds them all.
+   */
+  private async eraseReadings(userId: string): Promise<void> {
+    const spaceIds: string[] = await this.spaces.distinct('id', { ownerId: userId });
+    const rows = await this.deviceRows
+      .find({ $or: [{ ownerId: userId }, { 'placements.spaceId': { $in: spaceIds } }] }, { id: 1, ownerId: 1, state: 1, placements: 1 })
+      .lean<Pick<StoredDevice, 'id' | 'ownerId' | 'state' | 'placements'>[]>();
+    const now = new Date();
+
+    for (const device of rows) {
+      const stretches: { from: Date; to: Date }[] = (device.placements ?? []).flatMap((placement, index) =>
+        spaceIds.includes(placement.spaceId) && !(placement.endedAt === null && device.ownerId !== userId)
+          ? [{ from: index === 0 ? THE_BEGINNING : placement.startedAt, to: placement.endedAt ?? now }]
+          : [],
+      );
+      if (device.ownerId === userId) stretches.push({ from: readsFromOf(device) ?? THE_BEGINNING, to: now });
+      for (const { from, to } of merged(stretches)) await this.data.dropEverySample(device.id, from, to);
+    }
+  }
+
+  /**
    * The devices are not deleted: the hardware is still out there and stays
    * claimable, which is the whole of what the next owner needs - a claim asks
    * after `ownerId` and nothing else.
@@ -271,7 +317,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.alerts.deleteMany({ deviceId: { $in: deviceIds } });
     tally.entries += await this.deleteEntries({ deviceId: { $in: deviceIds } });
 
-    for (const id of deviceIds) await this.devices.releaseClaim(id);
+    for (const id of deviceIds) await this.devices.releaseClaim(id, 'account_deleted');
     tally.devices += deviceIds.length;
   }
 
@@ -332,7 +378,10 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
       // What other people had standing in these places. Their things are not
       // this account's to delete, so they are only taken out of the room: their
       // owner sees them unplaced, which is what has happened to them.
-      await this.deviceRows.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
+      // Through the one writer of where a device stands, so its stay here is closed and stays on its record:
+      // a device with nothing on its record would be read back, by its next place, to before it left this one.
+      const theirs: string[] = await this.deviceRows.distinct('id', { spaceId: { $in: spaceIds } });
+      for (const id of theirs) await this.devices.place(id, null);
       await this.cameras.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
       // A placement is ended rather than emptied: `endedAt` is already what the
       // model means by "no longer standing there", while a placement with no

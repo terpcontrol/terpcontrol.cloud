@@ -52,7 +52,7 @@ const SEEDED_CLASSES: readonly { name: string; description: string }[] = [
   { name: 'fridge', description: 'Fridge Controller' },
   { name: 'fan', description: 'Fan Controller' },
   { name: 'light', description: 'Light Controller' },
-  { name: 'plug', description: 'Smart Socket' },
+  { name: 'plug', description: 'Plantalytix Socket' },
   { name: 'controller', description: 'FG Controller 2.0' },
 ];
 

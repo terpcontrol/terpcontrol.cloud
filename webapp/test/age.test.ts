@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { describe, expect, it } from 'vitest';
-import { ageLabel, countdownLabel, deviceLiveness, spanLabel, valueAge } from '@/ui/age';
+import { ageLabel, countdownLabel, deviceLiveness, spanLabel, spokenAgo, valueAge } from '@/ui/age';
 import { catalogue, translate } from './translations';
 
 describe('the age beside a value', () => {
@@ -8,14 +8,28 @@ describe('the age beside a value', () => {
   const ago = (seconds: number) => now.minus({ seconds }).toISO();
 
   it('counts in the unit that fits', () => {
-    expect(ageLabel(ago(20), now)).toBe('20 s');
-    expect(ageLabel(ago(4 * 60), now)).toBe('4 min');
-    expect(ageLabel(ago(2 * 3600), now)).toBe('2 h');
-    expect(ageLabel(ago(3 * 86_400), now)).toBe('3 d');
+    // An age ends the sentence it is said in, so its unit never stands alone on the next line.
+    expect(ageLabel(ago(20), now)).toBe('20\u00a0s');
+    expect(ageLabel(ago(4 * 60), now)).toBe('4\u00a0min');
+    expect(ageLabel(ago(2 * 3600), now)).toBe('2\u00a0h');
+    expect(ageLabel(ago(3 * 86_400), now)).toBe('3\u00a0d');
   });
 
   it('says so when a metric was never reported', () => {
     expect(ageLabel(null, now)).toBe('—');
+  });
+});
+
+describe('the age read aloud', () => {
+  const now = DateTime.fromISO('2026-09-18T12:00:00Z');
+  const ago = (seconds: number) => now.minus({ seconds }).toISO();
+
+  // A screen reader spells "3 d" out letter by letter; the words it reads instead are floored as the drawn age is.
+  it('writes the unit out, in the case "vor" wants', () => {
+    expect(spokenAgo(ago(20), now)).toBe('20 seconds ago');
+    expect(spokenAgo(ago(4 * 60 + 59), now)).toBe('4 minutes ago');
+    expect(spokenAgo(ago(3 * 86_400), now)).toBe('3 days ago');
+    expect(spokenAgo(null, now)).toBe('');
   });
 });
 
@@ -100,10 +114,12 @@ describe('an age in German', () => {
   it('writes each unit the way the German catalogue does', async () => {
     await translate(['de'], 'de');
 
-    expect(ageLabel(ago(4 * 60), now)).toBe('4 Min');
-    expect(ageLabel(ago(2 * 3600), now)).toBe('2 Std');
-    expect(ageLabel(ago(5 * 86_400), now)).toBe('5 T');
+    expect(ageLabel(ago(4 * 60), now)).toBe('4\u00a0Min');
+    expect(ageLabel(ago(2 * 3600), now)).toBe('2\u00a0Std');
+    expect(ageLabel(ago(5 * 86_400), now)).toBe('5\u00a0T');
     expect(countdownLabel(7 * 86_400)).toBe('7 T');
-    expect(await catalogue('de')).toHaveProperty(['grow', 'days_other'], '{{count}} T');
+    // How long a grow ran is a sentence's worth of room and is said in words.
+    expect(await catalogue('de')).toHaveProperty(['grow', 'days_other'], '{{count}} Tage');
+    expect(await catalogue('de')).toHaveProperty(['grow', 'days_one'], '{{count}} Tag');
   });
 });

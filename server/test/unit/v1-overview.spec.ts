@@ -84,7 +84,6 @@ const build = (): OverviewService => {
     db.media,
     db.alerts,
     db.alarmRules,
-    db.reminders,
     db.users,
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
@@ -247,19 +246,6 @@ const world = async (): Promise<void> => {
       occurredAt: new Date('2026-06-10T06:00:00.000Z'),
     }),
   ]);
-
-  await db.reminders.create({
-    id: 'reminder-water',
-    subject: { type: 'grow', id: GROW },
-    kind: 'water',
-    label: 'Water Spring run #3',
-    everyDays: 2,
-    onceAt: null,
-    assigneeId: MEMBER,
-    defaults: { kind: 'water', readings: [{ key: 'volume', value: 2, plantId: null }] },
-    createdBy: OWNER,
-    createdAt: new Date('2026-06-08T09:00:00.000Z'),
-  });
 };
 
 beforeEach(async () => {
@@ -383,6 +369,40 @@ describe('what the tent reads right now', () => {
     });
   });
 
+  it('answers each climate of the place on its own: its readings, what it aims at and its verdict', async () => {
+    await db.devices.create({
+      id: 'device-fridge-module',
+      type: 'fridge',
+      ownerId: OWNER,
+      spaceId: TENT,
+      configuration: { day: { temperature: 21, humidity: 60 }, night: { temperature: 18, humidity: 60 } },
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    readings['device-fridge-module'] = reading({ temperature: [20.6, 10], humidity: [61, 10] });
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.climates.map(climate => climate.deviceId)).toEqual([CONTROLLER, 'device-fridge-module']);
+    expect(page.climates[0]).toMatchObject({ targets: page.targets, verdict: page.verdict });
+    expect(page.climates[1].values.map(value => [value.metric, value.value])).toEqual([
+      ['temperature', 20.6],
+      ['humidity', 61],
+    ]);
+    expect(page.climates[1].setpoints).toEqual([
+      { metric: 'temperature', value: 21, band: 1 },
+      { metric: 'humidity', value: 60, band: 5 },
+    ]);
+    expect(page.climates[1].targets?.day).toEqual([
+      { metric: 'temperature', value: 21, band: 1 },
+      { metric: 'humidity', value: 60, band: 5 },
+    ]);
+  });
+
+  it('answers no climate where nothing here holds targets', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { configuration: null } });
+    expect((await readAs(session(OWNER))).climates).toEqual([]);
+  });
+
   it('has no targets where nothing in the space holds one', async () => {
     await db.devices.updateOne({ id: CONTROLLER }, { $set: { configuration: null } });
 
@@ -436,24 +456,18 @@ describe('what grows here', () => {
     const page = await readAs(demo(null));
     expect(page.grows.map(grow => grow.plantCount)).toEqual([null, null]);
   });
-});
 
-describe('what is due', () => {
-  it('carries what a completion would be written with, so Done needs nothing else read', async () => {
-    const page = await readAs(session(OWNER));
+  /**
+   * The tour is shown an account as its keeper sees it. Without the devices a
+   * demo place on Start had no hardware, while the device list - which
+   * the tour reads anyway - showed it.
+   */
+  it('names the devices here to the demo tour', async () => {
+    await db.spaces.updateOne({ id: TENT }, { $set: { isDemo: true } });
 
-    expect(page.dueTasks).toEqual([
-      {
-        id: `reminder-water:${Date.parse('2026-06-10T09:00:00.000Z')}`,
-        kind: 'water',
-        label: 'Water Spring run #3',
-        dueAt: '2026-06-10T09:00:00.000Z',
-        subject: { type: 'grow', id: GROW },
-        assigneeId: MEMBER,
-        defaults: { kind: 'water', readings: [{ key: 'volume', value: 2, plantId: null }] },
-      },
-    ]);
-    expect(page.people).toEqual(expect.arrayContaining([{ id: MEMBER, handle: 'mia' }]));
+    const page = await readAs(demo(null));
+    expect(page).toMatchObject({ roomId: ROOM, deviceIds: [CONTROLLER, PLUG] });
+    expect(page.climates.map(climate => climate.deviceId)).toEqual([CONTROLLER]);
   });
 });
 
@@ -510,6 +524,118 @@ describe('the day´s pictures', () => {
   });
 });
 
+describe('what was last written', () => {
+  const machine = (id: string, at: string, over: Partial<EntryDocument>): EntryDocument =>
+    entry({ id, source: 'device', authorId: null, spaceId: TENT, deviceId: CONTROLLER, occurredAt: new Date(at), ...over });
+  const maintenance = (id: string, at: string, minutes: number): EntryDocument =>
+    machine(id, at, {
+      kind: 'system',
+      message: { key: 'message-maintenance-mode-activated', params: [String(minutes)] },
+      values: { kind: 'system' },
+    });
+
+  it('is the tail of the diary: the lines a day of it would show, and maintenance as the one stretch it was', async () => {
+    await db.entries.create([
+      maintenance('maintenance-on', '2026-06-10T08:00:00.000Z', 30),
+      maintenance('maintenance-off', '2026-06-10T08:10:00.000Z', 0),
+      machine('rebooted', '2026-06-10T09:00:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-booted', params: [] },
+        values: { kind: 'system' },
+      }),
+      machine('plan-step', '2026-06-10T10:00:00.000Z', {
+        kind: 'plan',
+        source: 'plan',
+        deviceId: null,
+        values: { kind: 'plan', planId: 'plan-1', stepIndex: 1, transition: null },
+      }),
+    ]);
+
+    const page = await readAs(session(OWNER));
+
+    // The plan's step is a line; the restart is the device's own record; maintenance is no line at all.
+    expect(page.entries.map(line => line.id)).toEqual(['plan-step', 'entry-space', 'entry-new', 'entry-old']);
+    expect(page.events).toEqual([{ kind: 'maintenance', at: '2026-06-10T08:00:00.000Z', endedAt: '2026-06-10T08:10:00.000Z' }]);
+  });
+
+  it('tells regulation switched off and on as the one stretch it was, beside maintenance', async () => {
+    await db.entries.create([
+      machine('off', '2026-06-10T09:00:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-configuration-updated', params: ['workmode: small → off', '', 'controller'] },
+        values: { kind: 'system' },
+      }),
+      machine('on', '2026-06-10T09:12:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-configuration-updated', params: ['workmode: off → small', '', 'controller'] },
+        values: { kind: 'system' },
+      }),
+    ]);
+
+    const page = await readAs(session(OWNER));
+    expect(page.entries.map(line => line.id)).not.toContain('off');
+    expect(page.events).toEqual([{ kind: 'controlOff', at: '2026-06-10T09:00:00.000Z', endedAt: '2026-06-10T09:12:00.000Z' }]);
+  });
+
+  /**
+   * Start counts an alarm's repeats as the day's card of the diary does, so the tail carries every firing of an alarm
+   * among its newest lines - of that rule on that device, not another's of the same name -, not only those the newest
+   * happened to hold.
+   */
+  it('carries the other firings of an alarm among the newest lines, of its rule and device alone', async () => {
+    const fired = (id: string, at: string, deviceId = CONTROLLER) =>
+      machine(id, at, {
+        kind: 'alarm',
+        source: 'alarm',
+        deviceId,
+        message: { key: 'message-alarm-triggered', params: ['Too hot (temperature), value=31.2, upper threshold=28, lower threshold=n/a'] },
+        values: { kind: 'alarm' },
+      });
+    const notes = Array.from({ length: 8 }, (_, index) =>
+      entry({ id: `note-${index}`, growId: GROW, occurredAt: new Date(`2026-06-10T11:${String(10 + index).padStart(2, '0')}:00.000Z`) }),
+    );
+    await db.entries.create([
+      ...notes.slice(0, 7),
+      fired('newest', '2026-06-10T11:30:00.000Z'),
+      ...Array.from({ length: 30 }, (_, index) =>
+        fired(`older-${index}`, `2026-06-10T0${Math.floor(index / 6)}:${String((index % 6) * 10).padStart(2, '0')}:00.000Z`),
+      ),
+      fired('elsewhere', '2026-06-10T09:00:00.000Z', 'device-other'),
+    ]);
+
+    const ids = (await readAs(session(OWNER))).entries.map(line => line.id);
+
+    expect(ids).toContain('newest');
+    expect(ids.filter(id => id.startsWith('older-'))).toHaveLength(30);
+    expect(ids).not.toContain('elsewhere');
+  });
+
+  /**
+   * A member's Zuletzt left a lamp's line unnamed once the lamp had gone to another place: the member's list of
+   * devices does not hold it. The answer says what the devices its lines name are called there, as Verlauf's does.
+   */
+  it('says what the devices its lines name are called, one that has left the place too', async () => {
+    await db.devices.create({ id: 'device-lamp', type: 'light', name: 'c8 Lampe', ownerId: OWNER, spaceId: 'space-elsewhere', configuration: null });
+    await db.entries.create(
+      machine('lamp-silent', '2026-06-10T11:00:00.000Z', {
+        kind: 'alarm',
+        source: 'alarm',
+        deviceId: 'device-lamp',
+        message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+        values: { kind: 'alarm' },
+      }),
+    );
+
+    expect((await readAs(session(MEMBER))).devices).toEqual(expect.arrayContaining([{ deviceId: 'device-lamp', name: 'c8 Lampe', type: 'light' }]));
+  });
+
+  it('leaves a maintenance still on without an end', async () => {
+    await db.entries.create(maintenance('maintenance-on', '2026-06-10T11:50:00.000Z', 30));
+
+    expect((await readAs(session(OWNER))).events).toEqual([{ kind: 'maintenance', at: '2026-06-10T11:50:00.000Z', endedAt: null }]);
+  });
+});
+
 describe('who may read it', () => {
   const linkFor = async (over: Record<string, unknown>): Promise<string> => {
     await db.shareLinks.create({
@@ -533,6 +659,46 @@ describe('who may read it', () => {
 
   it('is not there at all for somebody with nothing to do with the tent', async () => {
     await expect(readAs(session(STRANGER))).rejects.toMatchObject({ problem: { status: 404, code: 'space_not_found' } });
+  });
+
+  it('answers a link onto the place what people wrote there, and nothing a device or an alarm did', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-alarm',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        growId: GROW,
+        alertId: 'alert-1',
+        severity: 'warning',
+        occurredAt: new Date('2026-06-05T10:00:00.000Z'),
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=71'] },
+        values: { kind: 'alarm' },
+      }),
+      entry({
+        id: 'entry-rebooted',
+        kind: 'system',
+        source: 'device',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        occurredAt: new Date('2026-06-05T11:00:00.000Z'),
+        message: { key: 'message-device-booted', params: [] },
+        values: { kind: 'system' },
+      }),
+    ]);
+
+    const theirs = await readAs(visitor(await linkFor({})));
+
+    expect(theirs.entries.map(line => line.id)).toEqual(['entry-old']);
+    expect(JSON.stringify(theirs.entries)).not.toMatch(/alarm|alert-1|booted/);
+    expect(theirs.devices).toEqual([]);
+    expect(theirs.events).toEqual([]);
+    // Whoever keeps the tent reads the alarm; what a device logs about itself is no line of a diary for them either.
+    const keepers = (await readAs(session(OWNER))).entries.map(line => line.id);
+    expect(keepers).toContain('entry-alarm');
+    expect(keepers).not.toContain('entry-rebooted');
   });
 
   it('answers a link only what its window covers', async () => {
@@ -611,8 +777,8 @@ describe('who may read it', () => {
     const theirs = await readAs(visitor(await linkFor({})));
 
     expect(mine.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(34);
-    // The window closed on 8 June, two days into the diary this reader has not seen.
-    expect(theirs.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(31);
+    // The window closed two hours into 8 June where the owner lives, two dates before today.
+    expect(theirs.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(32);
   });
 
   it('names no device and no room to somebody who was sent a link', async () => {
@@ -622,6 +788,7 @@ describe('who may read it', () => {
     expect(mine).toMatchObject({ roomId: ROOM, deviceIds: [CONTROLLER, PLUG] });
     expect(theirs).toMatchObject({ roomId: null, deviceIds: null });
     expect(theirs.verdict.deviceId).toBeNull();
+    expect(theirs.climates.map(climate => [climate.deviceId, climate.verdict.deviceId])).toEqual([[null, null]]);
     expect(JSON.stringify(theirs)).not.toContain(CONTROLLER);
     expect(JSON.stringify(theirs)).not.toContain(PLUG);
     expect(JSON.stringify(theirs)).not.toContain(ROOM);
@@ -644,6 +811,21 @@ describe('who may read it', () => {
     const unknown = await readAs(visitor(token));
     expect(unknown.grows.every(grow => grow.plantCount === null)).toBe(true);
     expect(unknown.grows.every(grow => grow.stageGroups.every(group => group.plantCount === null))).toBe(true);
+  });
+
+  /** A line about some plants names them on a link too - by the names the grow gives them, which are the count stated by name. */
+  it('names the grows´ plants to whoever keeps the tent, and to a link whatever the counts switch says', async () => {
+    const labels = [
+      { id: 'plant-1', growId: GROW, label: 'Amnesia 1' },
+      { id: 'plant-2', growId: GROW, label: 'Amnesia 2' },
+      { id: 'plant-3', growId: GROW, label: 'Gelato 1' },
+    ];
+    expect((await readAs(session(OWNER))).plants).toEqual(labels);
+
+    const token = await linkFor({});
+    // The counts are hidden by default, and the switch hides how many there are, not their names.
+    expect((await readAs(visitor(token))).plants).toEqual(labels);
+    expect((await readAs(visitor(token))).grows.every(grow => grow.plantCount === null)).toBe(true);
   });
 });
 

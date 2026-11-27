@@ -1,7 +1,7 @@
 ---
-summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone smart socket (plug) - read before changing any of it
-updated: 2026-10-09
-source: Chris (light set-up rule, 2026-09-19); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; the CO2 fan window traced in the hosted data and on a development fan 2026-10-09; checked against the code 2026-10-08
+summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone Plantalytix Socket (plug) - read before changing any of it
+updated: 2026-11-12
+source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12); the one control for a hold, and where sockets are listed, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -20,8 +20,9 @@ Three things are called a smart socket here:
   the rest are all sockets; a fridge drives its own outputs and its sockets follow them.
 - The app calls a plug paired on the module itself (button, then Smart Sockets) a **Terp Control socket**; any
   other Tasmota plug (NOUS, Athom, a flashed Shelly) is added by its address from the app.
-- **The stand-alone smart socket** - hardware type `plug`, a device of its own with a relay, a sensor and modes
-  ([last section](#the-stand-alone-smart-socket-plug)).
+- **The Plantalytix Socket** - hardware type `plug`, a device of its own with a relay, a sensor and modes
+  ([last section](#the-plantalytix-socket-plug)). The app never calls it a smart socket or a Steckdose; those words
+  are the Tasmota plugs' alone ([app-wording.md](app-wording.md)).
 
 The wire format - the `hardware-info:` socket report, the `socket_*` commands, every role and its control law,
 the `PulseTime` per role and the timing constants - is in [device-protocol.md](../device-protocol.md) §6.3, §8.4,
@@ -37,7 +38,7 @@ the `PulseTime` per role and the timing constants - is in [device-protocol.md](.
 | Limits shared by firmware, server and simulator | `shared-types/src/v1/socket-report.ts` |
 | Decoding the report and capabilities; checks before publishing | `server/src/modules/device-protocol/sockets.ts`, `device-publisher.service.ts` |
 | Routes | `server/src/modules/v1/device/devices.controller.ts` |
-| App | `webapp/src/screens/devices/` (`DeviceList.tsx`, `SocketRow.tsx`, `LightOutputRow.tsx`, `sockets.ts`, `socket-form.ts`, `lights.ts`) |
+| App | `webapp/src/screens/devices/` (`SocketPage.tsx`, `SocketSheets.tsx`, `socket-words.ts`, `LightOutputRow.tsx`, `sockets.ts`, `socket-form.ts`, `lights.ts`) |
 
 ## Pairing on the module
 
@@ -139,22 +140,45 @@ A socket outside the module's /24 is never found.
   `capability_not_announced`. No build from before the socket firmware announces them: on the restored production
   account (2026-09-23) the socket test was the only socket command any device took.
 - An override's countdown is read against `devices.state.socketsReportedAt`, when the table arrived, because the
-  row carries the seconds left rather than a deadline. `devices.state.socketStateChangedAt.<slot>` is forgotten
+  row carries the seconds left rather than a deadline. The hold on the module's own light output is the same, against
+  `devices.state.lightHoldReportedAt`, and is served as the page's `lightHold` only for a build that announces
+  `light_hold` (`decodeLightHold()`). `devices.state.socketStateChangedAt.<slot>` is forgotten
   when the slot's hardware id changes or the slot goes - a slot outlives the plug in it.
 - Demo viewers get sockets without address and hardware id (`demoSockets()`).
 
 ## In the app
 
 - **Lights** (Chris, 2026-09-19): a lamp on the controller's own PWM output and light sockets switched
-  independently must both be possible and obvious. The Lights section of a device shows its own output first
-  (brightness ceiling, hold on/off/auto), then each `light`/`secondary_light` socket as a switch numbered within its
-  role ("Light 1", "Light 2"); every other socket is under Smart sockets.
+  independently must both be possible and obvious. Steuerung › Ausgänge shows the device's own output first (what
+  it runs at and its hold; its limit is set on Steuerung's light card), then every socket as a row, a
+  `light`/`secondary_light` socket numbered within its role ("Light 1", "Light 2").
+- **A socket has a page** (`/devices/:id/sockets/:socket`, `SocketPage.tsx`; the redesign session of 2026-11-12),
+  reached from its row under Steuerung and under Ausgänge - the only two lists of a device's sockets - and found
+  by its slot when its role changes: its state in the device's words, the hold, its facts, and the rows Finden,
+  changing it (for a pump or a timer of one's own "Zeitschaltung, Adresse, Rolle", amber while no cycle is set)
+  and removing it. A device's own page counts its sockets and pairs another by address (`PairSocketRow`,
+  `SocketSheets.tsx`); `/devices/:id/sockets` is no page. A socket's line reads "an · Auto" or "an gehalten ·
+  42 Min" (`socket-words.ts`), with "Stand hh:mm" in front once the device is offline.
+- **A hold has one control** (`HandHold.tsx`; the redesign session of 2026-11-12, after its critic's walk), on a
+  socket's page and on the light output's row under Ausgänge: Auto · An · Aus, and under An or Aus the lengths of
+  a hold, each chosen - no tap holds for a default hour. What the control owes the grower is in
+  [app-ux.md §5](app-ux.md#5-controls). The firmware sends its table at once after `socket_set` and
+  `socket_remove` and within 30 s after an override; the app reads it again at 2 to 40 s (`answerSoon`,
+  `sockets.ts`) and takes a removed socket off the screen at once (`forgetRow`). A hold sent again the same way
+  with another length is taken but not reported (`socketReportSignature`, `firmware/src/wifi.cpp`), so the app
+  does not offer it.
+- **The light output reports no hold back**: `useLightHold` / `rememberLightHold` (`lights.ts`,
+  `terp.lightHold.<device>` in this browser, holding `{ state, until }`) is the one place a held light is read,
+  and another browser knows nothing of it.
+- **Pairing, changing and removing are commands**: each closes its sheet with a toast when the device was
+  listening and keeps it open, saying that nothing changed, when it was not. "Finden" is the firmware's own pulse,
+  two seconds on and then off.
 - Roles offered for pairing and editing (`OFFERED_ROLES` in `socket-form.ts`): heater, dehumidifier, humidifier,
   exhaust, co2, light, secondary_light, pump, custom_timer - each only where the build announced it.
   `circulation`, `fan` and `manual` are in the firmware and the contract but not offered until they have been
   tried in a real tent. A socket being edited keeps its own role on offer.
-- Holds: 15 min, 1 h (a plain tap), 4 h, 8 h, 24 h. Why a switch is unavailable is said once per list, offline
-  first, then that the build takes no override.
+- Holds: 15 min, 1 h, 4 h, 8 h, 24 h (`HOLD_SECONDS`). Why no hold can be asked for is said once on the page,
+  offline first, then that the build takes no override.
 - A timed socket's state column cannot show short pulses: the table is re-reported at most every 30 s, so a 30 s
   on-pulse may never be seen as on. The timer column says what it repeats.
 
@@ -178,7 +202,7 @@ Both found reading the code on 2026-10-08, neither seen on a device:
   with every buffered sample (5 s), but not while the sample buffer is full (no MQTT for about ten minutes), so the
   socket can stay on and be re-sent ON every 60 s.
 
-## The stand-alone smart socket (`plug`)
+## The Plantalytix Socket (`plug`)
 
 - A device of its own (`firmware/src_hwtype/plug/`): a relay, a climate sensor, and the modes `off`, `heater`,
   `cooler`, `humidify`, `dehumidify`, `co2` (`const`, or `periodic` windows) and `timer`, with switch points by day
@@ -206,17 +230,8 @@ Both found reading the code on 2026-10-08, neither seen on a device:
 - **Fans coupled in the pre-rewrite app are slowed on the wrong window.** That app wrote the fan's `co2inject`
   itself (`updateFanSettings`) with `day: settings.daynight?.day` / `night: ...`, but its `settings.daynight` held
   only `floating`, `float_start`, `day_duration` and `light_duration`: `day` and `night` were always undefined and
-  left out. The fan then takes its compile-time 06:00-22:00 UTC (`fan.h`) whatever the socket's window. A grower
-  dosing "only by day" from 20:00 to 08:00 German summer time (`daynight` 18:00-06:00 UTC) had the fan slowed in
-  every dosing slice from 08:00 to midnight - through the dark, while the socket's relay stayed off - and not from
-  midnight to 08:00, while it dosed. A change of the fan's own speed then seemed to be ignored: inside a slice the
-  coupling caps it. Found 2026-10-09 from a grower's report and the hosted readings (`out_fan` of the fan against
-  `out_relais` of the socket); reproduced on a development fan, which follows the window the moment `day` and
-  `night` are in the section. PR #136 looked for the cause in uploads from the devices' menus, which this report
-  never involved, and was reverted (#154).
-- The same app also cleared the fan's section before writing it, without waiting for the one write to land before
-  the other (`updateFanSettings`): the clear can arrive last and leave the fan uncoupled while the socket still
-  names it (seen in the hosted device log on 2026-10-09).
-- Migration `023-co2-fan-windows` writes every coupled fan's section from its socket's document, as a save of the
-  socket in the new app does (`followCo2Fan`): the window, the day, the speed, and the socket's schedule clock. A fan
-  that names a socket which no longer names it is told it is slowed for nothing.
+  left out. The fan then takes its compile-time 06:00-22:00 UTC (`fan.h`) whatever the socket's window, so with
+  `usedaynight` it is slowed from 08:00 to midnight in German summer time - through the socket's night - and not in
+  the socket's early-morning hours. No migration rewrote `co2inject`; the first save of the socket in the new app
+  (`followCo2Fan`) writes the right window. Found 2026-10-09 from a grower's report (window 20:00-14:00, fan still
+  slowed after 14:00).

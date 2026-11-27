@@ -18,9 +18,9 @@ import { decodeSockets } from './sockets';
  * It rides the log topic as `hardware-info:<key>=<value>`, is never a diary
  * line, and is answered with nothing. The report is kept flat, exactly as the
  * device sends it, in `devices.state.hardware` - its keys belong to the firmware
- * of that type, so nothing here constrains them - and three of them mean
- * something beyond being stored: the socket table, the camera, and the build the
- * device is running.
+ * of that type, so nothing here constrains them - and a few of them mean
+ * something beyond being stored: the socket table, the hold on the light output,
+ * the camera, and the build the device is running.
  *
  * The `none` sentinel is the reason the report can be trusted at all. A device
  * says `webcam_did=none` and `sockets=none` rather than staying silent, because
@@ -49,10 +49,11 @@ const CAMERA_SECRET_KEYS = ['webcam_pwd', 'webcam_url'];
 
 /**
  * What a device says about its camera that may change whether the cloud gets in:
- * a different camera, the password it was just secured with, the P2P id it has
+ * a different camera, where on its network it has found it, whether it is read
+ * off its own stream, the password it was just secured with, the P2P id it has
  * just read off it - or the same again after a reboot.
  */
-const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_uid', 'webcam_pwd'];
+const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_ip', 'webcam_rtsp', 'webcam_uid', 'webcam_pwd'];
 
 interface HardwareInfo {
   key: string;
@@ -81,6 +82,11 @@ export class HardwareReportService {
     const value = payload.slice(separator + 1);
     if (!KEY.test(key) || value.length > MAX_VALUE_LENGTH) return null;
 
+    // A fridge always has its CO2 sensor - its firmware stops regulating
+    // without one - and never reports the key, so one that arrives came from
+    // a build of another type and would never be cleared again.
+    if (key === 'co2' && device.type === 'fridge') return null;
+
     if (CAMERA_SECRET_KEYS.includes(key)) {
       await this.rememberCameraSecret(device, key, value);
       if (CAMERA_REPORT_KEYS.includes(key)) this.cameraReports?.cameraReported(device.id);
@@ -88,7 +94,9 @@ export class HardwareReportService {
     }
 
     const hardware = { ...device.state.hardware, [key]: value };
-    await this.devices.updateOne({ id: device.id }, { $set: { [`state.hardware.${key}`]: value } });
+    // The light's hold carries the seconds it had left and never an instant, so the instant it arrived is kept beside it.
+    const stamp = key === 'light_hold' ? { 'state.lightHoldReportedAt': new Date() } : {};
+    await this.devices.updateOne({ id: device.id }, { $set: { [`state.hardware.${key}`]: value, ...stamp } });
 
     if (key === 'sockets_n') await this.dropSupersededChunks(device.id, hardware, Number(value));
     if (key === 'sockets_n' || socketListChunk(key) !== null) await this.noteSocketReport(device, device.state.hardware, hardware);
@@ -178,7 +186,7 @@ export class HardwareReportService {
       kind: 'terpcam_controller',
       deviceId: device.id,
       spaceId: device.spaceId,
-      name: cameraName(device, paired),
+      name: PAIRED_CAMERA_NAME,
       did: paired,
       uid: notNone(device.state.hardware.webcam_uid),
       ip: notNone(device.state.hardware.webcam_ip),
@@ -289,18 +297,12 @@ export class HardwareReportService {
 const swapped = (was: Socket, now: Socket): boolean => was.hardwareId !== '' && now.hardwareId !== '' && was.hardwareId !== now.hardwareId;
 
 /**
- * What the camera is called before anybody has called it anything.
- *
- * It hangs on a controller, so the controller's name is the one thing that says
- * which of an account's cameras this is. A claim stores the device's type where
- * nobody gave it a name, and a type is a key rather than a word - copied onto
- * the camera it would put "controller" at the head of a camera row, in English
- * whatever language the app is read in. So a device named only by its type
- * hands the camera the few characters printed on the cam instead, which is what
- * a person standing at the tent can read off it.
+ * What a camera a device pairs is called before anybody has called it
+ * anything: what it is, in both languages. Two of them in one account are told
+ * apart by the app, not by a piece of an id in the name; a row made before this
+ * keeps the name it was given.
  */
-const cameraName = (device: StoredDevice, did: string): string =>
-  device.name && device.name !== device.type ? device.name : `Terp Cam · ${did.slice(-6).toUpperCase()}`;
+const PAIRED_CAMERA_NAME = 'Terp Cam';
 
 const notNone = (value: string | undefined): string | null => {
   const text = (value ?? '').trim();

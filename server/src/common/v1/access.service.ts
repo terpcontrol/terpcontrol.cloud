@@ -102,21 +102,22 @@ export class AccessService {
 
     if (subject.isPublic) return this.grant(subject, need, 'public');
 
-    const link = await this.coveringLink(ctx, subject);
-    return link ? this.grant(subject, need, 'share', link) : null;
+    const covered = await this.coveringLink(ctx, subject);
+    return covered ? this.grant(subject, need, 'share', covered.link, covered.range) : null;
   }
 
-  private grant(subject: ResolvedSubject, need: Need, grantee: Grantee, link?: ShareLinkDocument): Grant {
+  private grant(subject: ResolvedSubject, need: Need, grantee: Grantee, link?: ShareLinkDocument, range?: AccessRange): Grant {
     const full = grantee === 'admin' || grantee === 'owner' || grantee === 'member';
 
     return {
       need,
       subject: subject.ref,
       grantee,
-      range: link ? { startsAt: link.range.startsAt, endsAt: link.range.endsAt } : (this.rangeOf(subject, grantee) ?? OPEN),
+      range: link ? (range ?? { startsAt: link.range.startsAt, endsAt: link.range.endsAt }) : (this.rangeOf(subject, grantee) ?? OPEN),
       privacyOwnerId: subject.ownerId,
       redacted: !full,
       includeCameras: link ? link.includeCameras : grantee === 'public' ? subject.publicCameras : true,
+      ...(link ? { linkOn: link.subject.type } : {}),
     };
   }
 
@@ -136,14 +137,23 @@ export class AccessService {
 
   /**
    * The link the request came in on, when it is still valid and reaches this
-   * subject. A link on a grow covers the grow and everything that names it; a
-   * link on a space covers whatever stands in that space.
+   * subject, with the window it reaches it over. A link on a grow covers the
+   * grow and everything that names it, and - for a stretch of days - the places
+   * it stood in then (`stayInside`); a link on a space covers whatever stands in
+   * that space.
    */
-  private async coveringLink(ctx: AccessContext, subject: ResolvedSubject): Promise<ShareLinkDocument | null> {
+  private async coveringLink(ctx: AccessContext, subject: ResolvedSubject): Promise<{ link: ShareLinkDocument; range: AccessRange } | null> {
     if (!ctx.shareToken) return null;
 
     const link = await this.shareLinks.findOne({ token: ctx.shareToken }).lean();
     if (!link || !stillValid(link)) return null;
+
+    if (link.subject.type === 'grow' && subject.ref.type === 'space') {
+      if (link.kind !== 'view') return null;
+      const grow = await this.grows.findOne({ id: link.subject.id }, { placements: 1 }).lean();
+      const stay = grow ? stayInside(grow.placements, subject.ref.id, link.range) : null;
+      return stay ? { link, range: stay } : null;
+    }
 
     const covers = link.subject.type === 'grow' ? subject.growIds.includes(link.subject.id) : subject.spaceIds.includes(link.subject.id);
     if (!covers) return null;
@@ -164,7 +174,7 @@ export class AccessService {
     if (link.kind === 'public_page' && !subject.isPublic) return null;
 
     // Pictures are the one thing a link does not carry unless it was made to.
-    return subject.ofACamera && !link.includeCameras ? null : link;
+    return subject.ofACamera && !link.includeCameras ? null : { link, range: { startsAt: link.range.startsAt, endsAt: link.range.endsAt } };
   }
 
   private stayedInside(stay: NonNullable<ResolvedSubject['stays']>[number], spaceId: string, range: AccessRange): boolean {
@@ -271,7 +281,7 @@ export class AccessService {
       // it is a picture of is whatever stood in front of that camera when
       // the shutter closed - which is what a link onto that grow was made
       // to show, and without it a link that includes cameras reaches none
-      // of the pictures its own week cards point at. It makes no picture
+      // of the pictures its own diary point at. It makes no picture
       // public: a grow read through its own address is granted `view` by
       // being public, and a camera never is, so a still is still refused to
       // anybody who does not hold a link that carries cameras.
@@ -312,7 +322,7 @@ export class AccessService {
     return {
       ...this.blank(ref),
       ownerId: grow.ownerId,
-      isDemo: grow.isDemo,
+      isDemo: grow.isDemo || (await this.standsInTheDemo(grow.placements)),
       isPublic,
       spaceIds: [...new Set(placements.flatMap(placement => rooms.get(placement.spaceId) ?? [placement.spaceId]))],
       growIds: [grow.id],
@@ -324,6 +334,17 @@ export class AccessService {
       publicRange: isPublic ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? new Date() } : null,
       publicCameras: grow.publicCameras !== false,
     };
+  }
+
+  /**
+   * Whether a grow stands in a demo place now. The tour's Start shows the grow
+   * standing in a demo place, and its page and curves have
+   * to open for the tour as well (Chris, 2026-10-17); a grow that has ended or
+   * moved out of the demo is private again. `grows.isDemo` still flags one by hand.
+   */
+  private async standsInTheDemo(placements: readonly { spaceId: string | null; endedAt: Date | null }[]): Promise<boolean> {
+    const open = placements.flatMap(placement => (placement.endedAt === null && placement.spaceId !== null ? [placement.spaceId] : []));
+    return open.length > 0 && (await this.spaces.exists({ id: { $in: open }, isDemo: true })) !== null;
   }
 
   /**
@@ -377,6 +398,33 @@ export class AccessService {
     };
   }
 }
+
+/**
+ * Where a link onto a grow reaches a place the grow stood in: over the stretch it
+ * stood there inside the link's window, and only where that window ends - a
+ * stretch of days somebody chose, from Verlauf or with both dates, whose curves
+ * the link shows as a link onto a place shows its own. A link onto a running grow
+ * is its diary and reaches no place, and none reaches a place before the grow
+ * came or after it left.
+ */
+export const stayInside = (
+  placements: readonly { spaceId: string | null; startedAt: Date; endedAt: Date | null }[],
+  spaceId: string,
+  window: AccessRange,
+): AccessRange | null => {
+  const end = window.endsAt;
+  if (end === null) return null;
+
+  const stays = placements.filter(stay => stay.spaceId === spaceId && overlapsRange(window, stay.startedAt, stay.endedAt ?? end));
+  if (stays.length === 0) return null;
+
+  const came = Math.min(...stays.map(stay => stay.startedAt.getTime()));
+  const left = Math.max(...stays.map(stay => (stay.endedAt ?? end).getTime()));
+  return {
+    startsAt: new Date(Math.max(came, window.startsAt?.getTime() ?? came)),
+    endsAt: new Date(Math.min(left, end.getTime())),
+  };
+};
 
 /** For the routes and the guard: a subject named in one place rather than spelled out at each call. */
 export const subjectRef = (type: SubjectType, id: string): SubjectRef => ({ type, id });

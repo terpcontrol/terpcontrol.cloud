@@ -4,6 +4,8 @@ import { Link } from 'react-router';
 import type { Device, DeviceClass, Firmware, Fleet } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Refused } from '@/ui/PageState';
+import { typeName } from '@/ui/naming';
+import { Label } from './parts';
 import ui from '@/ui/ui.module.css';
 import { channelStands, classSize, staged } from './rollout';
 import styles from './Admin.module.css';
@@ -48,8 +50,8 @@ export function RolloutCard({
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <span className="label">{t('admin.rollout.title')}</span>
-        <span className={styles.actions}>
+        <Label text={t('admin.rollout.title')} help="rolloutStages" />
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <Link className={ui.chip} to="/admin/firmware">
             {t('admin.rollout.upload')}
           </Link>
@@ -58,8 +60,6 @@ export function RolloutCard({
           </Link>
         </span>
       </div>
-
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.rollout.how')}</p>
 
       {populated.length === 0 ? <p className={ui.note}>{t('admin.rollout.nothing')}</p> : null}
 
@@ -73,15 +73,15 @@ export function RolloutCard({
         return (
           <div key={deviceClass.id} className={styles.block}>
             <div className={styles.blockHead}>
-              <span className={styles.blockName}>{deviceClass.name}</span>
-              <span className={`mono ${styles.consequence}`}>
+              <span className={styles.blockName}>{typeName(deviceClass.name, t)}</span>
+              <span className={styles.consequence}>
                 {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
               </span>
             </div>
 
             <ul className={styles.lines}>
               {stands.map(stand => (
-                <li key={stand.channel} className="mono">
+                <li key={stand.channel}>
                   {t(`devices.channel.${stand.channel}`)} ·{' '}
                   {stand.firmwareId
                     ? t('admin.rollout.stand', {
@@ -94,7 +94,7 @@ export function RolloutCard({
               ))}
             </ul>
 
-            <p className={`mono ${styles.consequence}`}>
+            <p className={styles.consequence}>
               {paused
                 ? t('admin.rollout.pausedNow', { percent })
                 : t('admin.rollout.stagedNow', {
@@ -105,10 +105,10 @@ export function RolloutCard({
                   })}
             </p>
 
-            <div className={styles.row}>
+            <div className={ui.wrapRow}>
               <button
                 type="button"
-                className={`${ui.chip} ${paused ? '' : styles.paused}`}
+                className={`${ui.chip} ${styles.action} ${paused ? '' : styles.paused}`}
                 disabled={update.isPending}
                 onClick={() => update.mutate({ classId: deviceClass.id, body: { rollout: { paused: !paused, percent } } })}
               >

@@ -34,7 +34,8 @@ server url specified in your .env file.
 1. `cd myfolder/terpcontrol.cloud/`
 1. `./build-fw.sh`
 1. Now you can use the "Change server" option in the module to flash the firmware to your module. You'll need to input 
-   the `API_URL_EXTERNAL` and the `SELF_REGISTRATION_PASSWORD` values from your `.env` file with the knob.
+   the `API_URL_EXTERNAL` and the `SELF_REGISTRATION_PASSWORD` values from your `.env` file with the knob. With an
+   empty `SELF_REGISTRATION_PASSWORD` the module does not ask for a password.
 1. If the operation failed, it will display "connecting..." after pressing a button. This will not disappear until you 
    restart the module. 
 
@@ -102,7 +103,16 @@ backup-2025-10-29_22-12-27.influxdump
 backup-2025-10-29_22-12-27.mongodump
 ```
 
-Additionally, you may want to back up the `.env` file as well.
+Additionally, you may want to back up the `.env` file as well. With pictures in S3 (below) the bucket is not part
+of the backup; back it up with your storage provider's tools.
+
+### Pictures in S3
+Pictures, timelapses and exports are stored in MongoDB unless an S3 bucket is configured (`S3_*` in `.env`, see
+`.env.sample`). To switch an existing installation:
+1. Set the `S3_*` variables in `.env`.
+2. `./up.sh server` - new pictures go to the bucket; the old ones are still served from MongoDB.
+3. `./move-media-to-s3.sh` - copies every picture into the bucket and removes it from MongoDB once the copy is
+   checked. It can be run again after an interruption; `--dry-run` only counts, `--keep` copies without removing.
 
 ### Restore
 1. `cd myfolder/terpcontrol.cloud/`

@@ -1,6 +1,6 @@
 import { DateTime, Settings } from 'luxon';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { NARROW_TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
+import { CLOCK_ROOM_PX, TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
 
 const ZONE = 'Europe/Berlin';
 const DAY_DE = "d'.' LLL";
@@ -21,9 +21,14 @@ describe('the gridlines of a chart over time', () => {
     expect(labels('2026-10-01T14:51', '2026-10-02T14:51', 4)).toEqual(['18:00', 'Fr', '06:00', '12:00']);
   });
 
+  it('names a midnight of three days as a week names a day: by weekday and day, on every line alike', () => {
+    expect(labels('2026-09-29T06:57', '2026-10-02T06:57', 8)).toEqual(['12:00', 'Mi 30.', '12:00', 'Do 1.', '12:00', 'Fr 2.']);
+  });
+
   it('counts a week by its days on a wide plot and by every other date on a narrow one', () => {
     expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 8)).toEqual(['Sa 26.', 'So 27.', 'Mo 28.', 'Di 29.', 'Mi 30.', 'Do 1.', 'Fr 2.']);
-    expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 4)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
+    // Every other day on a phone, named as the wide plot and both ends of the axis name a day.
+    expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 4)).toEqual(['Sa 26.', 'Mo 28.', 'Mi 30.', 'Fr 2.']);
   });
 
   it('falls on the account´s midnight, whatever zone the browser is in', () => {
@@ -40,7 +45,7 @@ describe('the gridlines of a chart over time', () => {
     expect(labels('2026-10-02T11:59', '2026-10-02T13:01', 3)).toEqual(['12:30']);
     expect(labels('2026-10-02T11:40', '2026-10-02T13:20', 2)).toEqual(['12:00', '13:00']);
     expect(ticksFor(0)).toBe(2);
-    expect(ticksFor(360)).toBe(5);
+    expect(ticksFor(260)).toBe(5);
     expect(ticksFor(5000)).toBe(10);
   });
 
@@ -50,10 +55,17 @@ describe('the gridlines of a chart over time', () => {
    * row of their own the dates need only their own width: every other day of a
    * week, and every Monday of a month.
    */
-  it('dates a week and a month on a phone, on a row of their own', () => {
-    const phone = ticksFor(248, NARROW_TICK_ROOM_PX);
+  it('names a week`s days and dates a month on a phone, on a row of their own', () => {
+    const phone = ticksFor(248, TICK_ROOM_PX);
 
-    expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);
+    expect(labels('2026-09-25T16:04', '2026-10-02T16:04', phone)).toEqual(['Sa 26.', 'Mo 28.', 'Mi 30.', 'Fr 2.']);
     expect(labels('2026-09-02T16:04', '2026-10-02T16:04', phone)).toEqual(['7. Sep', '14. Sep', '21. Sep', '28. Sep']);
+  });
+
+  /** Five minutes of single samples had one line or none: the finest step was five minutes. */
+  it('counts five minutes by the minute on a phone, and by the half minute where there is room - with seconds only between two minutes', () => {
+    // The narrowest phone's plot: a time of day needs less room than a date.
+    expect(labels('2026-09-25T03:08:13', '2026-09-25T03:13:13', ticksFor(218, CLOCK_ROOM_PX))).toEqual(['03:09', '03:10', '03:11', '03:12', '03:13']);
+    expect(labels('2026-09-25T03:08:13', '2026-09-25T03:13:13', 10).slice(0, 4)).toEqual(['03:08:30', '03:09', '03:09:30', '03:10']);
   });
 });

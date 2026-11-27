@@ -3,20 +3,21 @@ import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Device, DeviceClaimCreate, DeviceClaimResult, SocketPage, Space } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { claimCodeOf, useClaimDevice } from '@/api/claims';
 import { useDeviceFirmwares } from '@/api/devices';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useQrScan } from '@/ui/barcode';
+import { Facts } from '@/ui/Facts';
 import { Refused } from '@/ui/PageState';
 import { QrScanner } from '@/ui/QrScanner';
-import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { LegacyMove } from './LegacyMove';
 import { pairsACam } from '@/screens/camera/add/pairers';
 import { buildLabel, deviceName } from '@/ui/naming';
-import { cameraName } from './steps';
+import { cameraSaid } from './steps';
 import styles from './Claim.module.css';
 
 /**
@@ -28,41 +29,48 @@ import styles from './Claim.module.css';
  * the code already typed - and a second way of reading a code would be a second
  * answer to what a code looks like.
  *
- * Where the device goes is asked here rather than afterwards, because a claim
- * has to end in some place and the one it invents is a guess. An account whose
- * tents already exist says which of them the controller is standing in, and the
- * claim puts it there: nothing is created to be renamed, and the grow, the
- * cameras and the history that place already holds stay with the hardware that
- * reports into it.
+ * Where the device hangs is not asked here: what kind of device it is is only
+ * known once its code has been read, and the question depends on it (`AirStep`).
+ * The claim says it all the same (`where`), so the device stands there in the
+ * one write: the place the flow was opened from - "Gerät hinzufügen" behind a
+ * place's ⋯ - or the one a device without a climate of its own joins.
  */
 export function CodeStep({
   initialCode,
-  places,
+  into,
+  where,
   onClaimed,
 }: {
   initialCode: string;
-  /** The places this account already has, which a claim may put the device into instead of making another. */
-  places: readonly Space[];
-  onClaimed: (result: DeviceClaimResult) => void;
+  /** The place the flow was opened from, which is said under the field. */
+  into: Space | null;
+  /** What the claim carries about the place, read when the code is sent. */
+  where: () => Promise<Pick<DeviceClaimCreate, 'spaceId' | 'joinSpaceId' | 'spaceNames'>>;
+  /** What follows a claim - where the device hangs, what will be asked - which the form waits for as it waits for the claim. */
+  onClaimed: (result: DeviceClaimResult) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const claim = useClaimDevice();
-  const [spaceId, setSpaceId] = useState<string | null>(null);
   const form = useForm<DeviceClaimCreate>({ defaultValues: { code: initialCode } });
-  // A room groups other places rather than holding anything, so a controller
-  // never stands in one.
-  const offered = places.filter(one => one.kind !== 'room');
+
+  /** What kept the claim from being sent at all: the places could not be read. */
+  const [unsent, setUnsent] = useState<unknown>(null);
+
+  const busy = form.formState.isSubmitting;
 
   // The refusal is the mutation's own and is drawn under the field, so a code
-  // the server would not take leaves the form exactly as it was typed.
+  // the server would not take leaves the form exactly as it was typed; what
+  // went wrong before the claim was sent is said in the same place.
   const submit = form.handleSubmit(async body => {
     const code = claimCodeOf(body.code).trim();
     if (!code) return;
-    try {
-      onClaimed(await claim.mutateAsync(spaceId === null ? { code } : { code, spaceId }));
-    } catch {
-      form.setFocus('code');
-    }
+    setUnsent(null);
+    const result = await where().then(
+      place => claim.mutateAsync({ code, ...place }).catch(() => null),
+      (failed: unknown) => (setUnsent(failed), null),
+    );
+    if (result) await onClaimed(result);
+    else form.setFocus('code');
   });
 
   const { scan, note, scanner } = useQrScan(
@@ -77,7 +85,7 @@ export function CodeStep({
 
   return (
     <form
-      className={styles.claimForm}
+      className={ui.stack3}
       onSubmit={event => {
         event.preventDefault();
         void submit();
@@ -86,14 +94,14 @@ export function CodeStep({
     >
       <div className={ui.fieldRow}>
         <input
-          className={`mono ${ui.input}`}
+          className={ui.input}
           placeholder={t('claim.code.field')}
           aria-label={t('claim.code.field')}
           autoCapitalize="characters"
           autoComplete="off"
           enterKeyHint="go"
           spellCheck={false}
-          disabled={claim.isPending}
+          disabled={busy}
           {...form.register('code', { required: true })}
         />
         <button type="button" className={ui.fieldAction} onClick={scan}>
@@ -108,28 +116,18 @@ export function CodeStep({
         </p>
       ) : null}
 
-      {offered.length > 0 ? (
-        <Block label={t('claim.code.whichPlace')}>
-          <div className={styles.places}>
-            <Choices label={t('claim.code.whichPlace')}>
-              <Choice chosen={spaceId === null} disabled={claim.isPending} onChoose={() => setSpaceId(null)}>
-                {t('claim.code.newPlace')}
-              </Choice>
-              {offered.map(place => (
-                <Choice key={place.id} chosen={spaceId === place.id} disabled={claim.isPending} onChoose={() => setSpaceId(place.id)}>
-                  {place.name}
-                </Choice>
-              ))}
-            </Choices>
-          </div>
-        </Block>
-      ) : null}
+      {into ? <p className={ui.note}>{t('claim.code.into', { name: into.name })}</p> : null}
 
-      <Refused error={claim.error} />
+      <Refused error={unsent ?? claim.error} />
 
-      <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={claim.isPending}>
-        {claim.isPending ? t('claim.code.claiming') : t('claim.code.claim')}
+      <button type="submit" className={`${ui.button} ${ui.primary} ${styles.wide}`} disabled={busy}>
+        {busy ? t('claim.code.claiming') : t('claim.code.claim')}
       </button>
+
+      {/* A camera of its own - an RTSP stream - has no claim code, so it has its own way in. */}
+      <Link to="/cameras/add" className={`${ui.headLink} ${styles.aside}`}>
+        {t('claim.code.rtsp')} ›
+      </Link>
 
       <LegacyMove />
 
@@ -138,32 +136,23 @@ export function CodeStep({
   );
 }
 
-/** What the first step settled, in the device's own name and the tail of the id printed on it. */
+/** What the first step settled, in the device's own name: the two break between them, never after the dot. */
 export function ClaimedTitle({ device }: { device: Device }) {
   const { t } = useTranslation();
 
-  return (
-    <>
-      <span className={styles.claimedMark}>{t('claim.code.claimed')}</span> · {deviceName(device, t)} ·{' '}
-      <span className="mono">{device.id.slice(-4).toUpperCase()}</span>
-    </>
-  );
+  return <Facts facts={[<span className={styles.claimedMark}>{t('claim.code.claimed')}</span>, deviceName(device, t)]} />;
 }
 
 /**
  * What the device itself says it is: how long ago it spoke, the build it
  * reports, how many sockets it has found and whether a camera answers through
- * it.
+ * it - its own words rather than anything this flow decided. A device that
+ * has never spoken says exactly that instead of a line of dashes that could
+ * be read as zeroes.
  *
- * All four are the device's own words rather than anything this flow decided,
- * and a device that has never spoken says exactly that instead of showing a
- * line of dashes that could be read as zeroes.
- *
- * The build is named rather than identified. What the hardware reports is the
- * uuid its build container stamped it with, which is three lines of hex to a
- * grower and cannot be compared with anything; so the build list is what turns
- * it into something readable, and a build with nothing readable about it is
- * left out of the line altogether rather than printed as the uuid it is.
+ * The build is named rather than identified: the hardware reports the uuid of
+ * its build, which the build list turns into something readable, and a build
+ * with nothing readable about it is left out rather than printed as a uuid.
  */
 export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets: SocketPage | undefined; now: DateTime }) {
   const { t } = useTranslation();
@@ -171,15 +160,18 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
   const seen = device.state.lastSeenAt;
   const label = buildLabel(firmwares.data?.items.find(one => one.id === device.state.firmwareId));
 
-  if (!seen) return <span className={styles.waitingForIt}>{t('claim.code.neverHeard')}</span>;
+  if (!seen) return t('claim.code.neverHeard');
 
+  // Facts side by side, which break between two of them and never inside "Terp Cam gekoppelt". What hangs on it is
+  // said for the hardware that can have it: a plug pairs no sockets, a light no camera either.
   return (
-    <>
-      {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
-      {label ? ` · ${t('claim.code.firmware', { version: label })}` : ''}
-      {/* What hangs on it, for the hardware that can have it: a plug pairs no sockets, a light no cam either. */}
-      {sockets && SOCKET_HOST_TYPES.includes(device.type) ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
-      {pairsACam(device) ? ` · ${t('claim.code.camera', { name: cameraName(device, t) })}` : ''}
-    </>
+    <Facts
+      facts={[
+        t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) }),
+        label ? t('claim.code.firmware', { version: label }) : null,
+        sockets && SOCKET_HOST_TYPES.includes(device.type) ? t('claim.code.sockets', { count: sockets.items.length }) : null,
+        pairsACam(device) ? cameraSaid(device, t) : null,
+      ]}
+    />
   );
 }

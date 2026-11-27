@@ -108,7 +108,7 @@ describe('the camera a controller reports', () => {
     expect(camera?.ownerId).toBe(BOB);
     expect(camera?.id).not.toBe(hers?.id);
     expect(camera?.spaceId).toBe(claimed.device.spaceId);
-    expect(camera).toMatchObject({ name: 'Bob´s tent', looksAt: null, plantIds: [], stillIntervalSeconds: 30, did: PAIRED });
+    expect(camera).toMatchObject({ name: 'Terp Cam', looksAt: null, plantIds: [], stillIntervalSeconds: 30, did: PAIRED });
     expect(camera?.entitlement.grant).toBe('included');
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
 
@@ -229,20 +229,35 @@ describe('the password the cloud signs in to the camera with', () => {
 });
 
 describe('what the camera pipeline is told', () => {
-  it('hears of every report that may let the cloud back in to a camera that refused it', async () => {
+  it('hears of every report that may let the cloud back in to a camera it was kept from', async () => {
     const told: string[] = [];
     hardware = new HardwareReportService(db.devices, db.cameras, { cameraReported: deviceId => told.push(deviceId) });
     await claim(ALICE, DEVICE);
 
-    // A different camera, the password it was secured with, the P2P id read off it.
+    // A different camera, read off its own stream, the password it was secured
+    // with, where on the LAN the device found it, the P2P id read off it.
+    await reports(DEVICE, 'webcam_rtsp=on');
     await reports(DEVICE, `webcam_did=${PAIRED}`);
     await reports(DEVICE, 'webcam_pwd=hunter2');
-    await reports(DEVICE, 'webcam_uid=UID-OF-THE-CAM');
-    expect(told).toEqual([DEVICE, DEVICE, DEVICE]);
-
-    // Where it is on the LAN, and anything else, changes nothing about whether it lets us in.
     await reports(DEVICE, 'webcam_ip=10.0.0.9');
+    await reports(DEVICE, 'webcam_uid=UID-OF-THE-CAM');
+    expect(told).toEqual([DEVICE, DEVICE, DEVICE, DEVICE, DEVICE]);
+
+    // Anything else changes nothing about whether it lets us in.
     await reports(DEVICE, 'co2=on');
-    expect(told).toHaveLength(3);
+    expect(told).toHaveLength(5);
+  });
+
+  it('is told of the address after it is written, so the read it sets going finds it', async () => {
+    let lookup: Promise<unknown> = Promise.resolve(null);
+    hardware = new HardwareReportService(db.devices, db.cameras, {
+      // Asked right away, as the camera pipeline asks for the row it reads.
+      cameraReported: () => void (lookup = Promise.resolve(cameraOn(DEVICE))),
+    });
+    await claim(ALICE, DEVICE);
+    await reports(DEVICE, `webcam_did=${PAIRED}`);
+
+    await reports(DEVICE, 'webcam_ip=10.0.0.9');
+    await expect(lookup).resolves.toMatchObject({ ip: '10.0.0.9' });
   });
 });

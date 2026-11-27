@@ -41,10 +41,3 @@ export interface AlarmRouting {
   /** `rule` is null for what the health loop raised without one. */
   deliver(event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Promise<void>;
 }
-
-/** The grow standing in a space, so an alarm shows up in its diary. Provided by the phase writer. */
-export const GROW_IN_SPACE = 'alarm:grow-in-space';
-
-export interface GrowInSpace {
-  growIdIn(spaceId: string): Promise<string | null>;
-}

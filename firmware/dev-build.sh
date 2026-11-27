@@ -39,6 +39,23 @@ static const char MQTT_CA_CERT_PEM[] = "";
 EOF
 fi
 
+# Generate src/ca_bundle.gen.h: the public root CAs (Mozilla's list, as certifi
+# ships it in this container) in ESP-IDF's bundle format, which a device checks
+# an https:// server against - its own and any server it is moved to. Built
+# afresh each time, so the list is as new as the build container.
+BUNDLE_DIR=$(mktemp -d)
+(cd "$BUNDLE_DIR" && PYTHONWARNINGS=ignore python3 /root/esp-idf/components/mbedtls/esp_crt_bundle/gen_crt_bundle.py --quiet \
+  --input "$(python3 -c 'import certifi; print(certifi.where())')")
+python3 - "$BUNDLE_DIR/x509_crt_bundle" > src/ca_bundle.gen.h <<'EOF'
+import sys
+data = open(sys.argv[1], 'rb').read()
+print('#pragma once\n#include <stdint.h>\nstatic const uint8_t CA_BUNDLE[] = {')
+for i in range(0, len(data), 20):
+    print('  ' + ','.join(str(b) for b in data[i:i + 20]) + ',')
+print('};')
+EOF
+rm -rf "$BUNDLE_DIR"
+
 if [ -z "$FW_VERSION_ID" ]
 then
   echo "failed to get version id";

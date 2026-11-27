@@ -1,7 +1,7 @@
 ---
 summary: Backing up and restoring a stack beyond the README's commands - what a backup holds and misses, one-database backups, deploy hosts, restoring into a migrated database or from another install
-updated: 2026-10-08
-source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host)
+updated: 2026-11-27
+source: the S3 bucket for pictures (2026-11-27); backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26; the full disk the nightly backup caused on 2026-11-27
 paths:
   - backup.sh
   - restore.sh
@@ -23,7 +23,9 @@ needs beyond them.
   of it.
 - The InfluxDB backup: every reading, the daily summaries included (they live in the same bucket,
   `INFLUXDB_BUCKET`).
-- **Not in it:** the env file and `mqtts-ca.key`. Keep both beside the backup. Devices have the API address, the MQTT
+- **Not in it:** an S3 bucket the pictures are stored in (`S3_BUCKET`, [data.md](../knowledge/data.md)) - the dump
+  then holds only what has not been moved yet. Back the bucket up with the provider's tools.
+- **Not in it either:** the env file and `mqtts-ca.key`. Keep both beside the backup. Devices have the API address, the MQTT
   host and the MQTTS CA built into their firmware, so an install restored elsewhere has to answer at the same
   addresses and serve a certificate signed by the same CA ([mqtts-certificates.md](mqtts-certificates.md)).
 
@@ -33,11 +35,23 @@ needs beyond them.
 | --- | --- |
 | `./backup.sh mongo`, `./backup.sh influx` | one database only. `mongodb` has to be running in any case, `influxdb` unless the argument is `mongo` |
 | `BACKUP_FILENAME=<dir>/<name> ./backup.sh` | where the files go: a path prefix without extension, default the current directory |
+| `BACKUP_RESERVE_GB=<n> ./backup.sh` | free space that has to remain beside the backup, default 5 |
 | `./restore.sh <name>` | both files |
 | `./restore.sh <name>.mongodump` (or `.influxdump`) | that one only |
 
-The dump is written inside the container first and then copied out, so a backup briefly needs two to three times
-its size on the Docker host.
+The Mongo dump is streamed straight to the host. The InfluxDB backup has to be a directory in the container first;
+its tar is streamed out and the directory removed before the Mongo dump starts. So the peak is about twice the
+InfluxDB backup, or the InfluxDB file plus the Mongo dump, whichever is larger - about 33 GB for a 17.7 GB Mongo and a
+15 GB Influx backup (2026-11-27; the version before streamed nothing and peaked at about 63 GB). A scheduled backup
+that keeps earlier files until the new ones are written needs that on top of them, and a cleanup by age
+(`find -mtime +0`) keeps a manual backup from the day before as well.
+
+Before each step `backup.sh` estimates the size from the database (the data size of all MongoDB databases, the size
+of InfluxDB's engine directory - both a little above the real files) and stops with `not enough disk space` when the
+free space minus `BACKUP_RESERVE_GB` (default 5) would not hold it: a backup that runs the disk full takes down the
+databases of every stack on it ([data-operations.md](../knowledge/data-operations.md#disk-space)). On any failure it
+removes what it left in the containers and its unfinished `*.partial` file, and ends with `BACKUP FAILED` on stderr;
+only complete files carry the backup's name.
 
 ## On a deploy host
 
@@ -47,6 +61,15 @@ its size on the Docker host.
 - Write outside the deploy directory: `BACKUP_FILENAME=<backup-dir>/backup-$(date +%F_%H-%M-%S)`. The next deploy's
   `rsync --delete` removes every file there that the repository does not have, backups included.
   `upgrade-mongodb.sh` always writes its backup into the repository directory - move it out before the next deploy.
+- A scheduled backup that runs from its own copy of `backup.sh` and `scripts/` outside the deploy directory is not
+  refreshed by a deploy: copy both again from master when they change. Such a copy from before PR #183 stopped at
+  its first line once the env file carried `CUSTOM_SCRIPT_TAG` - `load-env.sh` exports the file through `xargs`, a
+  value with spaces or quotes breaks that, `backup.sh` runs under `set -e`, and cron's output went nowhere, so the
+  backup failed silently (2026-11-26). Check that the newest backup carries today's date: a backup the space check
+  refuses is just as silent there.
+- Production's scheduled copy got the `backup.sh` of PR #198 before it was merged (Chris, 2026-11-27: the old
+  script would have run the disk full again the next night); the replaced one is kept beside it with a `.bak-<date>`
+  suffix. After the merge, compare the copy with master's `backup.sh` and copy again if review changed it.
 - A tree from before 2026-09-18 (a hotfix on an old base) has a `backup.sh` that ignores `COMPOSE_OPTIONS`. Where the
   project name comes from a `-p` flag there, run `mongodump` in the container directly.
 

@@ -1,51 +1,56 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { Camera, CameraTransport, CameraUpdate, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { CameraTransport, Device, RtspCameraCreate, Space, SpaceKind, StreamTestCreate } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera, useUpdateCamera } from '@/api/cameras';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { gaveUp, useCreateCamera, useStreamTest } from '@/api/cameras';
 import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
-import { deviceName } from '@/ui/naming';
+import { placesFor } from '@/app/places';
+import { deviceName, PLACE_KINDS } from '@/ui/naming';
+import { AdvancedFold } from '@/ui/advanced/AdvancedFold';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough } from '@/ui/session-access';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { carriersOf, hasLogin } from '../stream';
-import { StreamFold, TransportRow, TunnelRow } from '../StreamOptions';
+import { beginsStreamAddress, carriersOf, hasLogin, isStreamAddress } from '../stream';
+import { Raw } from '../Film';
+import { TransportRow, TunnelRow } from '../StreamOptions';
 import styles from './AddCamera.module.css';
 
 /** Where the reason a button cannot be pressed is written, so both buttons can point a screen reader at it. */
 const REASON = 'rtsp-missing';
+/** Where an address that is none is refused, under its field, which the buttons then point at instead. */
+const REFUSED = 'rtsp-refused';
 
-/** The kinds of place a camera is hung in, which is every kind but the fridge nobody points one into. */
-const PLACE_KINDS: SpaceKind[] = ['tent', 'room', 'balcony', 'other'];
+/** The kinds of place a camera is hung in: every kind but the fridge nobody points one into. */
+const CAMERA_PLACES = PLACE_KINDS.filter(kind => kind !== 'fridge');
 
 /**
  * A camera of somebody else's making, reached at the address its stream is at.
  *
- * The server never refuses one: whether the address answers is found out by
- * asking it for a picture, which is what the test button does. That is also why
- * the camera is made by the first tap on either button rather than by Save
- * alone - a test capture is a camera's own route, so there has to be a camera
- * before there can be a test. Making it early is only honest if the screen says
- * so, so the test button says beforehand that it adds the camera, the screen
- * afterwards says where the camera now lives, the button that looked like the
- * commit stops claiming to be one, and taking it away again is offered here,
- * where a mistyped address is mistyped.
+ * An address is `rtsp://` or `rtsps://` with a host, and anything else is
+ * refused under the field before anything is written - as the server refuses
+ * it: "quatsch" made a camera that could never show a picture. Whether the
+ * address answers is found out by asking it for a picture, which is what the
+ * test button does, and the test adds nothing: the server tries the address as
+ * the camera would be read, in the place and through the device chosen, and
+ * hands the picture back without storing it or making a camera. "Hinzufügen"
+ * adds the camera, after a test or without one, and opens its page.
  *
  * Where a Terp Control device stands in the place - a fridge module as much as
  * a controller - the stream is pulled through its tunnel, which is what makes
  * an address on a home network reachable at all; where none does, the cloud
- * opens the stream itself. Which device that is is said before the test rather
- * than found out after it, because a place may hold more than one and an
- * offline one is a stream that will not answer. Turning the tunnel off for a
- * camera the internet reaches, and how the stream is read, are under Erweitert.
+ * opens the stream itself - which the help beside the address explains and no
+ * line under the field repeats. Under it stands only what will keep the stream
+ * from answering, before the test rather than after it: a device that has gone
+ * quiet, by name. Which device carries it is asked where a place holds more
+ * than one. Turning the tunnel off for a camera the internet reaches, and how
+ * the stream is read, are under Erweitert.
  *
  * The login has fields of its own rather than being typed into the address:
  * the server writes it in, so a password with an `@` in it arrives intact. An
@@ -58,9 +63,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const me = useMe();
   const spaces = useSpaces();
   const create = useCreateCamera();
-  const amend = useUpdateCamera();
-  const capture = useCaptureOnce();
-  const drop = useRemoveCamera();
+  const capture = useStreamTest();
 
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
@@ -72,16 +75,15 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   /** Off only for a camera the internet reaches, which the cloud then opens itself. */
   const [tunnel, setTunnel] = useState(true);
   const [transport, setTransport] = useState<CameraTransport>('tcp');
-  /** The camera once it exists, so a second test amends it rather than making another. */
-  const [made, setMade] = useState<Camera | null>(null);
+  /** Which of the two buttons was pressed last, which says what the one write under way is for. */
+  const [pressed, setPressed] = useState<'test' | 'add' | null>(null);
 
   if (spaces.isPending) return <Waiting lines={3} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
 
-  // Putting a camera somewhere is managing that place, so a tent this account
-  // only writes lines in is not among the answers: offering it would end in a
-  // refusal after the address and the name had already been typed.
-  const places = spaces.data.items.filter(space => enough(space.youMay, 'manage'));
+  // Offering a place this account may not manage would end in a refusal after
+  // the address and the name had already been typed.
+  const places = placesFor(spaces.data.items);
   // With one place there is nothing to choose: the camera looks at that one.
   const placeId = spaceId ?? (places.length === 1 ? places[0].id : null);
 
@@ -93,13 +95,26 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // What is still missing, in the order the form asks for it, so that a button
   // which cannot be pressed says why instead of being grey for no stated
   // reason. Readiness is the absence of a reason rather than a second condition
-  // beside it, because the two would drift apart the moment either changed.
-  const missing = url.trim() === '' ? 'needAddress' : placeId === null ? 'needPlace' : name.trim() === '' ? 'needName' : null;
-  const ready = missing === null;
-  const working = create.isPending || amend.isPending || capture.isPending || drop.isPending;
+  // beside it, because the two would drift apart the moment either changed. An
+  // address on its way to `rtsp://` is still being typed, and is no address yet -
+  // which is not the same as nothing typed; one that cannot become an address is
+  // refused. A test needs no name.
+  const refused = !isStreamAddress(url) && !beginsStreamAddress(url);
+  const forTest = refused
+    ? 'badAddress'
+    : !isStreamAddress(url)
+      ? url.trim() === ''
+        ? 'needAddress'
+        : 'notYetAddress'
+      : placeId === null
+        ? 'needPlace'
+        : null;
+  const missing = forTest ?? (name.trim() === '' ? 'needName' : null);
+  const working = create.isPending || capture.isPending;
+  const reasonOf = (why: string | null) => (why === 'badAddress' ? REFUSED : why ? REASON : undefined);
 
   /** A different place is a different set of devices, so the one picked here does not follow. */
-  const putIn = (id: string) => {
+  const putIn = (id: string | null) => {
     setSpaceId(id);
     setCarrierId(null);
   };
@@ -110,67 +125,43 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
     if (next && transport === 'udp') setTransport('tcp');
   };
 
-  /**
-   * The camera this form is about, made the first time it is needed and kept
-   * afterwards. Everything is worked out again on every write, because the
-   * place or the login may have been changed since the test that made it - an
-   * emptied login field takes that half of the login away again.
-   */
-  const ensure = async (): Promise<Camera> => {
+  /** The stream as the form stands: the login apart from an address that carries none, the device worked out again. */
+  const stream = (): Omit<StreamTestCreate, 'spaceId'> => {
     const address = url.trim();
-    const settings: CameraUpdate = {
-      name: name.trim(),
-      spaceId: placeId,
+    return {
       url: address,
       ...(hasLogin(address) ? {} : { username: username.trim(), password }),
       deviceId: carrier?.id ?? null,
       tunnel: pulled,
       transport,
     };
-    if (made) {
-      const amended = await amend.mutateAsync({ cameraId: made.id, body: settings });
-      setMade(amended);
-      return amended;
-    }
-
-    const body: RtspCameraCreate = { kind: 'rtsp', ...settings, name: name.trim(), url: address };
-    const fresh = await create.mutateAsync(body);
-    setMade(fresh);
-    return fresh;
   };
+  const body = (): RtspCameraCreate => ({ kind: 'rtsp', name: name.trim(), spaceId: placeId, ...stream() });
 
   // A refusal is drawn from the mutation that carries it, so nothing is done
   // with the rejection here beyond not letting it escape the handler.
-  const test = () =>
-    void ensure()
-      .then(camera => capture.mutateAsync(camera.id))
-      .catch(() => undefined);
-
-  const save = () =>
-    void ensure()
-      .then(camera => navigate(`/cameras/${camera.id}`))
-      .catch(() => undefined);
-
-  /** The way back out of a mistyped address, from the screen the mistake was made on. */
-  const remove = () => {
-    if (made)
-      drop.mutate(made.id, {
-        onSuccess: () => {
-          setMade(null);
-          capture.reset();
-        },
-      });
+  const test = () => {
+    if (placeId === null) return;
+    setPressed('test');
+    void capture.mutateAsync({ spaceId: placeId, ...stream() }).catch(() => undefined);
   };
 
-  const shot = capture.data?.still ? mediaUrl(capture.data.still.mediaId, THUMBNAIL_WIDTH.frame) : null;
+  const save = () => {
+    setPressed('add');
+    void create
+      .mutateAsync(body())
+      .then(camera => navigate(`/cameras/${camera.id}`))
+      .catch(() => undefined);
+  };
+
   const liveness = pulled && carrier ? deviceLiveness(carrier.state.lastSeenAt, now) : null;
 
   return (
     <>
       <RefreshFailed failedAt={spaces.isError ? spaces.dataUpdatedAt : null} now={now} />
 
-      <section className={styles.block}>
-        <header className={styles.blockHead}>
+      <section className={ui.stack2}>
+        <header className={`${ui.row2} ${styles.blockHead}`}>
           <span className="label">
             <Term topic="rtsp">{t('cameras.add.rtsp.label')}</Term>
           </span>
@@ -178,8 +169,8 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         <p className={styles.text}>{premiumLine(t, me.data?.premium)}</p>
       </section>
 
-      <section className={styles.block}>
-        <div className={styles.blockHead}>
+      <section className={ui.stack2}>
+        <div className={`${ui.row2} ${styles.blockHead}`}>
           <label className="label" htmlFor="rtsp-url">
             {t('cameras.add.rtsp.address')}
           </label>
@@ -187,18 +178,29 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </div>
         <input
           id="rtsp-url"
-          className={`mono ${ui.input}`}
+          className={ui.input}
           value={url}
           placeholder={t('cameras.add.rtsp.placeholder')}
           autoCapitalize="none"
           autoComplete="off"
           spellCheck={false}
-          onChange={event => setUrl(event.target.value)}
+          aria-invalid={refused || undefined}
+          aria-describedby={refused ? REFUSED : undefined}
+          onChange={event => {
+            setUrl(event.target.value);
+            // What a test said was said of the address it was asked of.
+            capture.reset();
+          }}
         />
+        {refused ? (
+          <p className={ui.problem} id={REFUSED}>
+            {t('cameras.add.rtsp.badAddress')}
+          </p>
+        ) : null}
         {hasLogin(url) ? (
           <p className={styles.text}>{t('cameras.add.rtsp.loginInAddress')}</p>
         ) : (
-          <div className={styles.login}>
+          <div className={`${ui.halves} ${styles.login}`}>
             <input
               className={ui.input}
               value={username}
@@ -220,7 +222,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
             />
           </div>
         )}
-        <p className={styles.text}>{wayIn(t, placeId, carrier, pulled)}</p>
+        {/* The cloud opens the stream itself where no device stands to fetch it: said as the state of the place, not only behind the help. */}
+        {placeId !== null && carriers.length === 0 ? (
+          <p className={styles.text}>{t('cameras.add.rtsp.noCarrier', { place: places.find(space => space.id === placeId)?.name })}</p>
+        ) : null}
         {carrier && liveness && liveness !== 'live' ? (
           <p className={styles.text} {...ageAttribute(liveness)}>
             {t(`cameras.add.rtsp.carrier.${liveness}`, {
@@ -231,23 +236,17 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         ) : null}
       </section>
 
-      <section className={styles.block}>
+      <section className={ui.stack2}>
         <span className="label">{t('cameras.add.rtsp.where')}</span>
         {places.length === 0 ? (
           <NewPlace onMade={space => putIn(space.id)} />
         ) : (
-          <Choices label={t('cameras.add.rtsp.where')}>
-            {places.map(space => (
-              <Choice key={space.id} chosen={space.id === placeId} onChoose={() => putIn(space.id)}>
-                {space.name}
-              </Choice>
-            ))}
-          </Choices>
+          <PlaceChoices label={t('cameras.add.rtsp.where')} places={places} chosen={placeId} onChoose={putIn} />
         )}
       </section>
 
       {carriers.length > 1 ? (
-        <section className={styles.block}>
+        <section className={ui.stack2}>
           <span className="label">{t('camera.stream.throughWhich')}</span>
           <Choices label={t('camera.stream.throughWhich')}>
             {carriers.map(device => (
@@ -259,7 +258,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </section>
       ) : null}
 
-      <section className={styles.block}>
+      <section className={ui.stack2}>
         <label className="label" htmlFor="rtsp-name">
           {t('cameras.add.rtsp.name')}
         </label>
@@ -273,43 +272,34 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         />
       </section>
 
-      <StreamFold>
+      <AdvancedFold>
         {carrier ? <TunnelRow on={tunnel} carrier={carrier} onChange={pullThrough} /> : null}
         <TransportRow value={transport} tunnel={pulled} onChange={setTransport} />
-      </StreamFold>
+      </AdvancedFold>
 
       {/* This side giving up on the answer is not the server refusing anything, so it is not drawn as a refusal. */}
-      <Refused error={create.error ?? amend.error ?? (gaveUp(capture.error) ? null : capture.error) ?? drop.error} />
+      <Refused error={create.error ?? (gaveUp(capture.error) ? null : capture.error)} />
 
-      {made ? (
-        <section className={styles.block} role="status">
-          <p className={styles.text}>{madeLine(t, placeOf(spaces.data.items, made.spaceId))}</p>
-          <button type="button" className={`${ui.button} ${styles.way}`} disabled={working} onClick={remove}>
-            {drop.isPending ? t('cameras.add.rtsp.removing') : t('cameras.add.rtsp.remove')}
-          </button>
-        </section>
-      ) : (
-        <p className={ui.note}>{t('cameras.add.rtsp.testAdds')}</p>
-      )}
+      <p className={ui.note}>{t('cameras.add.rtsp.testOnly')}</p>
 
-      {missing ? (
+      {missing && missing !== 'badAddress' ? (
         <p className={ui.note} id={REASON}>
           {t(`cameras.add.rtsp.${missing}`)}
         </p>
       ) : null}
 
-      <div className={styles.actions}>
-        <button type="button" className={ui.button} disabled={!ready || working} aria-describedby={missing ? REASON : undefined} onClick={test}>
-          {capture.isPending ? t('cameras.add.rtsp.testing') : t('cameras.add.rtsp.test')}
+      <div className={`${ui.wrap} ${styles.actions}`}>
+        <button type="button" className={ui.button} disabled={forTest !== null || working} aria-describedby={reasonOf(forTest)} onClick={test}>
+          {working && pressed === 'test' ? t('cameras.add.rtsp.testing') : t('cameras.add.rtsp.test')}
         </button>
         <button
           type="button"
           className={`${ui.button} ${ui.primary} ${styles.grow}`}
-          disabled={!ready || working}
-          aria-describedby={missing ? REASON : undefined}
+          disabled={missing !== null || working}
+          aria-describedby={reasonOf(missing)}
           onClick={save}
         >
-          {create.isPending || amend.isPending ? t('cameras.add.rtsp.saving') : made ? t('cameras.add.rtsp.open') : t('cameras.add.rtsp.save')}
+          {working && pressed === 'add' ? t('cameras.add.rtsp.saving') : t('cameras.add.rtsp.save')}
         </button>
       </div>
 
@@ -320,23 +310,18 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       ) : null}
 
       {capture.data ? (
-        <section className={styles.block} role="status">
-          {capture.data.still ? (
+        <section className={ui.stack2} role="status">
+          {capture.data.picture ? (
             <>
-              {shot ? <img className={styles.shot} src={shot} alt={t('cameras.add.rtsp.shotAlt')} /> : null}
-              <p className={`mono ${styles.shotNote}`}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
+              <img className={styles.shot} src={`data:image/jpeg;base64,${capture.data.picture.jpeg}`} alt={t('cameras.add.rtsp.shotAlt')} />
+              <p className={styles.shotNote}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.picture.capturedAt, now) })}</p>
             </>
           ) : (
             <>
               <p className={ui.problem} role="alert">
                 {t('cameras.add.rtsp.failed', { reason: t(`camera.failure.${capture.data.reason ?? 'unknown'}`) })}
               </p>
-              {capture.data.error ? (
-                <details className={styles.said}>
-                  <summary className="mono">{t('camera.whatItSaid')}</summary>
-                  <p className="mono">{capture.data.error}</p>
-                </details>
-              ) : null}
+              {capture.data.error ? <Raw summary={t('camera.whatItSaid')}>{capture.data.error}</Raw> : null}
             </>
           )}
         </section>
@@ -356,15 +341,15 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
  * becomes the chosen one without the address and the name already typed being
  * lost.
  */
-function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
+export function NewPlace({ onMade, note }: { onMade: (space: Space) => void; note?: string }) {
   const { t } = useTranslation();
   const create = useCreateSpace();
   const [name, setName] = useState('');
   const [kind, setKind] = useState<SpaceKind>('tent');
 
   return (
-    <section className={`${ui.cardDashed} ${styles.block}`}>
-      <p className={ui.note}>{t('cameras.add.rtsp.nowhere')}</p>
+    <section className={`${ui.cardDashed} ${ui.stack2}`}>
+      <p className={ui.note}>{note ?? t('cameras.add.rtsp.nowhere')}</p>
       <input
         className={ui.input}
         value={name}
@@ -374,9 +359,9 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
         onChange={event => setName(event.target.value)}
       />
       <Choices label={t('cameras.add.rtsp.placeKind')}>
-        {PLACE_KINDS.map(one => (
+        {CAMERA_PLACES.map(one => (
           <Choice key={one} chosen={kind === one} onChoose={() => setKind(one)}>
-            {t(`cameras.add.rtsp.kind.${one}`)}
+            {t(`place.edit.kind.${one}`)}
           </Choice>
         ))}
       </Choices>
@@ -392,30 +377,6 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
     </section>
   );
 }
-
-/** What the place the camera was put into is called, or nothing where the list no longer holds it. */
-const placeOf = (spaces: Space[], spaceId: string | null): string | null => spaces.find(space => space.id === spaceId)?.name ?? null;
-
-/**
- * How the cloud will reach this address, which is a fact about the place the
- * camera looks at rather than about the address: a place with a device in it
- * is reached through that device's tunnel, and one without is not reachable at
- * all unless the stream is already open to the internet - which is also what
- * turning the tunnel off under Erweitert says. Before a place is picked neither
- * is true yet, so the line says which question is still open instead of
- * promising a tunnel through a device nobody has named.
- */
-const wayIn = (t: Translate, spaceId: string | null, carrier: Device | null, pulled: boolean): string => {
-  if (spaceId === null) return t('cameras.add.rtsp.pickAPlace');
-  if (carrier && pulled) return t('cameras.add.rtsp.throughDevice', { device: deviceName(carrier, t) });
-  if (carrier) return t('cameras.add.rtsp.directByChoice');
-
-  return t('cameras.add.rtsp.direct');
-};
-
-/** Where the camera now stands, named where the place is still known and left unnamed where it is not. */
-const madeLine = (t: Translate, place: string | null): string =>
-  place === null ? t('cameras.add.rtsp.madeSomewhere') : t('cameras.add.rtsp.made', { place });
 
 /**
  * What Premium means for an RTSP camera. It works without it, gated like any

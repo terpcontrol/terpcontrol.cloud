@@ -69,6 +69,18 @@ export declare const dryingReturn: z.ZodObject<{
     co2: z.ZodNullable<z.ZodNumber>;
     lightLimit: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
+/** A climate preset as it was applied: the stage, and the preset on top of it where one was named. */
+export declare const appliedClimate: z.ZodObject<{
+    stage: z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>;
+    preset: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
 export declare const deviceControl: z.ZodObject<{
     running: z.ZodBoolean;
     drying: z.ZodBoolean;
@@ -98,10 +110,56 @@ export declare const deviceControl: z.ZodObject<{
         warnTooHumid: z.ZodBoolean;
         humidifierHolds: z.ZodBoolean;
     }, z.core.$strip>;
+    preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+    endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
+/** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
+export declare const deviceRelease: z.ZodEnum<{
+    given_up: "given_up";
+    account_deleted: "account_deleted";
+}>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
     claimedAt: z.ZodNullable<z.ZodISODateTime>;
+    released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        at: z.ZodISODateTime;
+        by: z.ZodEnum<{
+            given_up: "given_up";
+            account_deleted: "account_deleted";
+        }>;
+    }, z.core.$strip>>>;
+    awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+    limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     firmwareId: z.ZodNullable<z.ZodString>;
     updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
     updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -169,11 +227,52 @@ export declare const device: z.ZodObject<{
             warnTooHumid: z.ZodBoolean;
             humidifierHolds: z.ZodBoolean;
         }, z.core.$strip>;
+        preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>>;
+        endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
         lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
         claimedAt: z.ZodNullable<z.ZodISODateTime>;
+        released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            at: z.ZodISODateTime;
+            by: z.ZodEnum<{
+                given_up: "given_up";
+                account_deleted: "account_deleted";
+            }>;
+        }, z.core.$strip>>>;
+        awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>>;
+        limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         firmwareId: z.ZodNullable<z.ZodString>;
         updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
         updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -238,11 +337,52 @@ export declare const devicePage: z.ZodObject<{
                 warnTooHumid: z.ZodBoolean;
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
+            preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -320,6 +460,39 @@ export declare const deviceConfigurationEnvelope: z.ZodObject<{
         warnTooHumid: z.ZodOptional<z.ZodBoolean>;
         humidifierHolds: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
+    preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+    bands: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+    bandsBefore: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on
@@ -443,11 +616,52 @@ export declare const provisionedDevice: z.ZodObject<{
                 warnTooHumid: z.ZodBoolean;
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
+            preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -653,6 +867,11 @@ export declare const deviceClaimCreate: z.ZodObject<{
     code: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     spaceId: z.ZodOptional<z.ZodString>;
+    spaceNames: z.ZodOptional<z.ZodObject<{
+        tent: z.ZodOptional<z.ZodString>;
+        fridge: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
+    joinSpaceId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
  * What a claim answers. The device carries the space it now sits in, so the one
@@ -713,11 +932,52 @@ export declare const deviceClaimResult: z.ZodObject<{
                 warnTooHumid: z.ZodBoolean;
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
+            preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
         }, z.core.$strip>>;
         isDemo: z.ZodBoolean;
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -822,6 +1082,7 @@ export declare const deviceCapabilities: z.ZodObject<{
     socketOverride: z.ZodBoolean;
     socketTimer: z.ZodBoolean;
     lightOverride: z.ZodBoolean;
+    lightHold: z.ZodBoolean;
     roles: z.ZodArray<z.ZodEnum<{
         "": "";
         manual: "manual";
@@ -852,6 +1113,23 @@ export declare const deviceCapabilities: z.ZodObject<{
         pump: "pump";
         custom_timer: "custom_timer";
     }> & z.core.$partial, z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * The override holding the device's own light output, as its last report said.
+ * `override` is null when nothing holds it; `reportedAt` is when the device
+ * said so, which is what tells a screen whether a hold it sent since is already
+ * in this answer.
+ */
+export declare const lightHold: z.ZodObject<{
+    override: z.ZodNullable<z.ZodObject<{
+        state: z.ZodEnum<{
+            auto: "auto";
+            off: "off";
+            on: "on";
+        }>;
+        validUntil: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    reportedAt: z.ZodISODateTime;
 }, z.core.$strip>;
 /** The list carries the capabilities, because a socket row is drawn from both. */
 export declare const socketPage: z.ZodObject<{
@@ -898,6 +1176,7 @@ export declare const socketPage: z.ZodObject<{
         socketOverride: z.ZodBoolean;
         socketTimer: z.ZodBoolean;
         lightOverride: z.ZodBoolean;
+        lightHold: z.ZodBoolean;
         roles: z.ZodArray<z.ZodEnum<{
             "": "";
             manual: "manual";
@@ -929,6 +1208,17 @@ export declare const socketPage: z.ZodObject<{
             custom_timer: "custom_timer";
         }> & z.core.$partial, z.ZodNumber>;
     }, z.core.$strip>;
+    lightHold: z.ZodNullable<z.ZodObject<{
+        override: z.ZodNullable<z.ZodObject<{
+            state: z.ZodEnum<{
+                auto: "auto";
+                off: "off";
+                on: "on";
+            }>;
+            validUntil: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        reportedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * What a client asks a device to do right now. A discriminated union rather than
@@ -1204,6 +1494,7 @@ export declare const plan: z.ZodObject<{
     createdAt: z.ZodISODateTime;
     deviceId: z.ZodString;
     templateId: z.ZodNullable<z.ZodString>;
+    growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     name: z.ZodString;
     steps: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1547,11 +1838,13 @@ export declare const planTransition: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodEnum<{
         resume: "resume";
     }>;
+    growId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodEnum<{
         goto: "goto";
     }>;
     stepId: z.ZodString;
+    growId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>], "kind">;
 /**
  * Where a rule came from. `always` is a rule the cloud keeps for every device
@@ -1862,6 +2155,10 @@ export declare const alarmRule: z.ZodObject<{
         lastSampleAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
 }, z.core.$strip>;
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
 export declare const alarmRulePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1963,6 +2260,15 @@ export declare const alarmRulePage: z.ZodObject<{
         }, z.core.$strip>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
+    counts: z.ZodObject<{
+        total: z.ZodNumber;
+        enabled: z.ZodNumber;
+        triggered: z.ZodNumber;
+    }, z.core.$strip>;
+    germination: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        warnTooHumid: z.ZodBoolean;
+        humidifierHolds: z.ZodBoolean;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came
@@ -2216,6 +2522,8 @@ export declare const alert: z.ZodObject<{
     deviceId: z.ZodNullable<z.ZodString>;
     cameraId: z.ZodNullable<z.ZodString>;
     spaceId: z.ZodNullable<z.ZodString>;
+    spaceName: z.ZodNullable<z.ZodString>;
+    startedIn: z.ZodNullable<z.ZodString>;
     kind: z.ZodEnum<{
         threshold: "threshold";
         offline: "offline";
@@ -2286,6 +2594,8 @@ export declare const alertPage: z.ZodObject<{
         deviceId: z.ZodNullable<z.ZodString>;
         cameraId: z.ZodNullable<z.ZodString>;
         spaceId: z.ZodNullable<z.ZodString>;
+        spaceName: z.ZodNullable<z.ZodString>;
+        startedIn: z.ZodNullable<z.ZodString>;
         kind: z.ZodEnum<{
             threshold: "threshold";
             offline: "offline";
@@ -2446,6 +2756,25 @@ export declare const setpoints: z.ZodObject<{
         }> & z.core.$partial, z.ZodNumber>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+export declare const pendingSetting: z.ZodObject<{
+    field: z.ZodString;
+    held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    savedAt: z.ZodISODateTime;
+}, z.core.$strip>;
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+export declare const pendingSettings: z.ZodObject<{
+    since: z.ZodISODateTime;
+    settings: z.ZodArray<z.ZodObject<{
+        field: z.ZodString;
+        held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+        savedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -2559,6 +2888,14 @@ export declare const deviceLive: z.ZodObject<{
             }> & z.core.$partial, z.ZodNumber>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
+    pending: z.ZodNullable<z.ZodObject<{
+        since: z.ZodISODateTime;
+        settings: z.ZodArray<z.ZodObject<{
+            field: z.ZodString;
+            held: z.ZodNullable<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+            savedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const metricSeries: z.ZodObject<{
     metric: z.ZodEnum<{
@@ -2574,6 +2911,8 @@ export declare const metricSeries: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const outputSeries: z.ZodObject<{
@@ -2591,6 +2930,8 @@ export declare const outputSeries: z.ZodObject<{
     points: z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -2644,6 +2985,8 @@ export declare const deviceSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     outputs: z.ZodArray<z.ZodObject<{
@@ -2661,6 +3004,8 @@ export declare const deviceSeries: z.ZodObject<{
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;

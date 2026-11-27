@@ -1,17 +1,20 @@
 import type { DeviceLive, DeviceSeries, Metric, OutputMetric, TimelineRange, TimelineSpan } from '@fg2/shared-types/v1';
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
+import { quietLimits } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
+import { movedTo } from '@common/v1/device-placements';
 import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
-import { FluxRow, switchingsByField } from '@modules/data/flux';
+import { edgesAround, edgesOf, FluxRow, switchingsByField } from '@modules/data/flux';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
-import { lanesOf, nightsOf } from '@modules/v1/timeline/timeline-series';
+import { lanesOf, nightsOf, panelsOf, readingOf, silencesOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
 import { isLit, lastSampleOf, seriesOf, SWITCHING_GRAIN_MS, switchingsOf } from './support/fake-data';
-import { accessOn, spacesOn } from './support/services';
+import { accessOn, devicesOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * The Timeline tab: one answer per range chip.
@@ -79,6 +82,10 @@ let sensed: Metric[] = ['temperature', 'humidity', 'co2'];
  * as a plug or a fan.
  */
 let lastReading: DeviceLive['metrics'] = {};
+/** A device's own last reading where it is not `lastReading`. */
+let readingsOf: Record<string, DeviceLive['metrics']> = {};
+/** The devices a live reading was asked of, in order. */
+let liveAsked: string[] = [];
 
 const controllerReport = (at: Date): Reading | null => {
   if (quietFrom && quietUntil && at >= quietFrom && at < quietUntil) return null;
@@ -90,6 +97,7 @@ const controllerReport = (at: Date): Reading | null => {
     // digits of which one is a measurement.
     temperature: lit ? 24.799999999999997 : 20.049999999999997,
     humidity: lit ? 55 : 62,
+    vpd: lit ? 1.31 : 0.89,
     co2: lit ? 910 : 430,
     leafTemperature: lit ? 22.9 : 19.8,
     lux: lit ? 41_250 : 0,
@@ -124,8 +132,28 @@ const fakeData = {
       output: (output, at) => valueAt(at, reading => reading.outputs?.[output]),
     });
   },
-  live: async (deviceId: string) => ({ metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null }),
+  live: async (deviceId: string) => {
+    liveAsked.push(deviceId);
+    return { metrics: readingsOf[deviceId] ?? (reports[deviceId] ? lastReading : {}), outputs: {}, isDay: null, lightOn: null };
+  },
+  /** The device's last word before the window and its first after, a second at a time and a week at most each way. */
+  samplesAround: async (deviceId: string, window: { startsAt: Date; endsAt: Date }, stood: { startsAt: Date; endsAt: Date }) => {
+    around.push(deviceId);
+    const said = (time: number) => reports[deviceId]?.(new Date(time)) != null;
+    const seek = (from: number, to: number, by: number): Date | null => {
+      for (let time = from; by < 0 ? time >= to : time < to; time += by) if (said(time)) return new Date(time);
+      return null;
+    };
+    const week = 7 * 24 * 3600_000;
+    return {
+      before: seek(window.startsAt.getTime() - 1000, Math.max(stood.startsAt.getTime(), window.startsAt.getTime() - week), -1000),
+      after: seek(window.endsAt.getTime(), Math.min(stood.endsAt.getTime(), window.endsAt.getTime() + week), 1000),
+    };
+  },
 } as unknown as DataService;
+
+/** The devices a silence's ends were asked of. */
+let around: string[] = [];
 
 const build = (): TimelineService => {
   access = accessOn(db);
@@ -140,6 +168,8 @@ const build = (): TimelineService => {
     db.alarmRules,
     db.users,
     db.targetChanges,
+    db.spaces,
+    access,
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
     fakeData,
@@ -147,9 +177,9 @@ const build = (): TimelineService => {
 };
 
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
-const readAs = async (ctx: AccessContext, asked: { range: TimelineRange; growId?: string; at?: Date } = { range: '24h' }, spaceId = TENT) => {
+const readAs = async (ctx: AccessContext, asked: Parameters<TimelineService['read']>[2] = { range: '24h' }, spaceId = TENT) => {
   const grant: Grant = await access.require(ctx, subjectRef('space', spaceId), 'view');
-  return timeline.read(grant, spaceId, asked, NOW);
+  return timeline.read(grant, spaceId, asked, NOW, ctx);
 };
 
 const entry = (over: Partial<EntryDocument>): EntryDocument =>
@@ -204,11 +234,11 @@ const world = async (): Promise<void> => {
       id: CONTROLLER,
       type: 'controller',
       ownerId: OWNER,
-      spaceId: TENT,
+      ...standingIn(TENT),
       configuration: { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: { target: 1100 } },
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     },
-    { id: PLUG, type: 'plug', ownerId: OWNER, spaceId: TENT, configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
+    { id: PLUG, type: 'plug', ownerId: OWNER, ...standingIn(TENT), configuration: null, createdAt: new Date('2026-01-02T00:00:00.000Z') },
   ]);
 
   await db.cameras.create({
@@ -349,6 +379,8 @@ beforeEach(async () => {
   quietUntil = null;
   sampleEverySeconds = 0;
   lastReading = {};
+  readingsOf = {};
+  around = [];
   timeline = build();
   await world();
 });
@@ -379,7 +411,7 @@ describe('the window a range chip names', () => {
   it('reads a phase as the stretch of the grow the instant falls in', async () => {
     const page = await readAs(session(OWNER), { range: 'phase', growId: GROW });
 
-    expect(page).toMatchObject({ startsAt: FLOWERING_FROM.toISOString(), endsAt: NOW.toISOString(), dayFrom: 33, dayTo: 34 });
+    expect(page).toMatchObject({ startsAt: FLOWERING_FROM.toISOString(), endsAt: NOW.toISOString(), dayFrom: 34, dayTo: 34 });
   });
 
   it('reads a whole grow for the same number of queries as a day, at a coarser step', async () => {
@@ -419,6 +451,115 @@ describe('the window a range chip names', () => {
     expect(page).toMatchObject({ startsAt: '2026-06-07T12:00:00.000Z', endsAt: '2026-06-08T12:00:00.000Z', dayFrom: 31, dayTo: 32 });
   });
 
+  it('takes a window named outright - stepped back to, zoomed into - and still counts the grow´s days across it', async () => {
+    const window = { startsAt: new Date('2026-06-08T03:00:00.000Z'), endsAt: new Date('2026-06-08T03:20:00.000Z') };
+    const page = await readAs(session(OWNER), { range: 'grow', growId: GROW, window });
+
+    expect(page).toMatchObject({
+      range: 'grow',
+      startsAt: window.startsAt.toISOString(),
+      endsAt: window.endsAt.toISOString(),
+      dayFrom: 32,
+      dayTo: 32,
+    });
+    // Twenty minutes are read at every sample a device sends.
+    expect(page.stepSeconds).toBe(5);
+    expect(page.panels[0].points).toHaveLength(240);
+  });
+
+  it('reads a window wider than three days at a whole number of five minutes, asked for or not', async () => {
+    const wide = (days: number) => ({ startsAt: new Date(NOW.getTime() - days * 24 * 3600_000), endsAt: NOW });
+    const stepOf = async (days: number, stepSeconds?: number) =>
+      (await readAs(session(OWNER), { range: '24h', window: wide(days), stepSeconds })).stepSeconds;
+
+    // Three days and six hours are 541 s to the point by their 480 windows: two grains of five minutes instead.
+    expect([await stepOf(3.25), await stepOf(7), await stepOf(30)]).toEqual([600, 1500, 5400]);
+    // A minute asked over a week is five; an hour asked stays an hour.
+    expect([await stepOf(7, 60), await stepOf(7, 3600)]).toEqual([300, 3600]);
+    // Inside three days nothing changes: a step somebody chose is kept.
+    expect(await stepOf(2, 60)).toBe(60);
+  });
+
+  it('answers the last reading of the device its curves are of, for every reader the same', async () => {
+    lastReading = {
+      temperature: { value: 24.7, measuredAt: '2026-06-10T11:59:55.000Z', state: 'live' },
+      humidity: { value: 53.4, measuredAt: '2026-06-10T11:59:55.000Z', state: 'live' },
+    };
+    const owner = (await readAs(session(OWNER))).reading;
+
+    expect(owner).toMatchObject({ measuredAt: '2026-06-10T11:59:55.000Z', outputs: [] });
+    expect(owner!.values.map(one => [one.metric, one.value])).toEqual([
+      ['temperature', 24.7],
+      ['humidity', 53.4],
+    ]);
+    // A level in per cent where the output has one, on or off where it only switches.
+    expect(
+      readingOf(
+        {
+          metrics: lastReading,
+          outputs: {
+            light: { value: 65, measuredAt: 'x', state: 'live' },
+            heater: { value: 0.62, measuredAt: 'x', state: 'live' },
+            dehumidifier: { value: 0, measuredAt: 'x', state: 'live' },
+          },
+        } as never,
+        ['temperature'],
+      )?.outputs,
+    ).toEqual([
+      { output: 'light', on: true, level: 65 },
+      { output: 'heater', on: true, level: 62 },
+      { output: 'dehumidifier', on: false, level: null },
+    ]);
+
+    // An output last heard of longer before the reading than a reading stays fresh is no part of it.
+    const at = (secondsBefore: number) => new Date(Date.parse('2026-06-10T11:59:55.000Z') - secondsBefore * 1000).toISOString();
+    const said = (value: number, secondsBefore: number) => ({ value, measuredAt: at(secondsBefore), state: 'live' });
+    expect(
+      readingOf({ metrics: lastReading, outputs: { light: said(65, 0), heater: said(0.4, 90), co2: said(0, 7 * 86_400) } } as never, ['temperature'])
+        ?.outputs,
+    ).toEqual([
+      { output: 'light', on: true, level: 65 },
+      { output: 'heater', on: true, level: 40 },
+    ]);
+    // A place of outputs alone has a reading too: what its outputs last said, and when.
+    expect(readingOf({ metrics: {}, outputs: { relais: said(1, 30), fan: said(45, 0) } } as never, ['temperature'])).toEqual({
+      measuredAt: at(0),
+      values: [],
+      outputs: [
+        { output: 'relais', on: true, level: null },
+        { output: 'fan', on: true, level: 45 },
+      ],
+    });
+    expect(readingOf({ metrics: {}, outputs: {} } as never, ['temperature'])).toBeNull();
+  });
+
+  it('ends a window named into the future now, where the measuring ends', async () => {
+    const today = { startsAt: new Date(NOW.getTime() - 6 * 3600_000), endsAt: new Date(NOW.getTime() + 18 * 3600_000) };
+    const page = await readAs(session(OWNER), { range: '24h', window: today });
+
+    expect(page).toMatchObject({ startsAt: today.startsAt.toISOString(), endsAt: NOW.toISOString() });
+    // Six hours, read as six hours and not as a day of which three quarters are empty.
+    expect(page.stepSeconds).toBe(45);
+  });
+
+  it('reads at the five seconds a device reports in for as long as that fits, and never between two samples', async () => {
+    const wide = (minutes: number) => ({ startsAt: new Date(NOW.getTime() - minutes * 60_000), endsAt: NOW });
+    const stepOf = async (minutes: number) => (await readAs(session(OWNER), { range: '24h', window: wide(minutes) })).stepSeconds;
+
+    expect([await stepOf(5), await stepOf(40), await stepOf(60), await stepOf(90), await stepOf(6 * 60), await stepOf(8 * 60)]).toEqual([
+      5, 5, 10, 15, 45, 60,
+    ]);
+    // A step somebody chose is kept, down to the same five seconds.
+    expect((await readAs(session(OWNER), { range: '24h', window: wide(60), stepSeconds: 1 })).stepSeconds).toBe(5);
+    expect((await readAs(session(OWNER), { range: '24h', stepSeconds: 600 })).stepSeconds).toBe(600);
+  });
+
+  it('asks the store for each window´s lowest and highest beside its mean', async () => {
+    await readAs(session(OWNER));
+
+    expect(reads.every(read => read.extremes === true)).toBe(true);
+  });
+
   it('takes its bands from the grow standing here now and not from one that has moved out', async () => {
     await db.grows.updateOne({ id: GROW }, { $set: { 'placements.0.endedAt': new Date('2026-06-10T06:00:00.000Z') } });
     const page = await readAs(session(OWNER));
@@ -449,10 +590,41 @@ describe('the window a range chip names', () => {
 });
 
 describe('the stacked panels', () => {
-  it('stacks temperature, humidity and CO2 and not VPD, which belongs to the charting view', async () => {
+  it('stacks temperature, humidity and CO2 for a caller that names no panels', async () => {
     const page = await readAs(session(OWNER));
 
     expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
+  });
+
+  it('answers the panels a caller names, VPD among them, in the order it named them', async () => {
+    sensed = ['temperature', 'humidity', 'vpd'];
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['vpd', 'temperature', 'co2'] });
+
+    expect(page.panels.map(panel => panel.metric)).toEqual(['vpd', 'temperature']);
+    expect(reads.at(-1)?.metrics).toEqual(['vpd', 'temperature', 'co2']);
+  });
+
+  it('says the lowest and the highest of each window as the device read them, never bent towards the mean', () => {
+    const at = '2026-06-10T11:57:00.000Z';
+    const one = (point: { value: number; min?: number; max?: number }): DeviceSeries => ({
+      deviceId: 'a',
+      startsAt: '2026-06-10T11:00:00.000Z',
+      endsAt: NOW.toISOString(),
+      stepSeconds: DAY_STEP_SECONDS,
+      metrics: [{ metric: 'humidity', points: [{ measuredAt: at, ...point }] }],
+      outputs: [],
+    });
+
+    // A door open for forty seconds: the sensor saw 71.5 %, the three-minute mean barely moved.
+    expect(panelsOf({ series: one({ value: 56.04, min: 54.96, max: 71.52 }) }, [], ['humidity'])[0].points).toEqual([
+      { measuredAt: at, value: 56, min: 55, max: 71.5 },
+    ]);
+    // A window of one sample has no extremes to tell from its value.
+    expect(panelsOf({ series: one({ value: 56 }) }, [], ['humidity'])[0].points).toEqual([{ measuredAt: at, value: 56 }]);
+    // A deficit of 1.04 in every sample beside a mean that came to 1.05 stays the figure that occurred.
+    expect(panelsOf({ series: one({ value: 56.3, min: 56.1, max: 56.1 }) }, [], ['humidity'])[0].points[0]).toMatchObject({ min: 56.1, max: 56.1 });
+    // Nothing measures: no panel.
+    expect(panelsOf(null, [], ['humidity'])).toEqual([]);
   });
 
   it('stacks the leaf and the light under them where a canopy sensor measures them, with no band to miss', async () => {
@@ -468,6 +640,43 @@ describe('the stacked panels', () => {
     sensed = ['temperature', 'humidity'];
 
     expect((await readAs(session(OWNER))).panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity']);
+  });
+
+  it("draws the tent's CO2 from the socket that measures it where the controller has no sensor", async () => {
+    sensed = ['temperature', 'humidity'];
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const page = await readAs(session(OWNER));
+
+    expect(page.deviceId).toBe(CONTROLLER);
+    expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
+    expect(new Set(page.panels[2].points.map(point => point.value))).toEqual(new Set([1114]));
+  });
+
+  it("reads the socket's CO2 into the controller's reading, where its curve is drawn, and keeps the controller's instant", async () => {
+    sensed = ['temperature', 'humidity'];
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const said = (value: number, secondsAgo: number) => ({
+      value,
+      measuredAt: new Date(NOW.getTime() - secondsAgo * 1000).toISOString(),
+      state: 'live' as const,
+    });
+    readingsOf = { [CONTROLLER]: { temperature: said(24.8, 60) }, [PLUG]: { co2: said(1114, 10), temperature: said(30, 10) } };
+    const page = await readAs(session(OWNER));
+
+    // The CO2 head and the cursor's card read the socket the curve is of; its temperature stays its own.
+    expect(page.reading!.values.map(value => [value.metric, value.value])).toEqual([
+      ['temperature', 24.8],
+      ['co2', 1114],
+    ]);
+    expect(page.reading!.measuredAt).toBe(said(0, 60).measuredAt);
+  });
+
+  it("leaves the controller's own CO2 in its reading where it measures CO2 itself", async () => {
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const said = (value: number) => ({ value, measuredAt: new Date(NOW.getTime() - 60_000).toISOString(), state: 'live' as const });
+    readingsOf = { [CONTROLLER]: { temperature: said(24.8), co2: said(820) }, [PLUG]: { co2: said(1114) } };
+
+    expect((await readAs(session(OWNER))).reading!.values.find(value => value.metric === 'co2')!.value).toBe(820);
   });
 
   it('rounds a window to what the sensor can say rather than to what the mean came to', async () => {
@@ -492,13 +701,13 @@ describe('the stacked panels', () => {
   });
 
   it('answers the windows something was read in and not the empty ones between them', async () => {
-    // A backfilled history: one sample an hour, into windows of three minutes.
-    sampleEverySeconds = 3600;
+    // A backfilled history: one sample every quarter of an hour, into windows of three minutes.
+    sampleEverySeconds = 900;
     const points = (await readAs(session(OWNER))).panels[0].points;
 
-    expect(points).toHaveLength(24);
-    // Nothing missing, so nothing to break at: an hourly history draws a line
-    // rather than twenty-four readings no two of which are neighbours.
+    expect(points).toHaveLength(96);
+    // Nothing missing, so nothing to break at: such a history draws a line
+    // rather than ninety-six readings no two of which are neighbours.
     expect(points.every(point => point.value !== null)).toBe(true);
   });
 
@@ -534,6 +743,19 @@ describe('the stacked panels', () => {
     expect(points.at(-1)!.value).toBeNull();
   });
 
+  it('breaks a month at six hours nobody reported, as a week does: a window with no reading is a silence at every width', async () => {
+    quietFrom = new Date(NOW.getTime() - 54 * 3600 * 1000);
+    quietUntil = new Date(NOW.getTime() - 48 * 3600 * 1000);
+
+    for (const range of ['7d', '30d'] as const) {
+      const points = (await readAs(session(OWNER), { range })).panels[0].points;
+      const breaks = points.filter(point => point.value === null);
+      // Four of a month's windows are six hours, and held to those the month drew its line through the morning.
+      expect(breaks).toHaveLength(1);
+      expect(new Date(breaks[0].measuredAt).getTime()).toBeLessThan(quietUntil.getTime());
+    }
+  });
+
   it('carries a month to the edge of the window where the tent is still reporting', async () => {
     const points = (await readAs(session(OWNER), { range: '30d' })).panels[0].points;
 
@@ -564,12 +786,131 @@ describe('the stacked panels', () => {
       expect((await readAs(session(OWNER))).lastReadingAt).toBeNull();
     });
 
+    describe('a device that came from another place', () => {
+      /** The controller was moved here from the second tent three days ago, silent since the day before. */
+      const CAME = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const measuredAt = new Date(CAME.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+      beforeEach(async () => {
+        await db.devices.updateOne(
+          { id: CONTROLLER },
+          {
+            $set: {
+              placements: [
+                { spaceId: BARE, startedAt: new Date(0), endedAt: CAME },
+                { spaceId: TENT, startedAt: CAME, endedAt: null },
+              ],
+            },
+          },
+        );
+        reports = { [CONTROLLER]: () => null };
+        lastReading = { temperature: { value: 24, measuredAt, state: 'offline' } };
+      });
+
+      it('points to no last reading it took elsewhere, and says where it came from and when', async () => {
+        const page = await readAs(session(OWNER));
+        expect(page.panels).toEqual([]);
+        expect(page.lastReadingAt).toBeNull();
+        expect(page.arrivals).toEqual([
+          { deviceId: CONTROLLER, name: null, type: 'controller', at: CAME.toISOString(), from: { spaceId: BARE, name: 'Tent 2' } },
+        ]);
+      });
+
+      it('names the place it came from only to a reader who may read that place', async () => {
+        expect((await readAs(session(MEMBER))).arrivals).toEqual([expect.objectContaining({ deviceId: CONTROLLER, from: null })]);
+      });
+
+      it('answers its last reading here, and no arrival, where it has measured here since and came before the window', async () => {
+        const since = new Date(CAME.getTime() + 60 * 60 * 1000).toISOString();
+        lastReading = { temperature: { value: 24, measuredAt: since, state: 'offline' } };
+
+        const page = await readAs(session(OWNER));
+        expect(page.lastReadingAt).toBe(since);
+        expect(page.arrivals).toEqual([]);
+      });
+
+      it('says when it came where the window reaches back before that, curves and all', async () => {
+        reports = { [CONTROLLER]: controllerReport };
+        const page = await readAs(session(OWNER), { range: '7d' });
+        expect(page.panels.length).toBeGreaterThan(0);
+        expect(page.arrivals.map(one => one.at)).toEqual([CAME.toISOString()]);
+      });
+    });
+
     it('does not pay the read where the window already has curves to draw', async () => {
       lastReading = { temperature: { value: 24, measuredAt: '2026-06-07T09:00:00.000Z', state: 'offline' } };
 
       const page = await readAs(session(OWNER));
       expect(page.panels.length).toBeGreaterThan(0);
       expect(page.lastReadingAt).toBeNull();
+    });
+  });
+});
+
+describe('one climate of several', () => {
+  const FRIDGE_MODULE = 'device-fridge-module';
+
+  beforeEach(async () => {
+    await db.devices.create({
+      id: FRIDGE_MODULE,
+      type: 'fridge',
+      ownerId: OWNER,
+      ...standingIn(TENT),
+      configuration: { day: { temperature: 18, humidity: 60 }, night: { temperature: 16, humidity: 60 } },
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    reports = { ...reports, [FRIDGE_MODULE]: () => ({ metrics: { temperature: 18 }, outputs: {} }) };
+  });
+
+  const temperatures = async (deviceId?: string) =>
+    (await readAs(session(OWNER), { range: '24h', ...(deviceId ? { deviceId } : {}) })).panels
+      .find(panel => panel.metric === 'temperature')!
+      .points.flatMap(point => (point.value === null ? [] : [point.value]));
+
+  it('draws the place´s own device, the one asked for where one is, and never a mean of the two', async () => {
+    const own = await temperatures();
+    const fridge = await temperatures(FRIDGE_MODULE);
+
+    expect(new Set(fridge)).toEqual(new Set([18]));
+    // The controller alone, as Start reads it - not one figure between a tent and a fridge.
+    expect(own).toEqual(await temperatures(CONTROLLER));
+    expect(own.every(value => value !== 18)).toBe(true);
+    expect((await readAs(session(OWNER), { range: '24h' })).deviceId).toBe(CONTROLLER);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).deviceId).toBe(FRIDGE_MODULE);
+  });
+
+  it('stands under a device`s curves its own outputs and not another climate`s: a fridge`s compressor is no part of the tent`s air', async () => {
+    reports = { ...reports, [FRIDGE_MODULE]: () => ({ metrics: { temperature: 18 }, outputs: { dehumidifier: 1 } }) };
+    const lanesOf = async (deviceId?: string) =>
+      (await readAs(session(OWNER), { range: '24h', ...(deviceId ? { deviceId } : {}) })).outputs.map(lane => lane.deviceId);
+
+    expect(new Set(await lanesOf())).toEqual(new Set([CONTROLLER]));
+    expect(new Set(await lanesOf(FRIDGE_MODULE))).toEqual(new Set([FRIDGE_MODULE]));
+    // Both still stand in the place, whichever is drawn.
+    expect((await readAs(session(OWNER), { range: '24h' })).deviceIds).toEqual(expect.arrayContaining([CONTROLLER, FRIDGE_MODULE]));
+  });
+
+  it('dates a window without curves by the device its curves are of, not by another climate that spoke later', async () => {
+    // Nothing measured in the window by either; each is asked for its own last reading, and only the drawn one's counts.
+    reports = { [CONTROLLER]: () => null, [FRIDGE_MODULE]: () => null };
+    liveAsked = [];
+    await readAs(session(OWNER), { range: '24h' });
+    expect(new Set(liveAsked)).toEqual(new Set([CONTROLLER]));
+
+    liveAsked = [];
+    await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE });
+    expect(new Set(liveAsked)).toEqual(new Set([FRIDGE_MODULE]));
+  });
+
+  it('shows the camera of the controller it is paired to beside that climate only', async () => {
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: CONTROLLER })).cameras.map(camera => camera.cameraId)).toEqual([CAMERA]);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: FRIDGE_MODULE })).cameras).toEqual([]);
+    expect((await readAs(session(OWNER), { range: '24h' })).cameras.map(camera => camera.cameraId)).toEqual([CAMERA]);
+  });
+
+  it('answers a device that does not stand here as one that does not exist', async () => {
+    await expect(readAs(session(OWNER), { range: '24h', deviceId: 'device-elsewhere' })).rejects.toMatchObject({
+      problem: { status: 404, code: 'device_not_here' },
     });
   });
 });
@@ -625,7 +966,7 @@ describe('the band that applied', () => {
   });
 
   describe('the record of what the controller aimed at', () => {
-    /** What the controller is configured with now, which is what the cockpit judges the tent against. */
+    /** What the controller is configured with now, which is what Start judges the tent against. */
     const NOW_AIMED = { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: 1100 };
     const FLOWER_AIMED = { day: { temperature: 26, humidity: 45 }, night: { temperature: 21, humidity: 50 }, co2: 900 };
     const aimed = (temperature: number) => ({ day: { temperature, humidity: 50 }, night: { temperature: temperature - 4, humidity: 55 }, co2: 900 });
@@ -639,7 +980,7 @@ describe('the band that applied', () => {
         one.day?.setpoint,
       ]);
 
-    it('draws the band from the record over a phase´s snapshot, so the present is what the cockpit judges against', async () => {
+    it('draws the band from the record over a phase´s snapshot, so the present is what Start judges against', async () => {
       // The tent was put on another climate this morning, a phase that began
       // overnight: from then on the snapshot is not what the controller holds.
       await recorded(['2026-06-01T00:00:00.000Z', aimed(24)], [FLOWERING_FROM.toISOString(), FLOWER_AIMED], ['2026-06-10T09:00:00.000Z', NOW_AIMED]);
@@ -740,6 +1081,8 @@ describe('the night, the lanes and the alarms', () => {
     expect(heater).toEqual({
       output: 'heater',
       deviceId: CONTROLLER,
+      // The reading is the controller's, and so are its lanes.
+      reading: true,
       spans: [{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }],
       // Still reporting, so everything up to the edge of the window is known.
       heardUntil: '2026-06-10T12:00:00.000Z',
@@ -756,10 +1099,11 @@ describe('the night, the lanes and the alarms', () => {
     const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000).toISOString();
     const page = await readAs(session(OWNER));
 
-    // Nobody said anything about the lamp for four hours, and the lamp was on
-    // again by the time anybody did: the night ends where it was last heard.
-    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
-    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
+    // Nobody said anything about the lamp for four hours: the night ends where it was last heard. It is picked
+    // up with the window the first point after the silence stands for, the step before the lamp is found lit.
+    const back = { startsAt: new Date(quietUntil.getTime() - DAY_STEP_SECONDS * 1000).toISOString(), endsAt: quietUntil.toISOString() };
+    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }, back]);
+    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }, back]);
   });
 
   it('says how far anything is known about each lane, so a silence is not drawn as a switched-off machine', async () => {
@@ -784,10 +1128,10 @@ describe('the night, the lanes and the alarms', () => {
     expect(await lightOf()).toEqual(lit);
 
     // Nothing for the first half hour: the lamp is only known to have been on
-    // from where the device turned up, and that is where the run starts.
+    // from where the device turned up - the window its first point stands for - and that is where the run starts.
     quietFrom = new Date(opens);
     quietUntil = new Date('2026-06-09T12:30:00.000Z');
-    expect(await lightOf()).toEqual({ ...lit, startsAt: quietUntil.toISOString() });
+    expect(await lightOf()).toEqual({ ...lit, startsAt: new Date(quietUntil.getTime() - DAY_STEP_SECONDS * 1000).toISOString() });
   });
 
   it('keeps a lane whole across the gaps a device that reports slowly leaves between its samples', async () => {
@@ -827,6 +1171,38 @@ describe('the night, the lanes and the alarms', () => {
         extremeValue: null,
       },
     ]);
+  });
+
+  /** Friday's window read "bis 01:14" of a silence a server restart had parted, which went on to Sunday. */
+  it('ends a piece of a silence where the silence ended, and one still going nowhere', async () => {
+    const offline = (id: string, startedAt: string, silentSeconds: number, resolvedAt: string | null) => ({
+      id,
+      deviceId: CONTROLLER,
+      spaceId: TENT,
+      kind: 'offline',
+      severity: 'critical',
+      startedAt: new Date(startedAt),
+      resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
+      value: silentSeconds,
+    });
+    await db.alerts.create([
+      // Silent from 03:00: closed by a restart at 03:40 and raised again from the same last sample.
+      offline('piece-1', '2026-06-10T03:10:00.000Z', 600, '2026-06-10T03:40:00.000Z'),
+      offline('piece-2', '2026-06-10T03:41:00.000Z', 2460, '2026-06-10T05:30:00.000Z'),
+      // Heard again at 05:30 and silent from 07:00: another silence, still going in two pieces.
+      offline('again-1', '2026-06-10T07:10:00.000Z', 600, '2026-06-10T07:30:00.000Z'),
+      offline('again-2', '2026-06-10T07:31:00.000Z', 1860, null),
+    ]);
+
+    const ends = Object.fromEntries((await readAs(session(OWNER))).alarms.map(alarm => [alarm.alertId, alarm.endedAt]));
+    expect(ends).toMatchObject({
+      'piece-1': '2026-06-10T05:30:00.000Z',
+      'piece-2': '2026-06-10T05:30:00.000Z',
+      'again-1': null,
+      'again-2': null,
+      // A silence the alerts give no seconds of keeps its own end.
+      'alert-inside': '2026-06-10T06:00:00.000Z',
+    });
   });
 });
 
@@ -869,6 +1245,110 @@ describe('the rail and the frames', () => {
     // And says so: a rail that drew 200 of 522 without a word left the reader to
     // conclude that the rest of the window held nothing.
     expect(page.machineEvents).toEqual({ shown: 200, total: 522 });
+  });
+
+  /**
+   * Maintenance and regulation off are said as Start and the grow's diary say them, one stretch for on and off
+   * together: Verlauf's list read "Wartung in der App gestartet" and "… beendet" as two lines each. A save that moved
+   * other figures with the work mode keeps its line, since those figures are said nowhere else.
+   */
+  it('tells maintenance and regulation off as the stretches they were, not as the lines that said so', async () => {
+    const said = (id: string, at: string, key: string, params: string[]) =>
+      entry({
+        id,
+        spaceId: TENT,
+        source: 'device',
+        authorId: null,
+        deviceId: CONTROLLER,
+        kind: 'system',
+        occurredAt: new Date(at),
+        message: { key, params },
+      });
+    await db.entries.create([
+      said('maintenance-on', '2026-06-10T10:00:00.000Z', 'message-maintenance-mode-activated-remote', ['15']),
+      said('maintenance-off', '2026-06-10T10:04:00.000Z', 'message-maintenance-mode-activated-remote', ['0']),
+      said('switched-off', '2026-06-10T10:10:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+      said('switched-on', '2026-06-10T10:20:00.000Z', 'message-device-configuration-updated', ['workmode: off → small', '', 'controller']),
+      said('off-and-warmer', '2026-06-10T10:30:00.000Z', 'message-device-configuration-updated', [
+        'day.temperature: 25 → 26\nworkmode: small → off',
+        '',
+        'controller',
+      ]),
+    ]);
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.stretches).toEqual([
+      { kind: 'maintenance', at: '2026-06-10T10:00:00.000Z', endedAt: '2026-06-10T10:04:00.000Z' },
+      { kind: 'controlOff', at: '2026-06-10T10:10:00.000Z', endedAt: '2026-06-10T10:20:00.000Z' },
+      { kind: 'controlOff', at: '2026-06-10T10:30:00.000Z', endedAt: null },
+    ]);
+    expect(page.events.map(line => line.id)).toEqual([
+      'entry-water',
+      'entry-training',
+      'entry-space',
+      'entry-system',
+      'entry-plan',
+      'off-and-warmer',
+    ]);
+    // A reader from outside is told neither.
+    await db.shareLinks.create({
+      id: 'link-stretches',
+      token: 'stretches-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('stretches-token'))).stretches).toEqual([]);
+  });
+
+  /**
+   * A window that cut a stretch read it from the window's own lines alone: a maintenance that began in it and ended
+   * after it was "läuft", one that began before it was lost, and a regulation off switched on inside it said nothing.
+   * Each is told whole, with its true ends; only one not ended by now runs on.
+   */
+  it('tells a stretch the window cuts at either edge whole, with its true start and end', async () => {
+    const said = (id: string, at: string, key: string, params: string[]) =>
+      entry({
+        id,
+        spaceId: TENT,
+        source: 'device',
+        authorId: null,
+        deviceId: CONTROLLER,
+        kind: 'system',
+        occurredAt: new Date(at),
+        message: { key, params },
+      });
+    await db.entries.create([
+      said('maintenance-on', '2026-06-10T02:48:00.000Z', 'message-maintenance-mode-activated-remote', ['15']),
+      said('maintenance-off', '2026-06-10T02:50:00.000Z', 'message-maintenance-mode-activated-remote', ['0']),
+      said('switched-off', '2026-06-10T08:48:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+      said('switched-on', '2026-06-10T09:34:00.000Z', 'message-device-configuration-updated', ['workmode: off → small', '', 'controller']),
+      said('off-again', '2026-06-10T11:00:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+    ]);
+    const stretchesIn = async (from: string, to: string) =>
+      (await readAs(session(OWNER), { range: '24h', window: { startsAt: new Date(from), endsAt: new Date(to) } })).stretches;
+    const maintenance = { kind: 'maintenance', at: '2026-06-10T02:48:00.000Z', endedAt: '2026-06-10T02:50:00.000Z' };
+    const off = { kind: 'controlOff', at: '2026-06-10T08:48:00.000Z', endedAt: '2026-06-10T09:34:00.000Z' };
+
+    // Ending as the maintenance began, beginning after it began, and holding the whole of it.
+    expect(await stretchesIn('2026-06-10T02:18:00.000Z', '2026-06-10T02:48:30.000Z')).toEqual([maintenance]);
+    expect(await stretchesIn('2026-06-10T02:49:00.000Z', '2026-06-10T03:20:00.000Z')).toEqual([maintenance]);
+    expect(await stretchesIn('2026-06-10T02:00:00.000Z', '2026-06-10T04:00:00.000Z')).toEqual([maintenance]);
+    // A regulation off cut at its start and at its end; one reaching past both edges.
+    expect(await stretchesIn('2026-06-10T09:00:00.000Z', '2026-06-10T10:00:00.000Z')).toEqual([off]);
+    expect(await stretchesIn('2026-06-10T08:00:00.000Z', '2026-06-10T09:10:00.000Z')).toEqual([off]);
+    expect(await stretchesIn('2026-06-10T09:00:00.000Z', '2026-06-10T09:10:00.000Z')).toEqual([off]);
+    // Off since 11:00 and not on again: a window that ends before now still says it runs.
+    expect(await stretchesIn('2026-06-10T10:30:00.000Z', '2026-06-10T11:30:00.000Z')).toEqual([
+      { kind: 'controlOff', at: '2026-06-10T11:00:00.000Z', endedAt: null },
+    ]);
+    // A window between two stretches holds neither.
+    expect(await stretchesIn('2026-06-10T04:00:00.000Z', '2026-06-10T08:00:00.000Z')).toEqual([]);
   });
 
   it('counts the machines´ lines as shown where the net did not bite', async () => {
@@ -982,6 +1462,77 @@ describe('who may read it', () => {
     await expect(readAs(session(STRANGER))).rejects.toMatchObject({ problem: { status: 404, code: 'space_not_found' } });
   });
 
+  it('answers a link neither an alarm nor a line a device wrote: the climate, and what people wrote', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-alarm',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        growId: GROW,
+        alertId: 'alert-open',
+        occurredAt: new Date('2026-06-05T10:00:00.000Z'),
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=71'] },
+        values: { kind: 'alarm' },
+      }),
+      entry({ id: 'entry-written', growId: GROW, occurredAt: new Date('2026-06-05T11:00:00.000Z') }),
+    ]);
+    const token = await linkFor({});
+
+    const theirs = await readAs(visitor(token), { range: '7d' });
+    const mine = await readAs(session(OWNER), { range: '7d' });
+
+    expect(theirs.events.map(line => line.id)).toContain('entry-written');
+    expect(theirs.events.every(line => line.source === 'human')).toBe(true);
+    expect(theirs.alarms).toEqual([]);
+    expect(JSON.stringify(theirs)).not.toMatch(/alert-open|entry-alarm/);
+    // Whoever keeps the tent reads the alarm, as a line and on its lane.
+    expect(mine.events.map(line => line.id)).toContain('entry-alarm');
+  });
+
+  it('keeps a link inside its own window and its own cut when it names a window and a step outright', async () => {
+    await db.entries.create([
+      entry({
+        id: 'entry-restart',
+        kind: 'system',
+        source: 'device',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        occurredAt: new Date('2026-06-09T10:00:00.000Z'),
+        message: { key: 'message-device-restarted', params: [] },
+        values: { kind: 'system' },
+      }),
+      entry({ id: 'entry-inside', growId: GROW, occurredAt: new Date('2026-06-09T11:00:00.000Z') }),
+      entry({ id: 'entry-after', growId: GROW, occurredAt: new Date('2026-06-10T09:00:00.000Z') }),
+    ]);
+    const token = await linkFor({});
+    const asked = {
+      range: '24h' as const,
+      window: { startsAt: new Date('2026-06-09T06:00:00.000Z'), endsAt: new Date('2026-06-10T12:00:00.000Z') },
+      stepSeconds: 60,
+      metrics: ['temperature', 'vpd'] as Metric[],
+    };
+
+    const theirs = await readAs(visitor(token), asked);
+
+    // The window ends where the link's does, whatever was named.
+    expect(theirs).toMatchObject({ startsAt: '2026-06-09T06:00:00.000Z', endsAt: '2026-06-10T00:00:00.000Z', stepSeconds: 60 });
+    expect(theirs.events.map(line => line.id)).toContain('entry-inside');
+    expect(theirs.events.map(line => line.id)).not.toContain('entry-after');
+    expect(theirs.events.every(line => line.source === 'human')).toBe(true);
+    expect(theirs.alarms).toEqual([]);
+    expect(theirs.machineEvents).toEqual({ shown: 0, total: 0 });
+    expect(theirs.deviceIds).toBeNull();
+    expect(theirs.outputs.every(lane => lane.deviceId === null)).toBe(true);
+    // The place's link reads the grow's lines, and is told whose they are.
+    expect(theirs.grows.map(one => one.growId)).toEqual([GROW]);
+    expect(JSON.stringify(theirs)).not.toMatch(/entry-restart|device-controller|alert-/);
+    // Whoever keeps the tent reads the restart in the same window.
+    expect((await readAs(session(OWNER), asked)).events.map(line => line.id)).toContain('entry-restart');
+  });
+
   it('clamps every range to the link´s own window, however wide a range was asked for', async () => {
     const token = await linkFor({});
     const page = await readAs(visitor(token), { range: 'grow', growId: GROW });
@@ -995,7 +1546,8 @@ describe('who may read it', () => {
     // was given out for is one phase and one band.
     expect(page.panels[0].targets.map(target => target.phaseId)).toEqual(['phase-veg']);
     expect(page.events.map(line => line.id)).toEqual(['entry-water']);
-    expect(page.alarms.map(alarm => alarm.alertId)).toEqual(['alert-open']);
+    // An alarm open across the window is the keeper's to know of, not the link's.
+    expect(page.alarms).toEqual([]);
     expect(page.cameras[0].frames).toEqual([]);
   });
 
@@ -1044,12 +1596,66 @@ describe('who may read it', () => {
 
     const page = await readAs(visitor(token));
 
-    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
+    // What people wrote; the line the controller wrote about the tent is not among them.
+    expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training']);
     expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
-    // Nothing was cut, because none was offered; and a stranger shown one grow's
-    // week is not handed a list of everything else that has stood in the room.
+    // Nothing was cut, because none was offered.
     expect(page.machineEvents).toEqual({ shown: 0, total: 0 });
-    expect(page.grows).toEqual([]);
+  });
+
+  /**
+   * A place's link with two grows: the owner's Verlauf named each line's grow, the reader's named none. The reader is
+   * told the grows that stood in the window, whose lines it reads - and a link on one grow still no other.
+   */
+  it('tells a place´s link the grows of its window, and a grow´s link none', async () => {
+    await db.grows.create({
+      id: 'grow-winter',
+      ownerId: OWNER,
+      name: 'Winter run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [
+        {
+          id: 'placement-winter',
+          spaceId: TENT,
+          startedAt: new Date('2026-01-01T00:00:00.000Z'),
+          endedAt: new Date('2026-02-01T00:00:00.000Z'),
+          plantIds: null,
+        },
+      ],
+      measurements: [],
+      slug: 'winter-run',
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      endedAt: new Date('2026-02-01T00:00:00.000Z'),
+    });
+    await db.grows.create({
+      id: 'grow-beside',
+      ownerId: OWNER,
+      name: 'Beside',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-beside', spaceId: TENT, startedAt: new Date('2026-06-01T00:00:00.000Z'), endedAt: null, plantIds: null }],
+      measurements: [],
+      slug: 'beside',
+      startedAt: new Date('2026-06-01T00:00:00.000Z'),
+      endedAt: null,
+    });
+    const token = await linkFor({ range: { startsAt: null, endsAt: null } });
+    expect((await readAs(visitor(token))).grows.map(one => one.name).sort()).toEqual(['Beside', 'Spring run #3']);
+
+    await db.shareLinks.create({
+      id: 'link-grow',
+      token: 'grow-token',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      // A grow's link reaches the place it stood in for a stretch of days.
+      range: { startsAt: new Date('2026-06-03T00:00:00.000Z'), endsAt: new Date('2026-06-10T00:00:00.000Z') },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('grow-token'))).grows).toEqual([]);
   });
 });
 
@@ -1164,7 +1770,7 @@ describe('the night and the lanes over a window wider than the cycle', () => {
     ]);
   });
 
-  it('says how hard each output ran where the read asked for it: a share of full output, or what the valve dosed', () => {
+  it('says what the samples of each output came to, point by drawn point, where the read counted them', () => {
     const lamp = history();
     const at = (minutes: number) => new Date(OPENS.getTime() + minutes * 60_000).toISOString();
     const read: DeviceHistory = {
@@ -1172,53 +1778,52 @@ describe('the night and the lanes over a window wider than the cycle', () => {
       outputs: [
         {
           ...lamp.outputs[0],
-          levels: [
-            { measuredAt: at(10), value: 62.4 },
-            { measuredAt: at(20), value: 100 },
+          figures: [
+            { measuredAt: at(10), heard: 6, on: 6, mean: 62.44 },
+            // Lit in two samples of six at 70 %: the mean of all six, the dark ones counting as 0.
+            { measuredAt: at(20), heard: 6, on: 2, mean: 70 / 3 },
           ],
         },
         {
           output: 'heater',
           switchings: lamp.outputs[0].switchings,
-          levels: [
-            { measuredAt: at(10), value: 0.355 },
-            { measuredAt: at(20), value: 1.2 },
+          figures: [
+            { measuredAt: at(10), heard: 6, on: 2, mean: 0.8 / 3 },
+            { measuredAt: at(20), heard: 6, on: 6, mean: 1.2 },
           ],
         },
-        { output: 'co2', switchings: lamp.outputs[0].switchings, levels: [{ measuredAt: at(10), value: 3500 }] },
-        // A switch has no level, whatever the read asked.
-        { output: 'dehumidifier', switchings: lamp.outputs[0].switchings },
+        // A valve that pulsed in one sample of twenty-four: its ticks are no share of anything.
+        { output: 'co2', switchings: lamp.outputs[0].switchings, figures: [{ measuredAt: at(10), heard: 24, on: 1, mean: 145.8 }] },
+        { output: 'dehumidifier', switchings: lamp.outputs[0].switchings, figures: [{ measuredAt: at(10), heard: 6, on: 2, mean: 1 / 3 }] },
+        // Not counted: the read did not ask.
+        { output: 'fan', switchings: lamp.outputs[0].switchings },
       ],
     };
 
     const lanes = lanesOf([read], WINDOW);
 
-    expect(lanes.map(lane => [lane.output, lane.level])).toEqual([
+    expect(lanes.map(lane => [lane.output, lane.points])).toEqual([
       [
         'light',
-        {
-          unit: 'percent',
-          points: [
-            { measuredAt: at(10), value: 62 },
-            { measuredAt: at(20), value: 100 },
-          ],
-        },
+        [
+          { measuredAt: at(10), heard: 6, on: 6, level: 62.4 },
+          { measuredAt: at(20), heard: 6, on: 2, level: 23.3 },
+        ],
       ],
       // The heater's demand is a fraction of one, and never more than all of it.
       [
         'heater',
-        {
-          unit: 'percent',
-          points: [
-            { measuredAt: at(10), value: 36 },
-            { measuredAt: at(20), value: 100 },
-          ],
-        },
+        [
+          { measuredAt: at(10), heard: 6, on: 2, level: 26.7 },
+          { measuredAt: at(20), heard: 6, on: 6, level: 100 },
+        ],
       ],
-      ['co2', { unit: 'count', points: [{ measuredAt: at(10), value: 3500 }] }],
-      ['dehumidifier', undefined],
+      ['co2', [{ measuredAt: at(10), heard: 24, on: 1, level: null }]],
+      ['dehumidifier', [{ measuredAt: at(10), heard: 6, on: 2, level: null }]],
+      ['fan', undefined],
     ]);
-    expect('level' in lanes[3]).toBe(false);
+    expect('points' in lanes[4]).toBe(false);
+    expect('level' in lanes[0]).toBe(false);
   });
 
   it('says a lane is a fridge module´s, to a link as well, so its dehumidifier can be called the compressor', () => {
@@ -1382,6 +1987,119 @@ describe('a lane of a tent that has gone quiet', () => {
     // open a fresh gap at the right-hand end of every chart being watched.
     expect(lanesOf([live], WINDOW)[0].heardUntil).toBe(CLOSES.toISOString());
   });
+
+  it('does not say the lamp is on for the hours after its device went quiet this morning, however wide the windows', () => {
+    // Quiet for three hours of a month read at an hour and a half to the window: four of those windows are six
+    // hours, and held to them the lane ran to "now" under a pill that said offline.
+    const morning = new Date(CLOSES.getTime() - 3 * 3600 * 1000);
+    const quiet = history(morning.toISOString());
+    quiet.series.outputs[0].points = quiet.series.outputs[0].points.map(point => ({ ...point, value: 60 }));
+
+    expect(lanesOf([quiet], WINDOW)[0].heardUntil).toBe(morning.toISOString());
+    expect(lanesOf([quiet], WINDOW)[0].spans.at(-1)!.endsAt).toBe(morning.toISOString());
+  });
+
+  /** A device moved away offline drew "07:10 bis letzter Wert 17:22" - the move - of a last value at 17:10. */
+  it('ends the lane of a device moved away offline at its last sample, and its silence at the window`s end', () => {
+    const closes = new Date('2026-09-23T19:00:00.000Z');
+    const opens = new Date(closes.getTime() - 24 * 3600_000);
+    const [last, moved] = [new Date('2026-09-23T17:10:00.000Z'), new Date('2026-09-23T17:22:00.000Z')];
+    const step = 180_000;
+    // A backfilled day: a sample every quarter of an hour, slower than the step, up to its last at 17:10.
+    const points = [];
+    for (let stamp = opens.getTime() + step; stamp <= moved.getTime(); stamp += step) {
+      const sampled = ((stamp - opens.getTime()) / 60_000) % 15 === 12 && stamp <= last.getTime() + step;
+      points.push({ measuredAt: new Date(stamp).toISOString(), value: sampled ? 60 : null });
+    }
+    const away: DeviceHistory = {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: opens.toISOString(),
+        endsAt: moved.toISOString(),
+        stepSeconds: step / 1000,
+        metrics: [],
+        outputs: [{ output: 'light', points }],
+      },
+      outputs: [{ output: 'light', switchings: [{ at: opens.toISOString(), on: true }] }],
+      lastSampleAt: last.toISOString(),
+    };
+    const window = { startsAt: opens, endsAt: closes };
+
+    const [lane] = lanesOf([away], window);
+    expect([lane.heardUntil, lane.spans.at(-1)!.endsAt]).toEqual([last.toISOString(), last.toISOString()]);
+    expect(silencesOf(away, window).at(-1)).toEqual({ startsAt: last.toISOString(), endsAt: closes.toISOString() });
+    // One still standing here keeps the rhythm it reports in: within it, it is reporting at the read's end.
+    const here = { ...away, series: { ...away.series, endsAt: closes.toISOString() } };
+    expect(lanesOf([here], { startsAt: opens, endsAt: moved })[0].heardUntil).toBe(moved.toISOString());
+  });
+
+  it('ends and begins a stretch with the samples where the read says when they were written, whatever the step', () => {
+    // Silent from 07:17:30 to 12:42:10: its windows before and after are stamped up to a step from either.
+    const [fell, back] = [new Date('2026-09-19T07:17:30.000Z').getTime(), new Date('2026-09-19T12:42:10.000Z').getTime()];
+    const step = STEP_SECONDS * 1000;
+    const stampOf = (time: number) => OPENS.getTime() + Math.ceil((time - OPENS.getTime()) / step) * step;
+    const heard = history(CLOSES.toISOString());
+    const points = heard.series.outputs[0].points.map(point => {
+      const closes = new Date(point.measuredAt).getTime();
+      return { ...point, value: closes >= stampOf(fell) + step && closes < stampOf(back) ? null : 60 };
+    });
+    const read: DeviceHistory = {
+      ...heard,
+      series: { ...heard.series, outputs: [{ output: 'light', points }] },
+      edges: new Map([
+        [stampOf(fell), { first: stampOf(fell) - step + 5000, last: fell }],
+        [stampOf(back), { first: back, last: stampOf(back) - 5000 }],
+      ]),
+    };
+
+    const spans = lanesOf([read], WINDOW)[0].spans;
+    expect(spans.map(span => span.endsAt)[0]).toBe(new Date(fell).toISOString());
+    expect(spans.map(span => span.startsAt)[1]).toBe(new Date(back).toISOString());
+    // Without them a stretch ends on its last window's stamp and begins with the window its first point stands for.
+    const coarse = lanesOf([{ ...read, edges: undefined }], WINDOW)[0].spans;
+    expect([coarse[0].endsAt, coarse[1].startsAt]).toEqual([new Date(stampOf(fell)).toISOString(), new Date(stampOf(back) - step).toISOString()]);
+  });
+
+  it('reads the lamp of each device over its own stay, so the nights before a change of the measuring device are drawn', () => {
+    // The device before held the first half of the window and was dark throughout; the one after it the second, lit.
+    const half = new Date((OPENS.getTime() + CLOSES.getTime()) / 2);
+    const stay = (deviceId: string, from: Date, to: Date, on: boolean): DeviceHistory => ({
+      series: {
+        deviceId,
+        startsAt: from.toISOString(),
+        endsAt: to.toISOString(),
+        stepSeconds: STEP_SECONDS,
+        metrics: [],
+        outputs: [
+          {
+            output: 'light' as const,
+            points: Array.from({ length: Math.floor((to.getTime() - from.getTime()) / (STEP_SECONDS * 1000)) }, (_, index) => ({
+              measuredAt: new Date(from.getTime() + (index + 1) * STEP_SECONDS * 1000).toISOString(),
+              value: on ? 60 : 0,
+            })),
+          },
+        ],
+      },
+      outputs: [{ output: 'light' as const, switchings: [{ at: from.toISOString(), on }] }],
+      lastSampleAt: new Date(to.getTime() - 5000).toISOString(),
+    });
+    const nights = nightsOf([stay('new', half, CLOSES, true), stay('old', OPENS, half, false)], WINDOW);
+
+    expect(nights).toHaveLength(1);
+    expect(nights[0].startsAt).toBe(OPENS.toISOString());
+    // The first device's night ends where its stay does, give or take the last window it was heard in.
+    expect(Math.abs(Date.parse(nights[0].endsAt) - half.getTime())).toBeLessThanOrEqual(STEP_SECONDS * 1000);
+  });
+
+  it('begins the state a window is found in where the window begins, not at the first grain a sample fell into', () => {
+    // A window named from 22:01:13 by night: the store stamps the opening state 22:01:15, the first grain
+    // anything was written in, and a night that began there left two seconds of day in a window of darkness.
+    const found = history(new Date(CLOSES.getTime() - 5000).toISOString());
+    found.series.outputs[0].points = found.series.outputs[0].points.map(point => ({ ...point, value: 0 }));
+    found.outputs[0].switchings = [{ at: new Date(OPENS.getTime() + 2000).toISOString(), on: false }];
+
+    expect(nightsOf([found], WINDOW)).toEqual([{ startsAt: OPENS.toISOString(), endsAt: CLOSES.toISOString() }]);
+  });
 });
 
 /**
@@ -1419,5 +2137,649 @@ describe('what the store says an output did', () => {
       { at: '2026-02-01T00:00:00Z', on: false },
       { at: '2026-02-01T05:00:00Z', on: true },
     ]);
+  });
+});
+
+describe('a place whose devices changed', () => {
+  const OLD = 'device-old';
+  const NEW = 'device-new';
+  /** The old controller was taken out twelve hours ago and the new one put in at the same moment. */
+  const SWAPPED = new Date(NOW.getTime() - 12 * 60 * 60 * 1000);
+  const configuration = { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 } };
+
+  beforeEach(async () => {
+    await db.devices.create([
+      {
+        id: OLD,
+        type: 'controller',
+        ownerId: OWNER,
+        spaceId: null,
+        placements: [{ spaceId: BARE, startedAt: new Date(0), endedAt: SWAPPED }],
+        configuration,
+        createdAt: new Date('2026-01-03T00:00:00.000Z'),
+      },
+      { id: NEW, type: 'controller', ownerId: OWNER, ...standingIn(BARE, SWAPPED), configuration, createdAt: new Date('2026-01-04T00:00:00.000Z') },
+    ]);
+    reports = {
+      ...reports,
+      [OLD]: () => ({ metrics: { temperature: 20 }, outputs: { heater: 1 } }),
+      [NEW]: () => ({ metrics: { temperature: 26 }, outputs: { heater: 1 } }),
+    };
+  });
+
+  const temperatures = (page: Awaited<ReturnType<typeof readAs>>) =>
+    page.panels[0].points.flatMap(point => (point.value === null ? [] : [{ at: Date.parse(point.measuredAt), value: point.value }]));
+
+  it('draws the device that held the place before, up to the change, and the one standing there from it', async () => {
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+    const drawn = temperatures(page);
+
+    expect(page.deviceId).toBe(NEW);
+    expect(new Set(drawn.filter(point => point.at < SWAPPED.getTime()).map(point => point.value))).toEqual(new Set([20]));
+    expect(new Set(drawn.filter(point => point.at > SWAPPED.getTime()).map(point => point.value))).toEqual(new Set([26]));
+    // The one that left was asked only about its stay. The new one came straight out of its box, so what it measured
+    // before it was put here is read too - and gives way to the device that held the place then.
+    expect(reads.map(read => [read.startsAt.toISOString(), read.endsAt.toISOString()]).sort()).toEqual(
+      [
+        [new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString(), SWAPPED.toISOString()],
+        [new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString(), NOW.toISOString()],
+      ].sort(),
+    );
+    // What switched under the curve is each device's own, the one that left included.
+    expect(page.outputs.filter(lane => lane.output === 'heater').map(lane => lane.deviceId)).toEqual([NEW, OLD]);
+  });
+
+  it('draws nothing from where a device stood before it came', async () => {
+    await db.devices.deleteOne({ id: OLD });
+    await db.devices.updateOne(
+      { id: NEW },
+      {
+        $set: {
+          placements: [
+            { spaceId: TENT, startedAt: new Date(0), endedAt: SWAPPED },
+            { spaceId: BARE, startedAt: SWAPPED, endedAt: null },
+          ],
+        },
+      },
+    );
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(drawn.every(point => point.at >= SWAPPED.getTime() && point.value === 26)).toBe(true);
+    expect(reads.map(read => read.startsAt.toISOString())).toEqual([SWAPPED.toISOString()]);
+  });
+
+  it('draws what a device measured before it was first put anywhere, where nothing else held the place', async () => {
+    await db.devices.deleteOne({ id: OLD });
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(drawn.some(point => point.at < SWAPPED.getTime())).toBe(true);
+    expect(new Set(drawn.map(point => point.value))).toEqual(new Set([26]));
+  });
+
+  it('shows a device that has left alone when it is asked for, and refuses one that never stood there', async () => {
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], deviceId: OLD }, BARE);
+
+    expect(page.deviceId).toBe(OLD);
+    expect(new Set(temperatures(page).map(point => point.value))).toEqual(new Set([20]));
+    await expect(readAs(session(OWNER), { range: '24h', deviceId: CONTROLLER }, BARE)).rejects.toMatchObject({
+      problem: { code: 'device_not_here' },
+    });
+  });
+
+  it('does not take a second climate standing beside the first for its past', async () => {
+    // Both stand there now; the newer one came twelve hours ago and is not the place's own climate.
+    await db.devices.updateOne({ id: OLD }, { $set: standingIn(BARE) });
+    const drawn = temperatures(await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE));
+
+    expect(new Set(drawn.map(point => point.value))).toEqual(new Set([20]));
+  });
+
+  it('bands the stretch before the change by what the device that left aimed at', async () => {
+    await db.targetChanges.create([
+      {
+        id: 'aim-old',
+        deviceId: OLD,
+        at: new Date(0),
+        targets: { day: { temperature: 21, humidity: 50 }, night: { temperature: 21, humidity: 50 } },
+        cycle: null,
+      },
+      // Recorded while it stood somewhere else, long before it came here.
+      {
+        id: 'aim-new',
+        deviceId: NEW,
+        at: new Date(0),
+        targets: { day: { temperature: 27, humidity: 40 }, night: { temperature: 27, humidity: 40 } },
+        cycle: null,
+      },
+    ]);
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+    const aimed = page.panels[0].targets.map(stretch => ({ from: Date.parse(stretch.startsAt), setpoint: stretch.day?.setpoint }));
+
+    expect(aimed[0]).toEqual({ from: NOW.getTime() - 24 * 60 * 60 * 1000, setpoint: 21 });
+    expect(aimed.filter(stretch => stretch.from < SWAPPED.getTime()).every(stretch => stretch.setpoint === 21)).toBe(true);
+    expect(aimed.filter(stretch => stretch.from >= SWAPPED.getTime()).map(stretch => stretch.setpoint)).toEqual([27, 27]);
+    // The new device was put in at the change: the hour after it is its climate settling, as after any change.
+    expect(page.panels[0].targets.find(stretch => stretch.startsAt === SWAPPED.toISOString())?.settling).toBe(true);
+  });
+
+  it('says when the device that measures changed - not beside one device asked for, and not to a reader from outside', async () => {
+    await db.devices.updateOne({ id: NEW }, { $set: { name: 'Controller B' } });
+    await db.shareLinks.create({
+      id: 'link-bare',
+      token: 'bare-token',
+      kind: 'view',
+      subject: { type: 'space', id: BARE },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).deviceChanges).toEqual([
+      { kind: 'device', at: SWAPPED.toISOString(), name: 'Controller B', type: 'controller' },
+    ]);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: NEW }, BARE)).deviceChanges).toEqual([]);
+    expect((await readAs(visitor('bare-token'), { range: '24h' }, BARE)).deviceChanges).toEqual([]);
+  });
+
+  it('tells no change where the move was taken back inside five minutes: no placement is left of it', async () => {
+    const back = new Date(SWAPPED.getTime() + 2 * 60 * 1000);
+    const old = movedTo(movedTo([{ spaceId: BARE, startedAt: new Date(0), endedAt: null }], null, SWAPPED), BARE, back);
+    const tried = movedTo(movedTo([], BARE, SWAPPED), null, back);
+    await db.devices.updateOne({ id: OLD }, { $set: { spaceId: BARE, placements: old } });
+    await db.devices.updateOne({ id: NEW }, { $set: { spaceId: null, placements: tried } });
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+
+    expect(tried).toEqual([]);
+    expect(page.deviceChanges).toEqual([]);
+    expect(page.deviceId).toBe(OLD);
+  });
+
+  it('runs each device`s strip over its own stay: none before it came, none after it left', async () => {
+    const page = await readAs(session(OWNER), { range: '24h' }, BARE);
+    const heater = (deviceId: string) => page.outputs.find(lane => lane.output === 'heater' && lane.deviceId === deviceId)!;
+
+    // The new one is in its first placement and so is read from before it came; while the old one held the place
+    // its heater was no part of this place.
+    expect(heater(NEW).spans).toEqual([{ startsAt: SWAPPED.toISOString(), endsAt: NOW.toISOString() }]);
+    expect(heater(OLD).spans.at(-1)!.endsAt).toBe(SWAPPED.toISOString());
+    expect(heater(OLD).heardUntil).toBe(SWAPPED.toISOString());
+  });
+
+  it('does not begin a strip a step early: the one point of a device that just came stands for a month`s hour and a half', () => {
+    const window = { startsAt: new Date(NOW.getTime() - 30 * 24 * 3600 * 1000), endsAt: NOW };
+    const came = new Date(NOW.getTime() - 20 * 60 * 1000);
+    const point = { measuredAt: NOW.toISOString(), value: 1 };
+    const history: DeviceHistory = {
+      series: {
+        deviceId: NEW,
+        startsAt: came.toISOString(),
+        endsAt: NOW.toISOString(),
+        stepSeconds: 5400,
+        metrics: [],
+        outputs: [{ output: 'heater', points: [point] }],
+      },
+      outputs: [{ output: 'heater', switchings: [{ at: came.toISOString(), on: true }] }],
+      lastSampleAt: new Date(NOW.getTime() - 5000).toISOString(),
+    };
+
+    expect(lanesOf([history], window)[0].spans).toEqual([{ startsAt: came.toISOString(), endsAt: NOW.toISOString() }]);
+  });
+
+  it('counts an alarm for the place it was raised in, not for wherever its device stands since', async () => {
+    await db.alerts.create([
+      // Raised by the old controller in the tent it went to, after it left here.
+      { id: 'alert-elsewhere', deviceId: OLD, spaceId: TENT, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 3600_000) },
+      // Raised here by the new one.
+      { id: 'alert-here', deviceId: NEW, spaceId: BARE, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 1800_000) },
+      // Naming no place: by the device, inside its stay - the old one's after it left is not this place's.
+      { id: 'alert-unplaced', deviceId: OLD, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 900_000) },
+    ]);
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['alert-here']);
+  });
+
+  it('keeps an alert without a place that ended in a device`s stay, and not one still open of a device that has left', async () => {
+    const inItsStay = new Date(SWAPPED.getTime() - 3600_000);
+    await db.alerts.create([
+      { id: 'over-in-its-stay', deviceId: OLD, kind: 'threshold', severity: 'warning', startedAt: inItsStay, resolvedAt: SWAPPED },
+      // An open alert stands where its device stands, and this device stands here no more.
+      { id: 'open-and-gone', deviceId: OLD, kind: 'offline', severity: 'critical', startedAt: inItsStay },
+      { id: 'open-and-here', deviceId: NEW, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 600_000) },
+    ]);
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['over-in-its-stay', 'open-and-here']);
+  });
+});
+
+describe('a silence by the interval the device was keeping', () => {
+  const OPENS = new Date('2026-03-01T00:00:00.000Z');
+  const CLOSES = new Date('2026-03-04T00:00:00.000Z');
+  const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
+  const MINUTE = 60_000;
+  /** Twelve hours on from six, every day. */
+  const lit = (at: number): boolean => new Date(at).getUTCHours() >= 6 && new Date(at).getUTCHours() < 18;
+
+  /**
+   * A device's read made from its samples as the store's read makes it: windows of `stepSeconds` cut on the epoch
+   * and stamped at their close, the samples of each counted, and the store asked for the first and the last
+   * sample beside every gap that may be a silence.
+   */
+  const staged = (samples: number[], stepSeconds: number, window = WINDOW): DeviceHistory => {
+    const step = stepSeconds * 1000;
+    const windows = new Map<number, number[]>();
+    for (const at of samples.filter(at => at >= window.startsAt.getTime() && at < window.endsAt.getTime())) {
+      const stamp = Math.min((Math.floor(at / step) + 1) * step, window.endsAt.getTime());
+      if (!windows.has(stamp)) windows.set(stamp, []);
+      windows.get(stamp)!.push(at);
+    }
+    const stamps = [...windows.keys()];
+    const counts = new Map([...windows].map(([stamp, inside]) => [stamp, inside.length]));
+    const points = (value: (inside: number[]) => number) =>
+      [...windows].map(([stamp, inside]) => ({ measuredAt: new Date(stamp).toISOString(), value: value(inside) }));
+    const light = points(inside => inside.filter(lit).length / inside.length);
+    const heard = [...windows.values()].flat();
+    const asked = edgesAround(
+      stamps,
+      { ...window, stepSeconds },
+      quietLimits(
+        stamps,
+        step,
+        stamps.map(stamp => counts.get(stamp)),
+      ),
+    );
+    const rows = asked.flatMap(one => {
+      const inside = heard.filter(at => at >= one.startsAt.getTime() && at < one.endsAt.getTime());
+      return inside.length > 0 ? [{ _time: new Date(one.end === 'first' ? inside[0] : inside.at(-1)!).toISOString() }] : [];
+    });
+
+    return {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        stepSeconds,
+        metrics: [{ metric: 'temperature', points: points(inside => (lit(inside[0]) ? 25 : 20)) }],
+        outputs: [{ output: 'light', points: light }],
+      },
+      outputs: [
+        {
+          output: 'light',
+          switchings: heard.flatMap((at, index) =>
+            index === 0 || lit(at) !== lit(heard[index - 1]) ? [{ at: new Date(at).toISOString(), on: lit(at) }] : [],
+          ),
+          figures: light.map(point => {
+            const inside = windows.get(Date.parse(point.measuredAt)) ?? [];
+            return { measuredAt: point.measuredAt, heard: inside.length, on: inside.filter(lit).length, mean: point.value };
+          }),
+        },
+      ],
+      lastSampleAt: heard.length > 0 ? new Date(heard.at(-1)!).toISOString() : null,
+      samples: counts,
+      ...(asked.length > 0 ? { edges: edgesOf(rows as FluxRow[], asked) } : {}),
+    };
+  };
+  /** A sample every `everyAt(time)` seconds over the three days, none where `quiet` says so. */
+  const sampled = (everyAt: (at: number) => number, quiet: (at: number) => boolean = () => false, from = OPENS.getTime() + 7000): number[] => {
+    const samples: number[] = [];
+    for (let at = from; at < CLOSES.getTime(); at += everyAt(at) * 1000) if (!quiet(at)) samples.push(at);
+    return samples;
+  };
+  const read = (everyAt: (at: number) => number, stepSeconds: number, quiet?: (at: number) => boolean) =>
+    staged(sampled(everyAt, quiet), stepSeconds);
+  /** What every part of the answer says of one read: they are one verdict, so the curve breaks where the lane, the night and the silences do. */
+  const drawn = (history: DeviceHistory, window = WINDOW) => {
+    const [lane] = lanesOf([history], window);
+    const points = panelsOf(history, [], ['temperature'])[0].points;
+    const silences = silencesOf(history, window).filter(
+      one => one.startsAt !== window.startsAt.toISOString() && one.endsAt !== window.endsAt.toISOString(),
+    );
+    // The curve's breaks, the lane's points that resume and the silences inside the window are one count.
+    const breaks = points.slice(0, -1).filter(point => point.value === null).length;
+    expect((lane.points ?? []).slice(1).filter(point => point.resumed).length).toBe(breaks);
+    expect(silences.length).toBe(breaks);
+    return { stretches: lane.spans.length, nights: nightsOf([history], window).length, breaks };
+  };
+  /** Which of some pauses a read calls a silence, by the minute each began at. */
+  const silent = (history: DeviceHistory, window: typeof WINDOW, pauses: number[]) =>
+    pauses.map(began => silencesOf(history, window).some(one => Math.abs(Date.parse(one.startsAt) - began) < MINUTE));
+
+  it.each([
+    [60, 50],
+    [60, 70],
+    [300, 240],
+    [300, 270],
+    [300, 285],
+    [300, 330],
+    [600, 480],
+    [600, 540],
+    [600, 660],
+    [900, 810],
+    [900, 900],
+    [900, 990],
+  ])('draws a device that reports every %i s whole at a step of %i s: three days, four nights, one line', (every, step) => {
+    // Just under and just over its interval, where every other window - or every tenth - stands empty and none is a silence.
+    expect(drawn(read(() => every, step))).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+  });
+
+  it('cannot tell without the counts: a read that counted nothing takes a device that leaves few windows empty for a fast one', () => {
+    const uncounted = { ...read(() => 300, 270), samples: undefined, edges: undefined };
+    expect(lanesOf([uncounted], WINDOW)[0].spans.length).toBeGreaterThan(3);
+  });
+
+  it('measures the interval beside each gap: a history of quarter hours is whole though live samples outnumber it', () => {
+    // Two days every fifteen minutes, then a day every thirty seconds, read at nine minutes: counted once for the
+    // window, the live day set the rhythm and every second point of the history was a silence.
+    const live = CLOSES.getTime() - 24 * 3600_000;
+    expect(drawn(read(at => (at < live ? 900 : 30), 540))).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+  });
+
+  it('is not silent in the first quarter of an hour of a window whose device reported that slowly until live samples began', () => {
+    // Every quarter of an hour for half an hour, then every five seconds: the window's first gap has no other
+    // before it to be measured by, and was taken for a pause of the live device.
+    const live = OPENS.getTime() + 30 * MINUTE;
+    const history = staged(
+      sampled(at => (at < live ? 900 : 5), undefined, OPENS.getTime()).filter(at => at < OPENS.getTime() + 6 * 3600_000),
+      45,
+      { startsAt: OPENS, endsAt: new Date(OPENS.getTime() + 6 * 3600_000) },
+    );
+    expect(silencesOf(history, { startsAt: OPENS, endsAt: new Date(OPENS.getTime() + 6 * 3600_000) })).toEqual([]);
+  });
+
+  it('takes no trickle for a rhythm: three samples every two hours are two hours of silence between them', () => {
+    // Nothing reports more slowly than a history's quarter of an hour, so this device is one that gets little through.
+    const bursts = sampled(() => 5).filter(at => (at - OPENS.getTime()) % (2 * 3600_000) < 15_000);
+    for (const step of [180, 540, 1500]) {
+      const history = staged(bursts, step);
+      expect(drawn(history).breaks).toBe(35);
+      // The lamp is said for what was heard: a tick per burst, not twelve hours of light.
+      expect(lanesOf([history], WINDOW)[0].spans.every(span => Date.parse(span.endsAt) - Date.parse(span.startsAt) < 2 * step * 1000)).toBe(true);
+    }
+  });
+
+  it('draws a device heard twice as two pieces at every range, never one line across the half day between', () => {
+    const [evening, morning] = [Date.parse('2026-03-03T03:00:00.000Z'), Date.parse('2026-03-03T15:00:00.000Z')];
+    const twice = sampled(() => 5).filter(at => (at >= evening && at < evening + 10 * MINUTE) || (at >= morning && at < morning + 10 * MINUTE));
+    for (const [days, step] of [
+      [1, 180],
+      [3, 540],
+      [7, 1500],
+      [30, 5400],
+    ]) {
+      const window = { startsAt: new Date(CLOSES.getTime() - days * 86_400_000), endsAt: CLOSES };
+      expect(drawn(staged(twice, step, window), window).breaks).toBe(1);
+    }
+  });
+
+  it('gives one pause one verdict at every range finer than it: four intervals are slow, five are a silence', () => {
+    // A device every quarter of an hour that misses one report, three, five, and six hours of them.
+    const day = Date.parse('2026-03-03T00:00:00.000Z');
+    const pauses = [
+      [2 * 60, 30],
+      [6 * 60, 60],
+      [10 * 60, 90],
+      [14 * 60, 375],
+    ].map(([after, minutes]) => [day + after * MINUTE, day + (after + minutes) * MINUTE]);
+    const samples = sampled(
+      () => 900,
+      at => pauses.some(([from, to]) => at > from && at < to),
+      OPENS.getTime(),
+    );
+    for (const [hours, step] of [
+      [24, 180],
+      [36, 270],
+      [48, 360],
+      [72, 540],
+      [168, 1500],
+    ]) {
+      const window = { startsAt: new Date(CLOSES.getTime() - hours * 3600_000), endsAt: CLOSES };
+      // Where a window holds one sample or two, the interval of a single gap read 12.5 or 25 minutes, and the pause
+      // of an hour was a line at one of these ranges and cut at the next.
+      expect([
+        step,
+        ...silent(
+          staged(samples, step, window),
+          window,
+          pauses.map(([from]) => from),
+        ),
+      ]).toEqual([step, false, false, true, true]);
+    }
+  });
+
+  it('still breaks where a slow device missed clearly more than its interval, and not where it was slow once', () => {
+    const noon = Date.parse('2026-03-02T12:00:00.000Z');
+    // One report missed: half an hour between two samples of a device that reports every quarter.
+    expect(
+      drawn(
+        read(
+          () => 900,
+          540,
+          at => at >= noon && at < noon + 900_000,
+        ),
+      ),
+    ).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+    // Two hours gone: the lamp's day is two stretches, and the line breaks once.
+    expect(
+      drawn(
+        read(
+          () => 900,
+          540,
+          at => at >= noon && at < noon + 2 * 3600_000,
+        ),
+      ),
+    ).toEqual({ stretches: 4, nights: 4, breaks: 1 });
+  });
+
+  it('still calls one empty window a silence of a device that fills every other with its samples', () => {
+    const noon = Date.parse('2026-03-02T12:00:00.000Z');
+    // Five seconds a sample, nine minutes a window: twenty minutes gone leave one window empty at the least.
+    expect(
+      drawn(
+        read(
+          () => 5,
+          540,
+          at => at >= noon && at < noon + 1200_000,
+        ),
+      ),
+    ).toEqual({ stretches: 4, nights: 4, breaks: 1 });
+  });
+
+  it('reads a device every five seconds as the eighth walk found it: each pause a silence from the range on that its limit allows', () => {
+    // Five hours of samples up to the window's end, with pauses of 35 s, 125 s, 605 s and 3605 s - each begun
+    // after a sample at :55, as a device that restarts leaves them.
+    const end = CLOSES.getTime();
+    const pauses = [
+      [end - 100_000 + 55_000 - 60_000, 35],
+      [end - 6 * MINUTE - 5000, 125],
+      [end - 50 * MINUTE - 5000, 605],
+      [end - 200 * MINUTE - 5000, 3605],
+    ].map(([from, seconds]) => [from, from + seconds * 1000]);
+    const samples = sampled(
+      () => 5,
+      at => pauses.some(([from, to]) => at > from && at < to),
+      end - 5 * 3600_000,
+    );
+    const verdicts = (seconds: number, step: number) => {
+      const window = { startsAt: new Date(end - seconds * 1000), endsAt: CLOSES };
+      return silent(
+        staged(samples, step, window),
+        window,
+        pauses.map(([from]) => from),
+      )
+        .map((quiet, index) => (pauses[index][0] < window.startsAt.getTime() ? '-' : quiet ? 'silence' : 'line'))
+        .join(' ');
+    };
+
+    expect(verdicts(20 * 60, 5)).toBe('silence silence - -');
+    expect(verdicts(3600, 10)).toBe('line silence silence -');
+    expect(verdicts(4 * 3600, 30)).toBe('line silence silence silence');
+    expect(verdicts(8 * 3600, 60)).toBe('line silence silence silence');
+    expect(verdicts(16 * 3600, 120)).toBe('line silence silence silence');
+    expect(verdicts(24 * 3600, 180)).toBe('line line silence silence');
+    expect(verdicts(7 * 86_400, 1500)).toBe('line line line silence');
+    expect(verdicts(30 * 86_400, 5400)).toBe('line line line line');
+    // At three days a pause of ten minutes is about a step long: it may fall into two windows and leave none empty.
+    expect(verdicts(3 * 86_400, 540)).toMatch(/^line line (line|silence) silence$/);
+  });
+});
+
+/**
+ * A place lit by its controller and a lamp module: a link is told neither lamp's device, and read the reading's level
+ * onto both, so the lanes of the device the reading is of say so. What each device is called comes with the owner's
+ * answer, for one that has left the place or the account since; a name somebody else gave it since is not the owner's.
+ */
+describe('two lamps in one place', () => {
+  const LAMP = 'device-lamp';
+  const lit = (lanes: { output: string; deviceId: string | null; reading?: true }[]) =>
+    lanes.filter(lane => lane.output === 'light').map(lane => [lane.deviceId, lane.reading === true]);
+
+  beforeEach(async () => {
+    await db.devices.create({
+      id: LAMP,
+      type: 'light',
+      name: 'Grow light',
+      ownerId: OWNER,
+      ...standingIn(TENT),
+      configuration: null,
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    reports = { ...reports, [LAMP]: () => ({ outputs: { light: 1 } }) };
+  });
+
+  it('marks the lanes of the reading´s device, on a link as well, and names each device to the owner alone', async () => {
+    const own = await readAs(session(OWNER));
+    expect(lit(own.outputs)).toEqual(
+      expect.arrayContaining([
+        [CONTROLLER, true],
+        [LAMP, false],
+      ]),
+    );
+    expect(own.devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: 'Grow light', type: 'light' }]));
+
+    await db.shareLinks.create({
+      id: 'link-lamps',
+      token: 'lamps-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    const theirs = await readAs(visitor('lamps-token'));
+    expect(lit(theirs.outputs).sort()).toEqual([
+      [null, false],
+      [null, true],
+    ]);
+    expect(theirs.devices).toEqual([]);
+  });
+
+  it('names a device the place´s owner holds no longer by its type alone', async () => {
+    await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp' });
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
+  });
+
+  /** "c8 Lampe", given up, read as "Lampenmodul": nobody holds it, and the name it stood there under is the owner's. */
+  it('names a device nobody holds by the name its owner let it go under, and one claimed since by its type', async () => {
+    await devicesOn(db, accessOn(db)).releaseClaim(LAMP);
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: 'Grow light', type: 'light' }]));
+
+    await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp', 'state.released': null });
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
+  });
+});
+
+/**
+ * A day wholly inside a weekend's silence: Saturday's window answered no silence, so its card said "keine Messung"
+ * with neither end, and the line that raised the silence stood before it, so its diary said nothing either.
+ */
+describe('a window the device was silent across', () => {
+  const SATURDAY = { startsAt: new Date('2026-06-09T00:00:00.000Z'), endsAt: new Date('2026-06-10T00:00:00.000Z') };
+
+  const raise = async (resolvedAt: Date | null) => {
+    await db.alerts.create({
+      id: 'alert-weekend',
+      deviceId: CONTROLLER,
+      spaceId: TENT,
+      kind: 'offline',
+      severity: 'critical',
+      startedAt: new Date('2026-06-08T18:45:00.000Z'),
+      resolvedAt,
+      value: 600,
+    });
+    await db.entries.create(
+      entry({
+        id: 'entry-raised',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        alertId: 'alert-weekend',
+        occurredAt: new Date('2026-06-08T18:45:00.000Z'),
+        values: { kind: 'alarm' } as never,
+      }),
+    );
+  };
+
+  it('reads one silence from the device´s last word before the window to its first after it', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-06-10T09:44:00.000Z');
+    const page = await readAs(session(OWNER), { range: '24h', window: SATURDAY });
+
+    expect(page.panels).toEqual([]);
+    expect(page.silences).toEqual([{ startsAt: '2026-06-08T18:34:59.000Z', endsAt: '2026-06-10T09:44:00.000Z' }]);
+  });
+
+  it('reads one still going on to the window´s end, and asks nothing of a device it heard', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-07-01T00:00:00.000Z');
+    expect((await readAs(session(OWNER), { range: '24h', window: SATURDAY })).silences).toEqual([
+      { startsAt: '2026-06-08T18:34:59.000Z', endsAt: SATURDAY.endsAt.toISOString() },
+    ]);
+    expect(around).toEqual([CONTROLLER]);
+
+    around = [];
+    quietFrom = null;
+    await readAs(session(OWNER), { range: '24h', window: SATURDAY });
+    expect(around).toEqual([]);
+  });
+
+  it('tells nothing of a device that has never said a word here', async () => {
+    reports = {};
+    expect((await readAs(session(OWNER), { range: '24h', window: SATURDAY })).silences).toEqual([]);
+  });
+
+  it('stands the line that raised a silence still going in the window´s diary, and one over after the window too', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-07-01T00:00:00.000Z');
+    await raise(null);
+    const lines = async () => (await readAs(session(OWNER), { range: '24h', window: SATURDAY })).events.map(line => line.id);
+    expect(await lines()).toContain('entry-raised');
+
+    await db.alerts.updateOne({ id: 'alert-weekend' }, { resolvedAt: new Date('2026-06-10T09:45:00.000Z') });
+    expect(await lines()).toContain('entry-raised');
+    // A silence over before the window began is none of its.
+    await db.alerts.updateOne({ id: 'alert-weekend' }, { resolvedAt: new Date('2026-06-08T23:00:00.000Z') });
+    expect(await lines()).not.toContain('entry-raised');
+  });
+
+  it('tells a reader from outside no alarm line of it', async () => {
+    await raise(null);
+    await db.shareLinks.create({
+      id: 'link-weekend',
+      token: 'weekend-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('weekend-token'), { range: '24h', window: SATURDAY })).events.map(line => line.id)).not.toContain('entry-raised');
   });
 });

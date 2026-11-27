@@ -10,10 +10,11 @@ import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { CamerasService, CameraWithSecret } from './cameras.service';
-import { CaptureService, CorruptFrameError } from './capture.service';
+import { CameraNotFoundYetError, CaptureService, CorruptFrameError } from './capture.service';
 import { MediaService } from './media.service';
 import { LIGHT_STATE_READER, LightStateReader } from './light-state';
 import { litFromPicture, monochromeOf } from './still-light';
+import { orientationOf } from './orientation';
 
 /**
  * Reads one still from every camera on a schedule, and stores it.
@@ -34,6 +35,8 @@ const BETWEEN_CAMERAS_MS = 1_000;
 interface PollState {
   lastTry: number;
   failureCount: number;
+  /** Counts the times the camera was started over, so a read begun before cannot grow the backoff after. */
+  round: number;
 }
 
 /** A still that was read and stored. */
@@ -86,10 +89,28 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
 
   /** The settings may be the ones that were failing, so the camera is tried again at once. */
   public settingsChanged(cameraId: string): void {
+    this.startOver(cameraId);
+  }
+
+  /**
+   * Its device has said something about its Terp Cam: paired it, found it on
+   * its network, secured it, or come back from a reboot. Whatever failed
+   * before - a camera not found yet, a camera that was not there - may no
+   * longer hold, so it is read at once and every interval from then on, not
+   * after a backoff its failures before the report had grown to two hours.
+   * A camera paired again gets its old row back, and with it whatever this
+   * poller still held against it.
+   */
+  public cameraReported(cameraId: string): void {
+    this.startOver(cameraId);
+  }
+
+  private startOver(cameraId: string): void {
     const state = this.state.get(cameraId);
     if (state) {
       state.lastTry = 0;
       state.failureCount = 0;
+      state.round += 1;
     }
   }
 
@@ -111,6 +132,16 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     const still = this.throughAnOnlineDevice(camera).then(() => this.readAndStore(camera));
     if (!running) this.track(camera.id, readKey(camera), still);
     return still;
+  }
+
+  /**
+   * One still of a stream that is no camera yet, for somebody testing its
+   * address: the read a camera's test is - refused at once through a device
+   * that is offline, within the same budget - and stored nowhere. No camera
+   * means nothing to join and nothing the schedule could be reading.
+   */
+  public readUnstored(camera: CameraWithSecret): Promise<Buffer> {
+    return this.throughAnOnlineDevice(camera).then(() => this.capture.readStill(camera));
   }
 
   /**
@@ -175,7 +206,11 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     const still = await this.capture.readStill(camera);
     const capturedAt = new Date();
     const [lit, monochrome] = await Promise.all([this.litOf(camera, still), monochromeOf(still)]);
-    const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit, monochrome }, still);
+    const orientation = orientationOf(camera);
+    const stored = await this.media.storeBytes(
+      { kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit, monochrome, orientation },
+      still,
+    );
     await this.cameras.noteCapture(camera.id, capturedAt, null);
     return { mediaId: stored.id, capturedAt };
   }
@@ -183,6 +218,7 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   /** A scheduled read, start to finish: the backoff reset, or the failure paid for. */
   private async paidFor(camera: CameraDocument, still: Promise<StoredStill | null>): Promise<void> {
     const state = this.stateOf(camera.id);
+    const round = state.round;
 
     try {
       await still;
@@ -192,13 +228,22 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
       state.failureCount = 0;
     } catch (e) {
       const reason = (e as Error)?.message ?? String(e);
+      // A camera its device has not found yet was not asked anything: the
+      // device is still looking, says so in the diary itself
+      // (`message-terp-cam-not-found`) and reports the camera when it finds it.
+      // Backing off would leave the camera unread long after that.
+      const notFoundYet = e instanceof CameraNotFoundYetError;
       // A corrupt frame means the camera was reachable and streaming, so unlike
       // a failure to connect it does not count towards the backoff.
-      state.failureCount = e instanceof CorruptFrameError ? 0 : state.failureCount + 1;
+      if (e instanceof CorruptFrameError) state.failureCount = 0;
+      // Nor does a read begun before the camera was started over: it failed
+      // for what the report may have put right.
+      else if (!notFoundYet && state.round === round) state.failureCount += 1;
 
-      logger.error(`Reading camera ${camera.id} failed: ${reason}`);
+      if (notFoundYet) logger.debug(`Reading camera ${camera.id} waits: ${reason}`);
+      else logger.error(`Reading camera ${camera.id} failed: ${reason}`);
       await this.cameras.noteCapture(camera.id, null, reason).catch(() => undefined);
-      if (camera.logErrors) await this.writeTheFailureDown(camera, reason);
+      if (camera.logErrors && !notFoundYet) await this.writeTheFailureDown(camera, reason);
     } finally {
       state.lastTry = Date.now();
     }
@@ -234,7 +279,7 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     const known = this.state.get(cameraId);
     if (known) return known;
 
-    const fresh = { lastTry: 0, failureCount: 0 };
+    const fresh = { lastTry: 0, failureCount: 0, round: 0 };
     this.state.set(cameraId, fresh);
     return fresh;
   }

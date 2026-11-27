@@ -58,9 +58,10 @@ export interface DeviceTunnelSink {
 export const DEVICE_TUNNEL_SINK = 'device-protocol:tunnel';
 
 /**
- * That a device has said something about its camera - paired another, secured
- * it with a new password, learned its P2P id. Provided by the camera pipeline,
- * which may be holding off a camera that refused it and should try again.
+ * That a device has said something about its camera - paired another, found it
+ * on its network, secured it with a new password, learned its P2P id. Provided
+ * by the camera pipeline, which may be holding off a camera that refused it or
+ * was not found yet, and reads it at once instead.
  */
 export interface DeviceCameraReportSink {
   cameraReported(deviceId: string): void;
@@ -93,3 +94,15 @@ export interface DeviceGerminationSink {
 }
 
 export const DEVICE_GERMINATION_SINK = 'device-protocol:germination';
+
+/**
+ * That a device has sent its settings for the first time - the cloud held none
+ * until now. Provided by the climate presets, which put it on the preset its
+ * place was put on while it had nothing to be written into, and keep a lamp
+ * module dark where its place germinates or dries.
+ */
+export interface DeviceSettingsSink {
+  settingsArrived(deviceId: string): Promise<void>;
+}
+
+export const DEVICE_SETTINGS_SINK = 'device-protocol:settings';

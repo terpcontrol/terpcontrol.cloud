@@ -13,7 +13,7 @@ export const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
 const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
 export const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
 
-export interface AppEnvironment {
+interface AppEnvironment {
   port: number;
   mongoUri: string;
   mqttHost: string;
@@ -91,7 +91,7 @@ export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   };
 };
 
-export interface RunningApp {
+interface RunningApp {
   process: ChildProcess;
   baseUrl: string;
   stop: () => Promise<void>;

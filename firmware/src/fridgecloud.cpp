@@ -4,6 +4,7 @@
 #include <EspMQTTClient.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <esp_task_wdt.h>
 #include <esp_system.h>
 
@@ -14,12 +15,26 @@
 
 #include "base64_min.h"
 #include "mqtt_ca.gen.h"
+#include "ca_bundle.gen.h"
 
 #ifndef FIRMWARE_VERSION
   #warning Firmware version undefinded!
   #define FIRMWARE_VERSION "UNDEFINED"
   #define NO_FIRMWARE_UPDATE
 #endif
+
+// An https:// server has to prove itself against the public root CAs baked in
+// at build time; http:// stays possible for local stacks and self-hosted
+// servers without TLS. `secure` has to outlive `http`. The handshake is cut
+// short well inside the 60 s loop watchdog; the framework's default is 120 s.
+static bool beginHttp(HTTPClient& http, WiFiClientSecure& secure, const std::string& url) {
+  if(url.rfind("https://", 0) == 0) {
+    secure.setCACertBundle(CA_BUNDLE);
+    secure.setHandshakeTimeout(30);
+    return http.begin(secure, url.c_str());
+  }
+  return http.begin(url.c_str());
+}
 
 
 // Set just before a portal-triggered ESP.restart(), so that the next boot can
@@ -119,7 +134,6 @@ namespace fg {
     topic_bulk = String() + "/devices/" + device_id.c_str() + "/bulk";
     topic_log = String() + "/devices/" + device_id.c_str() + "/log";
     topic_firmware = String() + "/devices/" + device_id.c_str() + "/firmware";
-    topic_fwupdate = String() + "/devices/" + device_id.c_str() + "/fwupdate";
     topic_command = String() + "/devices/" + device_id.c_str() + "/command";
     topic_control = String() + "/devices/" + device_id.c_str() + "/control/#";
     topic_tunnel_read = String() + "/devices/" + device_id.c_str() + "/tunnel_read";
@@ -131,8 +145,6 @@ namespace fg {
     Serial.println(device_id.c_str());
     Serial.print("mqtt_user:\t");
     Serial.println(mqtt_user.c_str());
-    Serial.print("mqtt_password:\t");
-    Serial.println(mqtt_password.c_str());
     Serial.print("mqtt_host:\t");
     Serial.println(mqtt_host.c_str());
     Serial.print("mqtt_port:\t");
@@ -197,26 +209,6 @@ namespace fg {
         log("message-device-firmware-update");
         update_subject.next(true);
         updateFirmware(firmwareVersion.c_str());
-      }
-#endif
-    });
-    esp_task_wdt_reset();
-
-    client->subscribe(topic_fwupdate.c_str(), [&](const String & topic, const String & payload) {
-      StaticJsonDocument<1024> doc;
-      DeserializationError error = deserializeJson(doc, payload);
-      if (error) {
-        Serial.println("error parsing received command");
-        return;
-      }
-
-      String firmwareVersion = trimFirmwareVersion(doc["version"] | "");
-      Serial.printf("loading firmware: %s\n\r", firmwareVersion.c_str());
-#ifndef NO_FIRMWARE_UPDATE
-      if(firmwareVersion.length() > 0 && firmwareVersion != FIRMWARE_VERSION) {
-        log("message-device-firmware-update");
-        update_subject.next(true);
-        updateFirmwareFromUrl(doc["url"]);
       }
 #endif
     });
@@ -508,11 +500,19 @@ namespace fg {
 
     if(!custom_mqtt) {
       if(++current_sample >= SAMPLE_INTERVAL) {
+        // A full buffer is drained here too: the upload below is the only
+        // other place that does it, and returning before it kept the buffer
+        // full for good - a device that had been offline for ten minutes sent
+        // no reading again until it rebooted.
+        if(status_buffer.size() >= MAX_BUFFER_LEN) {
+          uploadStatus();
+        }
         if(status_buffer.size() >= MAX_BUFFER_LEN) {
           if(!overflow) {
             overflow = true;
             log("message-buffer-overflow", 1);
           }
+          current_sample = 0;
           return false;
         }
         else {
@@ -595,15 +595,16 @@ namespace fg {
   }
 
   void Fridgecloud::updateFirmwareFromUrl(std::string update_url) {
+    WiFiClientSecure secure;
     HTTPClient http;
 
     Serial.println("Updating FW from URL:");
     Serial.println(update_url.c_str());
 
-    http.begin(update_url.c_str());
+    beginHttp(http, secure, update_url);
 
     int httpResponseCode = http.GET();
-    if (httpResponseCode>0) {
+    if (httpResponseCode == HTTP_CODE_OK) {
       Serial.print("HTTP Response code: ");
       Serial.println(httpResponseCode);
       auto str = http.getStream();
@@ -673,10 +674,11 @@ namespace fg {
   }
 
   std::string Fridgecloud::requestPairingCode() {
+    WiFiClientSecure secure;
     HTTPClient http;
     std::string url = api_url.c_str();
     url += "/device/claimcode";
-    http.begin(url.c_str());
+    beginHttp(http, secure, url);
     http.addHeader("Content-Type", "application/json");
     DynamicJsonDocument request(1024);
     request["device_id"] = device_id;
@@ -699,12 +701,30 @@ namespace fg {
     return "";
   }
 
+  // Asks the cloud whether "change server" has to prompt for the join password:
+  // 204 means it takes devices without one, 403 that it takes no new devices.
+  // Anything else - 401, a server from before the HEAD route (404), no answer -
+  // asks for the password as every build before this one did.
+  Fridgecloud::RegistrationGate Fridgecloud::registrationGate(std::string api_url) {
+    WiFiClientSecure secure;
+    HTTPClient http;
+    std::string url = api_url + "/device/register";
+    beginHttp(http, secure, url);
+    auto res = http.sendRequest("HEAD");
+    http.end();
+    Serial.println(res);
+    if(res == 204) return RegistrationGate::OPEN;
+    if(res == 403) return RegistrationGate::CLOSED;
+    return RegistrationGate::PASSWORD;
+  }
+
   bool Fridgecloud::registerWithCloud(std::string api_url, std::string password) {
+    WiFiClientSecure secure;
     HTTPClient http;
     SettingsManager provisioning(NVS_PART, "fg_provisioning");
 
     std::string url = api_url + "/device/register";
-    http.begin(url.c_str());
+    beginHttp(http, secure, url);
     http.addHeader("Content-Type", "application/json");
     DynamicJsonDocument request(1024);
     request["registration_password"] = password;

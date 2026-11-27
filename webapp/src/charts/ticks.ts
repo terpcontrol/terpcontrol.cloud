@@ -14,12 +14,12 @@ import { CLOCK, zonedAt } from '@/ui/zone';
  * the line adds: an hour within a day, the weekday at a midnight, a date where
  * the window runs past a week.
  */
-export interface Tick {
+interface Tick {
   at: number;
   label: string;
 }
 
-type Unit = 'minute' | 'hour' | 'day' | 'month' | 'year';
+type Unit = 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year';
 
 interface Step {
   unit: Unit;
@@ -29,27 +29,25 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  ...[5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE_MS })),
+  // Five minutes of single samples are counted by the minute, and by the half minute where there is room.
+  { unit: 'second', count: 30, ms: MINUTE_MS / 2 },
+  ...[1, 2, 5, 10, 15, 30].map(count => ({ unit: 'minute' as const, count, ms: count * MINUTE_MS })),
   ...[1, 2, 3, 6, 12].map(count => ({ unit: 'hour' as const, count, ms: count * HOUR_MS })),
   ...[1, 2, 7, 14].map(count => ({ unit: 'day' as const, count, ms: count * DAY_MS })),
   ...[1, 2, 3, 6].map(count => ({ unit: 'month' as const, count, ms: count * 30 * DAY_MS })),
   { unit: 'year', count: 1, ms: 365 * DAY_MS },
 ];
 
-/** How much room a label wants beside the window's two ends, which is what decides how many of them fit across a plot. */
-export const TICK_ROOM_PX = 72;
-
 /**
- * And on a row of its own. A phone's plot is a quarter of a metre of glass
- * with the two ends of the window written under it, and between "25. Sep 16:04"
- * and "2. Okt 16:04" there was no room left for a single date: a week and a
- * month were read without one. There the gridlines are named on a row of their
- * own, where a date needs only its own width and a little air.
+ * How much room a label wants on the row the gridlines are named on: a date
+ * needs its own width and a little air, and four weeks of a month are 58
+ * pixels apart on a phone. A label that would still stand on another is left
+ * out where the row is drawn.
  */
-export const NARROW_TICK_ROOM_PX = 52;
+export const TICK_ROOM_PX = 52;
 
-/** Below this width a plot's gridlines are named on that row of their own. */
-export const NARROW_PLOT_PX = 480;
+/** The same for a time of day alone, which is all a window of an hour or less writes: "03:10" is narrower than "27. Sep". */
+export const CLOCK_ROOM_PX = 40;
 
 /**
  * How many lines a plot of this width carries at most: never fewer than two,
@@ -64,6 +62,10 @@ export const ticksFor = (widthPx: number, room = TICK_ROOM_PX): number => Math.m
 const firstOn = (from: number, step: Step, zone: string | null): DateTime => {
   const start = zonedAt(from, zone);
   switch (step.unit) {
+    case 'second': {
+      const floor = start.startOf('minute');
+      return floor.plus({ seconds: Math.ceil(start.diff(floor, 'seconds').seconds / step.count) * step.count });
+    }
     case 'minute': {
       const floor = start.startOf('hour');
       return floor.plus({ minutes: Math.ceil(start.diff(floor, 'minutes').minutes / step.count) * step.count });
@@ -93,18 +95,25 @@ const plusOne = (step: Step): DurationLikeObject => ({ [`${step.unit}s`]: step.c
 
 /** What a line says, given the step and the width of the window it is drawn across. */
 const labelOf = (time: DateTime, step: Step, span: number, dayInYear: string): string => {
-  if (step.unit === 'minute' || step.unit === 'hour') {
+  if (step.unit === 'second' || step.unit === 'minute' || step.unit === 'hour') {
+    // Between two full minutes the minute alone would be written twice.
+    if (time.second !== 0) return time.toFormat(`${CLOCK}:ss`);
     if (time.hour !== 0 || time.minute !== 0) return time.toFormat(CLOCK);
     // Midnight is the day turning over, which is what the line is there to show.
-    return span <= 7 * DAY_MS ? time.toFormat('ccc') : time.toFormat(dayInYear);
+    return span <= BY_CLOCK ? time.toFormat('ccc') : dayLabel(time, span, dayInYear);
   }
-  // A week of days is read by weekday, and the day of the month beside it in the reader's own way ("So 27.", "Sun 27").
-  if (step.unit === 'day')
-    return step.count === 1 && span <= 8 * DAY_MS ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
+  if (step.unit === 'day') return dayLabel(time, span, dayInYear);
   if (step.unit === 'month') return time.month === 1 ? time.toFormat('yyyy') : time.toFormat('LLL');
 
   return time.toFormat('yyyy');
 };
+
+/** Up to this width a window is read by the clock, and a midnight in it by its weekday alone; past it by its days. */
+export const BY_CLOCK = 36 * HOUR_MS;
+
+/** A day on an axis, on every line and both ends alike: up to eight days "So 27." in the reader's own way, past that its date. */
+export const dayLabel = (time: DateTime, span: number, dayInYear: string): string =>
+  span <= 8 * DAY_MS ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
 
 /**
  * The lines of a window between two instants, at most `most` of them.

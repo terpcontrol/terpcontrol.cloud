@@ -8,11 +8,13 @@ import { AccessContext, AccessRange, Grantee } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument, DEFAULT_STILL_INTERVAL_SECONDS } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { EntitlementService, yearFrom } from './entitlement.service';
+import { orientationOf, UPRIGHT } from './orientation';
 import { changesTheStream, streamUrl, withoutUserInfo } from './stream-url';
 
 /**
@@ -45,6 +47,7 @@ export class CamerasService {
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     private readonly entitlement: EntitlementService,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
   ) {}
 
   /**
@@ -155,12 +158,23 @@ export class CamerasService {
    * found out by the first capture.
    */
   public async create(ownerId: string, body: CameraCreate): Promise<CameraDocument> {
+    const camera = await this.draft(ownerId, body);
+    await this.cameras.create(camera);
+    return camera;
+  }
+
+  /**
+   * The camera a create body describes, as it would be stored and without
+   * storing it - which is also what a test of a stream's address reads, so the
+   * test opens the stream exactly as the camera would be opened.
+   */
+  public async draft(ownerId: string, body: CameraCreate): Promise<CameraDocument> {
     const isTerpCam = body.kind !== 'rtsp';
     const createdAt = new Date();
     const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
     const device = deviceId ? await this.devices.findOne({ id: deviceId }, { spaceId: 1, isDemo: 1 }).lean() : null;
 
-    const camera: CameraDocument = {
+    return {
       id: uuidv4(),
       createdAt,
       ownerId,
@@ -184,6 +198,7 @@ export class CamerasService {
       tunnel: body.kind === 'rtsp' ? (body.tunnel ?? (device !== null && body.transport !== 'udp')) : false,
       model: body.kind === 'rtsp' ? (body.model ?? null) : 'terp_cam',
       stillIntervalSeconds: body.stillIntervalSeconds ?? DEFAULT_STILL_INTERVAL_SECONDS,
+      orientation: body.orientation ?? UPRIGHT,
       nightOff: body.nightOff ?? false,
       maintenanceOff: body.maintenanceOff ?? false,
       logErrors: body.logErrors ?? false,
@@ -193,9 +208,6 @@ export class CamerasService {
       removedAt: null,
       state: { lastStillAt: null, lastError: null, firmwareVersion: null },
     };
-
-    await this.cameras.create(camera);
-    return camera;
   }
 
   /**
@@ -207,6 +219,8 @@ export class CamerasService {
     const { username, password, ...rest } = body;
     const url = changesTheStream(body) ? streamUrl(stored, { url: body.url, username, password }) : undefined;
     const changes = Object.fromEntries(Object.entries({ ...rest, url }).filter(([, value]) => value !== undefined));
+    // Its open alert stands where the camera stands, as a device's does.
+    if (body.spaceId !== undefined) await this.alerts.updateMany({ cameraId: id, resolvedAt: null }, { $set: { spaceId: body.spaceId } });
     return this.cameras.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<CameraDocument>();
   }
 
@@ -219,9 +233,14 @@ export class CamerasService {
    * Taking a camera away is not deleting it: the stills and the films it
    * delivered keep their link, so the row stays as a tombstone and is no longer
    * listed, polled or paired to its controller.
+   *
+   * Its open alert goes quiet with it, as a deleted rule's does: the health loop
+   * judges only cameras still listed, so nothing would ever close it, and an
+   * all-clear would claim a picture came.
    */
   public async remove(id: string): Promise<void> {
     await this.cameras.updateOne({ id, removedAt: null }, { $set: { removedAt: new Date(), deviceId: null } });
+    await this.alerts.updateMany({ cameraId: id, resolvedAt: null }, { $set: { resolvedAt: new Date() } });
   }
 
   /** What the poller reports back after every try, and what the health loop reads. */
@@ -267,6 +286,7 @@ export class CamerasService {
       tunnel: camera.tunnel,
       model: camera.model,
       stillIntervalSeconds: camera.stillIntervalSeconds,
+      orientation: orientationOf(camera),
       nightOff: camera.nightOff,
       maintenanceOff: camera.maintenanceOff,
       logErrors: camera.logErrors,

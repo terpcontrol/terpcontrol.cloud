@@ -13,12 +13,16 @@ import type {
   SessionPage,
   SignupUser,
   TelegramLink,
+  TermsAcceptanceCreate,
   UserActivation,
   UserCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { session, useSession } from './session';
 import { invalidate, useWrite } from './write';
+
+/** The shortest new password the server takes; it says so itself, the forms only say it before they are sent. */
+export const PASSWORD_MIN_LENGTH = 8;
 
 /**
  * The account as its owner sees it, and the one way it is changed.
@@ -51,6 +55,15 @@ export const useActivateAccount = () => useMutation({ mutationFn: (body: UserAct
  * new password. Neither opens a session; the new password is signed in with.
  */
 export const useRequestReset = () => useMutation({ mutationFn: (body: PasswordResetCreate) => api.post<void>('/password-resets', body) });
+
+/** Whether a code from a recovery mail can still set a password; it spends nothing (`reset_unknown` where it cannot). */
+const checkReset = (token: string) => api.get<void>(`/password-resets/${encodeURIComponent(token)}`);
+
+export const useCheckReset = () => useMutation({ mutationFn: checkReset });
+
+/** The same asked of a link as it opens, so a spent one is said before a new password is chosen for it. */
+export const useResetValid = (token: string, enabled: boolean) =>
+  useRead({ queryKey: ['password-reset', token], queryFn: () => checkReset(token).then(() => true), enabled, retry: false });
 
 export const useRedeemReset = () =>
   useMutation({
@@ -90,6 +103,21 @@ export const useUpdateMe = () => {
   return useMutation({
     mutationKey: meKey,
     mutationFn: (body: MeUpdate) => api.patch<Me>('/me', body),
+    onSuccess: me => client.setQueryData(meKey, me),
+  });
+};
+
+/**
+ * The install's terms of use accepted, by the address `Me.termsToAccept` named.
+ * The answer is the account with nothing left to accept, which is what lets the
+ * gate in front of the shell open.
+ */
+export const useAcceptTerms = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationKey: meKey,
+    mutationFn: (body: TermsAcceptanceCreate) => api.post<Me>('/me/terms-acceptances', body),
     onSuccess: me => client.setQueryData(meKey, me),
   });
 };
@@ -143,11 +171,12 @@ export const useTelegramLink = () => useMutation({ mutationFn: () => api.post<Te
 /**
  * Leaving for good. The route answers when the deletion has finished rather
  * than when it started, so what comes back is a server that has already
- * forgotten this account - which is why the session ends here rather than on
- * the screen. Ending it empties the cache too: every query still held is a
- * question nobody will answer.
+ * forgotten this account and its sessions - which is why the session is only
+ * forgotten, here rather than on the screen, and the server is not asked to
+ * end what it no longer knows. Forgetting it empties the cache too: every
+ * query still held is a question nobody will answer.
  */
-export const useDeleteAccount = () => useMutation({ mutationFn: () => api.delete('/me'), onSuccess: () => session.logOut() });
+export const useDeleteAccount = () => useMutation({ mutationFn: () => api.delete('/me'), onSuccess: () => session.logOut(true) });
 
 /**
  * A new password. The current one travels with it, because a stolen session

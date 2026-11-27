@@ -1,13 +1,20 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
-import type { Entry } from '@fg2/shared-types/v1';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
+import type { Entry, GrowListItem } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
+import { growPlantsQuery } from '@/api/grows';
 import { ApiError } from '@/api/problem';
-import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind } from './log-context';
+import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind, type Told } from './log-context';
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
+import { forgetDraft, keptDraft, openDraft, type Draft } from './draft';
 import { PhotoEntry } from './PhotoEntry';
+import { HarvestWeights } from '@/screens/grow/HarvestWeights';
+import { lastUsed, withRoom } from './toast-room';
 import { Toasts, type LoggedLine } from './Toasts';
+import { undoneLabel } from './lines';
 import { refusalText } from '@/ui/refusal';
 
 /**
@@ -22,112 +29,267 @@ import { refusalText } from '@/ui/refusal';
 /** How long the toast offers Undo, as the board draws it. The server's own window is far longer. */
 const UNDO_MS = 5000;
 
+/** How long a toast that says what was done stays: it is a sentence to read, not a line to recognise. */
+const TOLD_MS = 8000;
+
+/**
+ * How soon after a toast was raised the page may change under it and the toast go along: what a tap did and then
+ * led to - a grow started and its page opened - is said on the page it led to.
+ */
+const LEADS_MS = 1500;
+
+/** A toast as it is first shown: nothing failed, nothing taken back, no entry yet. */
+const UNANSWERED = { failure: null, reason: null, undoing: false, entry: null, progress: null };
+
+/** A toast that only says something - what was done, or that it was taken back - with nothing to offer by itself. */
+const saying = (label: string) => ({
+  ...UNANSWERED,
+  raisedAt: Date.now(),
+  label,
+  state: 'saved' as const,
+  details: null,
+  undoable: false,
+  undoUntil: Date.now() + TOLD_MS,
+});
+
 interface Details {
   kind: TileKind;
   target: LogTarget;
   entry: Entry | null;
+  /** When a new line was said to have happened, on the sheet its kind was chosen on; null is now. */
+  at: Date | null;
+  /** The sheet the kind was chosen on, which the view leads back to; null for a view opened on its own. */
+  from: LogOpening | null;
+  /** The task the line closes, where a task's "Eintragen" opened it. */
+  taskId?: string | null;
+  /** What was typed before a release reloaded the page, which the view opens on again. */
+  draft?: Draft | null;
 }
+
+/** The view a release's reload left open, on what was typed into it; a photo's pictures are not kept, so not its view. */
+const reopened = (draft: Draft | null): Details | null =>
+  draft && (draft.kind !== 'photo' || draft.entry)
+    ? {
+        kind: draft.kind,
+        target: draft.target,
+        entry: draft.entry,
+        at: draft.at ? new Date(draft.at) : null,
+        from: null,
+        taskId: draft.taskId,
+        draft,
+      }
+    : null;
 
 export function LogProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const [opening, setOpening] = useState<LogOpening | null>(null);
-  const [details, setDetails] = useState<Details | null>(null);
+  const [details, setDetails] = useState<Details | null>(() => reopened(keptDraft()));
+  // Read once, then the open view's: a later reload keeps what is typed then.
+  useEffect(forgetDraft, []);
+  const [weighing, setWeighing] = useState<Entry | null>(null);
   const [lines, setLines] = useState<LoggedLine[]>([]);
+  // What stands now, for an undo that takes along what was written on it.
+  const standing = useRef(lines);
+  useLayoutEffect(() => {
+    standing.current = lines;
+  }, [lines]);
   const takenBack = useRef(new Set<number>());
   /** The tasks whose tick is still on its way, so that one card writes one line. */
   const ticking = useRef(new Set<string>());
   const nextKey = useRef(1);
   // Where the sheet was pointed last time. It outlives the sheet, which is why it is not the sheet's.
   const [lastTarget, setLastTarget] = useState<string | null>(null);
+  const { t, i18n } = useTranslation();
 
   const dismiss = useCallback((key: number) => setLines(current => current.filter(line => line.key !== key)), []);
 
-  const change = useCallback((key: number, over: Partial<LoggedLine>) => {
-    setLines(current => current.map(line => (line.key === key ? { ...line, ...over } : line)));
+  const change = useCallback((key: number, over: Partial<LoggedLine> | ((line: LoggedLine) => Partial<LoggedLine>)) => {
+    setLines(current => current.map(line => (line.key === key ? { ...line, ...(typeof over === 'function' ? over(line) : over) } : line)));
   }, []);
 
-  const remove = useCallback(
-    (key: number, entry: Entry) =>
-      takeEntryBack(entry.id).then(
-        () => {
-          diaryChanged(client);
-          dismiss(key);
+  /**
+   * Takes a line back - by its own way where it only told of something, else by deleting what it wrote - and answers
+   * where the Undo stood with what holds again: in the teller's words, and of a written line that the diary no
+   * longer has it. A refusal is said there too. A line still on its way has no id yet and is taken back the moment
+   * the server answers with one. The lines written after it that stand on it (`along`) go first, and are said.
+   */
+  const undo = useCallback(
+    ({ key, entry, revert, along }: Pick<LoggedLine, 'key' | 'entry' | 'revert' | 'along'>) => {
+      if (!revert && !entry) {
+        takenBack.current.add(key);
+        return change(key, { undoing: true });
+      }
+      const riders = along ? standing.current.filter(line => line.key > key && line.entry !== null && along(line.entry)) : [];
+      const ridden = riders.length > 0 ? i18n.t('log.alongGone', { count: riders.length }) : null;
+      change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
+      void Promise.all(riders.map(line => takeEntryBack(line.entry!.id)))
+        .then(() => revert?.() ?? takeEntryBack(entry!.id))
+        // A change told of reads again what it changed itself; a line taken back, or one taken along, is the diary's.
+        .then(() => (revert && riders.length === 0 ? undefined : diaryChanged(client)))
+        .then(
+          () => {
+            change(key, line => saying(undoneLabel(i18n.t, [line.undone ?? i18n.t('log.gone'), ridden].filter(Boolean).join(' · '))));
+            // What was said after it may have built on what is now taken back - a harvest of the plant whose adding
+            // was undone: its toast goes, rather than offering to take back what no longer exists.
+            setLines(current => current.filter(line => line.key <= key || line.state !== 'saved'));
+          },
+          error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
+        );
+    },
+    [change, client, i18n],
+  );
+
+  /**
+   * A new line refused because a plant it names was deleted while its sheet stood open: sent again it is refused
+   * again, and the litres typed went with the closed sheet. The sheet opens again on what it held, without the plants
+   * that are gone - a line about one of them is about its grow -, and the toast says why, offering nothing to retry.
+   */
+  const without = useCallback(
+    async (key: number, { kind, target, draft = null }: NonNullable<LoggedLine['details']>, error: unknown) => {
+      const growId = target.growId;
+      const plants = growId ? await client.fetchQuery({ ...growPlantsQuery(growId), staleTime: 0 }).catch(() => null) : null;
+      if (!growId || !plants) return change(key, { state: 'failed', failure: 'write', reason: reasonOf(error), final: true });
+
+      const there = (plantId: string) => plants.items.some(plant => plant.id === plantId);
+      // A reading's field is its key and its plant's id (`slotOf`); one of no plant is the line's.
+      const kept = (slot: string) => {
+        const plantId = slot.split('|')[1];
+        return !plantId || there(plantId);
+      };
+      const aimed = target.plantIds.every(there)
+        ? target
+        : {
+            ...target,
+            key: `grow:${growId}`,
+            label: client.getQueryData<GrowListItem>(['grow', growId])?.name ?? target.label,
+            plantIds: target.plantIds.filter(there),
+          };
+      change(key, saying(i18n.t('log.plantRefused')));
+      setOpening(null);
+      setDetails({
+        kind,
+        target: aimed,
+        entry: null,
+        at: draft?.at ? new Date(draft.at) : null,
+        from: null,
+        taskId: draft?.taskId ?? null,
+        draft: draft && {
+          ...draft,
+          target: aimed,
+          plantIds: draft.plantIds.filter(there),
+          shown: draft.shown.filter(kept),
+          readings: Object.fromEntries(Object.entries(draft.readings).filter(([slot]) => kept(slot))),
+          refused: true,
         },
-        error => change(key, { state: 'failed', failure: 'undo', entry, reason: reasonOf(error) }),
-      ),
-    [change, client, dismiss],
+      });
+    },
+    [change, client, i18n],
   );
 
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */
   const attempt = useCallback(
-    (key: number, send: () => Promise<Entry>) => {
-      void send().then(
+    (key: number, send: LogRequest['send'], changed?: LogRequest['changed']) => {
+      void send((done, total) => change(key, { progress: total > 1 ? { done, total } : null })).then(
         entry => {
-          if (takenBack.current.delete(key)) return void remove(key, entry);
+          if (takenBack.current.delete(key)) return undo({ key, entry, revert: null });
           change(key, { state: 'saved', entry, undoUntil: Date.now() + UNDO_MS });
           diaryChanged(client);
+          changed?.(client);
         },
-        error => change(key, { state: 'failed', failure: 'write', reason: reasonOf(error) }),
+        // Nothing answered - the request never got out, which a browser reports as a TypeError: the line waits, and
+        // says so, until the connection is back.
+        error => {
+          const line = standing.current.find(one => one.key === key);
+          if (plantGone(error) && line?.details && !takenBack.current.has(key)) return void without(key, line.details, error);
+          const waiting = error instanceof TypeError || navigator.onLine === false;
+          change(key, { state: 'failed', failure: 'write', reason: waiting ? t('log.noConnection') : reasonOf(error), waiting });
+        },
       );
     },
-    [change, client, remove],
+    [change, client, t, undo, without],
   );
+
+  // A line written without a connection is sent by itself when the connection returns while the app is open.
+  useEffect(() => {
+    const resend = () => {
+      for (const line of lines) {
+        if (line.state !== 'failed' || !line.waiting) continue;
+        change(line.key, { state: 'saving', failure: null, reason: null, waiting: false });
+        attempt(line.key, line.send, line.changed);
+      }
+    };
+    window.addEventListener('online', resend);
+    return () => window.removeEventListener('online', resend);
+  }, [attempt, change, lines]);
 
   const log = useCallback(
     (request: LogRequest) => {
       const key = nextKey.current++;
       const line: LoggedLine = {
+        ...UNANSWERED,
         key,
         label: request.label,
         send: request.send,
-        details: request.details ?? null,
+        changed: request.changed,
+        revert: null,
+        undone: request.undone,
+        answers: lastUsed(),
+        // What the open sheet held typed, for a refusal that opens it again.
+        details: request.details ? { ...request.details, draft: openDraft() } : null,
         state: 'saving',
-        failure: null,
-        reason: null,
-        undoing: false,
-        entry: null,
         undoable: request.undoable ?? true,
         undoUntil: null,
+        raisedAt: Date.now(),
       };
-      setLines(current => [...current, line]);
+      setLines(current => withRoom(current, line));
       setOpening(null);
       setDetails(null);
-      attempt(key, request.send);
+      attempt(key, request.send, request.changed);
     },
     [attempt],
   );
 
-  const undo = useCallback(
-    (line: LoggedLine) => {
-      if (line.state === 'saving') {
-        // It has no id yet. The line is taken back the moment the server answers with one.
-        takenBack.current.add(line.key);
-        change(line.key, { undoing: true });
-      } else if (line.entry) {
-        change(line.key, { undoing: true });
-        void remove(line.key, line.entry);
-      } else dismiss(line.key);
-    },
-    [change, dismiss, remove],
-  );
-
   const retry = useCallback(
     (line: LoggedLine) => {
-      change(line.key, { state: 'saving', failure: null, reason: null });
-      if (line.failure === 'undo' && line.entry) void remove(line.key, line.entry);
-      else attempt(line.key, line.send);
+      // An undo that was refused is tried as it was asked, and shows that it is.
+      if (line.failure === 'undo') return undo(line);
+      change(line.key, { state: 'saving', failure: null, reason: null, waiting: false });
+      attempt(line.key, line.send, line.changed);
     },
-    [attempt, change, remove],
+    [attempt, change, undo],
   );
 
+  // A toast's Undo is about the page it was raised on, and does not ride along to another: what was said there goes
+  // with it. A line still being written, or one that failed, stays until it has its answer.
+  const { pathname } = useLocation();
+  const shownOn = useRef(pathname);
+  useEffect(() => {
+    if (shownOn.current === pathname) return;
+    shownOn.current = pathname;
+    const lead = Date.now() - LEADS_MS;
+    setLines(current => current.filter(line => line.state !== 'saved' || line.raisedAt > lead));
+  }, [pathname]);
+
+  const sheetOpen = opening !== null;
   const state = {
+    last: lastTarget,
     openSheet: useCallback((next: LogOpening = {}) => {
       setDetails(null);
       setOpening(next);
     }, []),
-    openDetails: useCallback((kind: TileKind, target: LogTarget, entry: Entry | null = null) => {
+    openDetails: useCallback(
+      (kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null, taskId: string | null = null) => {
+        // A new line whose kind was chosen on the sheet leads back to the sheet, pointed where it was.
+        const from = sheetOpen && entry === null ? { growId: target.growId, spaceId: target.standsIn ?? target.spaceId } : null;
+        setOpening(null);
+        setDetails({ kind, target, entry, at, from, taskId });
+      },
+      [sheetOpen],
+    ),
+    openWeights: useCallback((line: Entry) => {
       setOpening(null);
-      setDetails({ kind, target, entry });
+      setDetails(null);
+      setWeighing(line);
     }, []),
     log,
     complete: useCallback(
@@ -141,36 +303,65 @@ export function LogProvider({ children }: { children: ReactNode }) {
         log({
           label,
           undoable: options.undoable,
+          changed: options.changed,
+          undone: t('log.reopened'),
           send: () => completeTask(taskId).finally(() => ticking.current.delete(taskId)),
         });
       },
-      [log],
+      [log, t],
     ),
+    tell: useCallback(({ label, from, ...back }: Told) => {
+      const told = { ...saying(label), key: nextKey.current++, send: () => Promise.reject(new Error('nothing to send')), from, answers: lastUsed() };
+      setLines(current =>
+        withRoom(current, {
+          ...told,
+          revert: back.undo,
+          undone: back.undo ? back.undone : undefined,
+          along: back.undo ? back.along : undefined,
+          undoable: back.undo !== null,
+        }),
+      );
+    }, []),
   };
 
   const close = () => setDetails(null);
+  const back = details?.from
+    ? () => {
+        setOpening(details.from);
+        setDetails(null);
+      }
+    : null;
 
   return (
     <LogContext value={state}>
       {children}
       {opening ? <LogSheet opening={opening} lastKey={lastTarget} onChosen={setLastTarget} onClose={() => setOpening(null)} /> : null}
-      {details?.kind === 'photo' ? <PhotoEntry target={details.target} onClose={close} /> : null}
-      {details && details.kind !== 'photo' ? (
-        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} onClose={close} />
+      {details?.kind === 'photo' && !details.entry ? <PhotoEntry target={details.target} at={details.at} onBack={back} onClose={close} /> : null}
+      {details && (details.kind !== 'photo' || details.entry) ? (
+        <EntryDetails
+          kind={details.kind}
+          target={details.target}
+          entry={details.entry}
+          at={details.at}
+          taskId={details.taskId}
+          draft={details.draft ?? null}
+          onBack={back}
+          onClose={close}
+        />
       ) : null}
+      {weighing ? <HarvestWeights about={{ line: weighing }} onClose={() => setWeighing(null)} /> : null}
       <Toasts lines={lines} onUndo={undo} onRetry={retry} onDismiss={dismiss} onDetails={openDetailsOf(setDetails)} />
     </LogContext>
   );
 }
 
-/**
- * What the toast says instead of the generic line. A refusal carries a sentence
- * written for the person - which tent it was, which rule stood in the way - and
- * that is worth far more than "could not save"; anything else has nothing to say.
- */
+/** What the toast says instead of the generic line: a refusal's sentence written for the person; anything else has none. */
 const reasonOf = (error: unknown): string | null => (error instanceof ApiError ? refusalText(error) : null);
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {
-  if (line.details) setDetails({ ...line.details, entry: line.entry });
+  if (line.details) setDetails({ kind: line.details.kind, target: line.details.target, entry: line.entry, at: null, from: null });
 };
+
+/** A refusal because a plant the line names is gone. */
+const plantGone = (error: unknown): boolean => error instanceof ApiError && error.problem.code === 'plant_not_found';

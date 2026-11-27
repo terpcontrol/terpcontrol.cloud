@@ -85,7 +85,6 @@ EspMQTTClient::EspMQTTClient(
 
   // other
   _enableSerialLogs = false;
-  _drasticResetOnConnectionFailures = false;
   _connectionEstablishedCallback = onConnectionEstablished;
   _connectionEstablishedCount = 0;
 }
@@ -111,6 +110,7 @@ bool EspMQTTClient::enableTLS(const char* caCertPem)
     return false;
 
   _wifiClientSecure.setCACert(caCertPem);
+  _wifiClientSecure.setHandshakeTimeout(MQTT_TLS_HANDSHAKE_TIMEOUT_S);
   _mqttClient.setClient(_wifiClientSecure);
   _activeClient = &_wifiClientSecure;
   _tlsEnabled = true;
@@ -291,6 +291,14 @@ bool EspMQTTClient::handleWiFi()
 
 bool EspMQTTClient::handleMQTT()
 {
+  if (_connectTask != nullptr)
+  {
+    if (_connectOutcome == CONNECT_RUNNING)
+      return false;
+    _connectTask = nullptr;
+    finishMqttConnectionAttempt();
+  }
+
   // PubSubClient main loop() call
   _mqttClient.loop();
 
@@ -304,6 +312,9 @@ bool EspMQTTClient::handleMQTT()
   if (isMqttConnected && !_mqttConnected)
   {
     _mqttConnected = true;
+    // Reset here rather than on CONNACK: a broker that drops every connection
+    // right after accepting it keeps the backoff growing.
+    _failedMQTTConnectionAttemptCount = 0;
     onMQTTConnectionEstablished();
   }
 
@@ -314,50 +325,11 @@ bool EspMQTTClient::handleMQTT()
     _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
   }
 
-  // It's time to  connect to the MQTT broker
-  else if (isWifiConnected() && _nextMqttConnectionAttemptMillis > 0 && millis() >= _nextMqttConnectionAttemptMillis)
+  // It's time to connect to the MQTT broker. Every disconnected state ends up
+  // here: nothing may leave the client disconnected without a next attempt.
+  else if (!isMqttConnected && isWifiConnected() && (long)(millis() - _nextMqttConnectionAttemptMillis) >= 0)
   {
-    // Connect to MQTT broker
-    if(connectToMqttBroker())
-    {
-      _failedMQTTConnectionAttemptCount = 0;
-      _nextMqttConnectionAttemptMillis = 0;
-    }
-    else
-    {
-      // Connection failed, plan another connection attempt
-      _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
-      _mqttClient.disconnect();
-      _failedMQTTConnectionAttemptCount++;
-
-      if (_enableSerialLogs)
-        Serial.printf("MQTT!: Failed MQTT connection count: %i \n", _failedMQTTConnectionAttemptCount);
-
-      // When there is too many failed attempt, sometimes it help to reset the WiFi connection or to restart the board.
-      if(_handleWiFi && _failedMQTTConnectionAttemptCount == 8)
-      {
-        if (_enableSerialLogs)
-          Serial.println("MQTT!: Can't connect to broker after too many attempt, resetting WiFi ...");
-
-        WiFi.disconnect(true);
-        MDNS.end();
-        _nextWifiConnectionAttemptMillis = millis() + 500;
-
-        if(!_drasticResetOnConnectionFailures)
-          _failedMQTTConnectionAttemptCount = 0;
-      }
-      else if(_drasticResetOnConnectionFailures && _failedMQTTConnectionAttemptCount == 12) // Will reset after 12 failed attempt (3 minutes of retry)
-      {
-        if (_enableSerialLogs)
-          Serial.println("MQTT!: Can't connect to broker after too many attempt, resetting board ...");
-
-        #ifdef ESP8266
-          ESP.reset();
-        #else
-          ESP.restart();
-        #endif
-      }
-    }
+    startMqttConnectionAttempt();
   }
 
 
@@ -370,6 +342,109 @@ bool EspMQTTClient::handleMQTT()
   }
   else
     return false;
+}
+
+void EspMQTTClient::startMqttConnectionAttempt()
+{
+  _connectOutcome = CONNECT_RUNNING;
+  _abandonConnect = false;
+  _connectStartedMillis = millis();
+  Serial.printf("[mqtt] connecting, attempt %u, heap free=%u largest=%u\n", _failedMQTTConnectionAttemptCount + 1,
+                (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+
+  // The loop task ran these attempts within its 8 KB stack before; a TLS
+  // handshake is what needs it. Not pinned: a task pinned to the loop's core
+  // is freed only by that core's idle task, which the busy loop task rarely
+  // lets run.
+  const uint32_t stack = _tlsEnabled ? 8192 : 4096;
+  if (xTaskCreate(connectTaskEntry, "mqttconnect", stack, this, 1, &_connectTask) != pdPASS)
+  {
+    _connectTask = nullptr;
+    _connectOutcome = CONNECT_FAILED;
+    finishMqttConnectionAttempt();
+  }
+}
+
+void EspMQTTClient::connectTaskEntry(void* param)
+{
+  EspMQTTClient* self = static_cast<EspMQTTClient*>(param);
+  const bool success = self->connectToMqttBroker();
+  if (!success)
+    self->_activeClient->stop();
+  self->_connectStackLeft = uxTaskGetStackHighWaterMark(nullptr);
+  self->_connectOutcome = success ? CONNECT_SUCCEEDED : CONNECT_FAILED;
+  vTaskDelete(nullptr);
+}
+
+void EspMQTTClient::finishMqttConnectionAttempt()
+{
+  const unsigned long took = millis() - _connectStartedMillis;
+  const bool success = _connectOutcome == CONNECT_SUCCEEDED && !_abandonConnect;
+
+  if (_abandonConnect)
+    _activeClient->stop();
+  _abandonConnect = false;
+
+  if (success)
+  {
+    Serial.printf("[mqtt] connected in %lu ms (stack left %u)\n", took, (unsigned)_connectStackLeft);
+    // Only used should the connection be gone before the next loop sees it.
+    _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
+    return;
+  }
+
+  _failedMQTTConnectionAttemptCount++;
+  const unsigned long delay = reconnectionDelay();
+  _nextMqttConnectionAttemptMillis = millis() + delay;
+  Serial.printf("[mqtt] attempt %u failed after %lu ms, state=%d, next in %lu s, heap free=%u largest=%u (stack left %u)\n",
+                _failedMQTTConnectionAttemptCount, took, _mqttClient.state(), delay / 1000,
+                (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap(), (unsigned)_connectStackLeft);
+
+  // When there is too many failed attempt, sometimes it help to reset the WiFi connection.
+  if (_handleWiFi && _failedMQTTConnectionAttemptCount % 8 == 0)
+  {
+    WiFi.disconnect(true);
+    MDNS.end();
+    _nextWifiConnectionAttemptMillis = millis() + 500;
+  }
+}
+
+unsigned long EspMQTTClient::reconnectionDelay() const
+{
+  unsigned long delay = _mqttReconnectionAttemptDelay;
+  for (unsigned int i = 1; i < _failedMQTTConnectionAttemptCount && delay < MQTT_RECONNECT_MAX_DELAY_MS; i++)
+    delay *= 2;
+  if (delay > MQTT_RECONNECT_MAX_DELAY_MS)
+    delay = MQTT_RECONNECT_MAX_DELAY_MS;
+  return delay + esp_random() % (delay / 4 + 1);
+}
+
+void EspMQTTClient::disconnect()
+{
+  if (_connectTask != nullptr)
+    _abandonConnect = true;
+  else
+    _mqttClient.disconnect();
+  _mqttConnected = false;
+  _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
+}
+
+void EspMQTTClient::forceDisconnect()
+{
+  if (_connectTask != nullptr)
+    _abandonConnect = true;
+  else
+    _activeClient->stop();
+  _mqttConnected = false;
+  _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
+}
+
+void EspMQTTClient::setWriteTimeout(uint32_t seconds)
+{
+  _wifiClient.setTimeout(seconds);
+#ifndef ESP8266
+  _wifiClientSecure.setTimeout(seconds);
+#endif
 }
 
 

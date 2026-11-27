@@ -21,10 +21,22 @@ import { workModes } from './019-work-modes';
 import { retiredDryers } from './020-retired-dryers';
 import { lightWindows } from './021-light-windows';
 import { darkGermination } from './022-dark-germination';
-import { co2FanWindows } from './023-co2-fan-windows';
+import { fridgeCo2Sensor } from './023-fridge-co2-sensor';
+import { orphanedAlerts } from './024-orphaned-alerts';
+import { demoPlaces } from './025-demo-places';
+import { devicePlacements } from './026-device-placements';
+import { emptyRooms } from './027-empty-rooms';
+import { uniquePlaceNames } from './028-unique-place-names';
+import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
+import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
+import { handSetPhases } from './031-hand-set-phases';
+import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
+import { oneClimateAPlace } from './033-one-climate-a-place-with-its-past';
+import { fansWithoutALamp } from './034-fans-without-a-lamp';
+import { lampsDarkWhereItIsDark } from './035-lamps-dark-where-it-is-dark';
 
 /**
- * In order, and the order matters in nine places:
+ * In order, and the order matters in eight places:
  *
  * - the picture bytes move first, because that job looks for its documents in
  *   `images` and every step after it has moved that collection aside;
@@ -46,8 +58,10 @@ import { co2FanWindows } from './023-co2-fan-windows';
  * - germination is renamed where it meant the seedling climate over the plans,
  *   templates, grows and diary lines in the new shape, reading the dark mode a
  *   step carries after the work modes have cleared `small` and `full` away;
- * - a fan coupled to a socket's CO2 is written from the socket's document in
- *   the new shape, so after the devices have been migrated.
+ * - the rooms nothing is left in are ended before the names are made unique,
+ *   so that an ended room takes no name from one that stays.
+ * - the reminders of ended places go after the empty rooms have ended, so that
+ *   a room ended by that step loses its own too.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -75,5 +89,17 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   retiredDryers,
   lightWindows,
   darkGermination,
-  co2FanWindows,
+  fridgeCo2Sensor,
+  orphanedAlerts,
+  demoPlaces,
+  devicePlacements,
+  emptyRooms,
+  uniquePlaceNames,
+  remindersOfEndedPlaces,
+  openAlertsWhereTheDeviceStands,
+  handSetPhases,
+  restingRemindersOfEndedGrows,
+  oneClimateAPlace,
+  fansWithoutALamp,
+  lampsDarkWhereItIsDark,
 ];

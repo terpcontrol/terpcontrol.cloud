@@ -49,19 +49,6 @@ static const char* resetReasonStr(esp_reset_reason_t r) {
 // the health log once MQTT is up.
 static esp_reset_reason_t g_last_reset_reason = ESP_RST_UNKNOWN;
 
-// Set just before a connection-watchdog reboot so the next boot does not
-// reboot again while the outage lasts (no reboot loop when the broker or the
-// internet is just down). Cleared when MQTT connects, which re-arms the
-// watchdog, and by any reset other than ESP_RST_SW (WDT, panic, brownout,
-// power-on).
-//
-// RTC_NOINIT_ATTR, not RTC_DATA_ATTR: the bootloader reloads .rtc.data on every
-// reset but a wake from deep sleep, so a flag kept there was false again after
-// the very restart it was set for. .rtc_noinit is left alone - which also means
-// it holds garbage after a power cycle, hence a magic word rather than a bool.
-RTC_NOINIT_ATTR static uint32_t g_connection_reboot;
-static constexpr uint32_t CONNECTION_REBOOT_DONE = 0x434f4e4eUL;
-
 #define ROTA 27
 #define ROTB 14
 #define BTN 25
@@ -182,12 +169,6 @@ void setup()
   // radio TX power spikes draw current the supply can't deliver), POWERON
   // means the device actually lost power.
   g_last_reset_reason = esp_reset_reason();
-  // Only keep the "already rebooted" flag across our own soft resets.
-  // Any other reset type (WDT, panic, brownout, power-on) should re-arm
-  // the watchdog so the device can recover from future connection problems.
-  if(g_last_reset_reason != ESP_RST_SW) {
-    g_connection_reboot = 0;
-  }
   Serial.printf("[boot] reset_reason=%s (%d)\n", resetReasonStr(g_last_reset_reason),
                 (int)g_last_reset_reason);
   Serial.printf("[boot] heap free=%u largest_block=%u min_free=%u\n",
@@ -312,39 +293,18 @@ void loop()
   wifiTick();
   fgc.loop();
 
-  // Connection watchdog: reboot once if the cloud has been unreachable for
-  // the configured timeout. g_connection_reboot prevents a reboot-loop if
-  // the outage persists after the reboot; it is cleared when MQTT actually
-  // reconnects. Both the timeout and the "only while lights are off" gating
-  // are configured locally through the on-device menu (rebootwatchdog.h) —
-  // they are not part of the cloud-synced configuration. Neither runs without
-  // WiFi credentials: no reboot can connect a device that has no network.
-  //
-  // Backup recovery: the MQTT retry loop cannot recover from every failure
-  // mode (e.g. exhausted LWIP sockets/fds after hours of failed connects
-  // against an open-but-unresponsive port). If the cloud is still
-  // unreachable a full day later, allow one recovery reboot per day
-  // (independently toggleable, with its own lights-off gating). Each
-  // reboot restarts the 24h timer, so even a permanent outage causes at
-  // most one reboot per day — never a reboot loop.
+  // Daily recovery reboot. The MQTT client retries for as long as the cloud
+  // stays away, so this is only the backstop for what a retry cannot mend.
+  // If the cloud is still unreachable a full day later, one reboot per day
+  // (toggleable in the device menu, by default only while the light is off).
+  // Each reboot restarts the 24 h timer, so a permanent outage never becomes
+  // a reboot loop. Not without WiFi credentials: no reboot can connect a
+  // device that has no network.
   {
     static constexpr TickType_t DAILY_RECOVERY_WATCHDOG_TICKS = 24UL * 60 * 60 * configTICK_RATE_HZ;
     static TickType_t last_connected_tick = xTaskGetTickCount();
     if(fgc.isConnected()) {
       last_connected_tick = xTaskGetTickCount();
-      g_connection_reboot = 0;
-    }
-
-    int initial_reboot_minutes = fg::rebootWatchdogInitialMinutes();
-    TickType_t initial_watchdog_ticks = (TickType_t)initial_reboot_minutes * 60 * configTICK_RATE_HZ;
-
-    if(initial_reboot_minutes > 0 && wifiIsConfigured() && g_connection_reboot != CONNECTION_REBOOT_DONE &&
-       (xTaskGetTickCount() - last_connected_tick) > initial_watchdog_ticks &&
-       (!fg::rebootWatchdogInitialLightsOffOnly() || !control->isLightOn())) {
-      Serial.printf("[watchdog] no cloud connection for %d min, rebooting\n", initial_reboot_minutes);
-      Serial.flush();
-      g_connection_reboot = CONNECTION_REBOOT_DONE;
-      ESP.restart();
     }
 
     if(fg::rebootWatchdogDailyEnabled() && wifiIsConfigured() &&

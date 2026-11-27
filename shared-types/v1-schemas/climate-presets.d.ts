@@ -141,6 +141,16 @@ export declare const CO2_ALARM_PPM = 1500;
  */
 export declare const stageAlarmBands: (stage: GrowthStage, preset: string | null) => StageAlarmBand[] | null;
 /**
+ * The `presetId` a stage's rules are written under - the stage, and the preset on it after a colon - and back: the
+ * stage a device's bands come from, which is what the alarms page names them by, never the stage a grow was recorded
+ * in since.
+ */
+export declare const presetIdOf: (stage: GrowthStage, preset: string | null) => string;
+export declare const stageOfPresetId: (presetId: string) => {
+    stage: GrowthStage;
+    preset: string | null;
+};
+/**
  * Germination's "too humid": air wetter than this for twenty minutes in the
  * dark. Seeds sprout well anywhere from about 70 to 90 % - a germination box is
  * meant to be humid - and above it water stands on the medium and on the tray,
@@ -223,4 +233,23 @@ export declare const restsInGermination: (rule: RuleShape, workmode: unknown, ke
  * watches what it says.
  */
 export declare const watchNow: <W extends WatchShape>(rule: RuleShape<W>, workmode: unknown) => W;
+/** As much of a device as says whether it germinates: its type, its work mode, what was chosen, the stage it was put on. */
+export interface GerminationShape {
+    type: string;
+    workmode: unknown;
+    choices: Partial<GerminationChoiceValues> | null | undefined;
+    stage?: string | null;
+}
+/**
+ * The germination a device's alarms go by - the work mode and the choices `restsInGermination` and `watchNow` are
+ * asked with. Germination is the place's, not one device's: the switch "Zu feucht ruht, bis die Keimung endet"
+ * promises it for every sensor of the place, and a lamp module's or a fan's "too humid" fired beside a germinating
+ * controller. So a device with a work mode goes by its own; any other by the controller or fridge module of its place
+ * that germinates, with what was chosen there; and in a place where nothing has a work mode - a fan alone - by the
+ * germination climate it was put on itself.
+ */
+export declare const germinationOf: (device: GerminationShape, place: readonly GerminationShape[]) => {
+    workmode: unknown;
+    choices: GerminationShape["choices"];
+};
 export {};

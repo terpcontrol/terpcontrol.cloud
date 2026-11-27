@@ -1,22 +1,44 @@
-/* A row wider than the phone scrolls, and says so with the shared row's veil
-   at its far edge. */
+/* A row wider than the screen would scroll, but a page's tabs are sized to fit
+   from the narrowest phone on: so it carries no veil, whose own room was what
+   made a row that fits scroll sideways into nothing. */
 .tabs {
   gap: var(--space-4);
   border-bottom: var(--rule-solid);
 }
 
+.tabs::after {
+  content: none;
+}
+
 .tab {
-  padding: var(--space-3) 0 var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A finger wide as well as high, however short the word. */
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: var(--space-2) 0;
   /* The underline sits on the rule, so the active tab's line replaces it rather than doubling it. */
   margin-bottom: calc(var(--rule-width) * -1);
   border-bottom: 2.5px solid transparent;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular);
   color: var(--muted);
 }
 
 .tab:hover {
   color: var(--ink);
+}
+
+/* Five tabs fit the narrowest phone, so none of them waits past the edge. */
+@media (max-width: 359px) {
+  .tabs {
+    gap: 9px;
+  }
+
+  .tab {
+    font-size: var(--text-xs);
+  }
 }
 
 @media (min-width: 900px) {
@@ -29,8 +51,10 @@
   }
 }
 
+/* The tab you are on: the brand's colour on its underline, at a name's weight. */
 .active,
 .active:hover {
   border-bottom-color: var(--brand);
   color: var(--brand);
+  font-weight: var(--weight-heading);
 }

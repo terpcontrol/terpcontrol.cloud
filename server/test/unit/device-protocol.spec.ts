@@ -6,7 +6,7 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
 import { DeviceRegistrationService } from '@modules/device-protocol/device-registration.service';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { DeviceSample } from '@modules/device-protocol/device-sinks';
-import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
+import { decodeCapabilities, decodeLightHold, decodeSockets } from '@modules/device-protocol/sockets';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { hashDevicePassword } from '@utils/devicepassword';
 import { Published, recordingMqtt } from './support/device-stack';
@@ -328,6 +328,19 @@ describe('what a device logs', () => {
     expect(until?.getTime()).toBeGreaterThanOrEqual(before + 30 * 60 * 1000);
   });
 
+  /** The window was told for whole minutes, rounded down: taken from the device's echo, "bis 09:46" became "bis 09:45". */
+  it('keeps the end it handed out when the device says the window back in whole minutes', async () => {
+    const handed = new Date(Date.now() + 14 * 60_000 + 45_000);
+    await device({ state: { maintenanceUntil: handed } as never });
+
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated-remote:14' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBe(handed.getTime());
+
+    // A window the device itself opened for longer moves the end.
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated:20' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBeGreaterThan(handed.getTime() + 5 * 60_000);
+  });
+
   it('keeps a hardware report out of the diary and in the device', async () => {
     await device();
 
@@ -335,6 +348,14 @@ describe('what a device logs', () => {
 
     expect(await db.entries.countDocuments()).toBe(0);
     expect((await stored())?.state.hardware).toEqual({ co2: 'on' });
+  });
+
+  it('keeps no CO2 report from a fridge, which always has its sensor', async () => {
+    await device({ type: 'fridge' });
+
+    await messageOn('log', { severity: 0, message: 'hardware-info:co2=off' });
+
+    expect((await stored())?.state.hardware ?? {}).not.toHaveProperty('co2');
   });
 
   it('drops a successful capture, and a failed one until the camera says to keep it', async () => {
@@ -388,19 +409,21 @@ describe('the hardware report', () => {
     await report('webcam_did=ABCD1234');
 
     const camera = await db.cameras.findOne({ deviceId: DEVICE }).lean();
-    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Tent', ownerId: OWNER });
+    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Terp Cam', ownerId: OWNER });
     expect(camera?.entitlement.grant).toBe('included');
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('names the camera after the controller it hangs on, and after the cam itself where nobody has named that', async () => {
-    // A claim stores the device's type where no name was given, and copying
-    // that onto the camera would head a camera row with a translation key.
+  it('names a camera it pairs "Terp Cam", whatever the device is called, and leaves a name given before alone', async () => {
     await device({ spaceId: 'space-1', name: 'controller' });
 
     await report('webcam_did=TCAM00A41C');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam');
 
-    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam · 00A41C');
+    // Paired again after being renamed: the row comes back with the name it carries.
+    await db.cameras.updateOne({ deviceId: DEVICE }, { $set: { name: 'Zeltkamera' } });
+    await report('webcam_did=TCAM00B52D');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Zeltkamera');
   });
 
   it('retires the camera when the device says it has none, and gives it back its year when it is paired again', async () => {
@@ -452,6 +475,17 @@ describe('the hardware report', () => {
     // An override's row carries the seconds it has left and never an instant,
     // so when the table arrived is what those seconds are read against.
     expect((await stored())?.state.socketsReportedAt).toBeInstanceOf(Date);
+  });
+
+  it('stamps when the hold on the light output arrived', async () => {
+    await device();
+
+    await report('light_hold=on@600');
+
+    const state = (await stored())?.state;
+    expect(state?.hardware.light_hold).toBe('on@600');
+    // The value carries the seconds the hold had left, so the instant it arrived is what they count from.
+    expect(state?.lightHoldReportedAt).toBeInstanceOf(Date);
   });
 
   it('stamps a socket that stopped answering, so the row can say since when', async () => {
@@ -530,6 +564,27 @@ describe('the socket table', () => {
 
     expect(capabilities).toMatchObject({ socketOverride: true, socketTimer: true, lightOverride: false, roles: ['', 'heater', 'pump'] });
     expect(capabilities.pulseSeconds).toEqual({ heater: 300 });
+  });
+
+  it('reads the hold on the light output against the instant it arrived', () => {
+    const at = new Date('2026-11-13T10:00:00Z');
+    const caps = 'socket_override,light_override,light_hold';
+
+    expect(decodeLightHold({ caps, light_hold: 'off@120' }, at)).toEqual({
+      override: { state: 'off', validUntil: '2026-11-13T10:02:00.000Z' },
+      reportedAt: at.toISOString(),
+    });
+    expect(decodeLightHold({ caps, light_hold: 'none' }, at)).toEqual({ override: null, reportedAt: at.toISOString() });
+    expect(decodeCapabilities({ caps }).lightHold).toBe(true);
+  });
+
+  it('reads no hold on the light output from a build that does not announce it', () => {
+    const at = new Date('2026-11-13T10:00:00Z');
+
+    // A device put back on an older build stops announcing the hold, and what the newer one last said stays stored.
+    expect(decodeLightHold({ caps: 'socket_override,light_override', light_hold: 'on@600' }, at)).toBeNull();
+    expect(decodeLightHold({ caps: 'light_hold' }, at)).toBeNull();
+    expect(decodeLightHold({ caps: 'light_hold', light_hold: 'on@600' }, null)).toBeNull();
   });
 });
 
@@ -661,6 +716,66 @@ describe('what the cloud tells a device', () => {
     ]);
   });
 
+  /**
+   * Steuerung names the preset the device was put on. A figure moved without one - by hand, by a plan step that
+   * names none - makes the figures the grower's own, and the name goes; a write that moves none leaves it.
+   */
+  it('keeps the climate preset a device was put on until a figure is moved without one', async () => {
+    await device({
+      type: 'controller',
+      configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+    });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+    const applied = async () => (await stored())?.appliedClimate ?? null;
+    const veg = { stage: 'vegetative', preset: null } as const;
+
+    await configuration.replace(
+      DEVICE,
+      { workmode: 'small', day: { temperature: 26, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+      OWNER,
+      undefined,
+      undefined,
+      undefined,
+      veg,
+    );
+    expect(await applied()).toEqual(veg);
+
+    // Regulation switched, the clock kept, the same figure written again: nothing a preset sets has moved.
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.keepOnClock(DEVICE);
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } });
+    expect(await applied()).toEqual(veg);
+
+    // A plan step that names no preset and moves a figure: the figures are the plan's, not the preset's.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 27 } });
+    expect(await applied()).toBeNull();
+
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, {
+      stage: 'flowering',
+      preset: 'late_flowering',
+    });
+    expect(await applied()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+
+    // A plan step with a stage and no preset clears the name though it moves nothing: its stage only decides the mode.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, null);
+    expect(await applied()).toBeNull();
+    expect((await stored())?.configuration).toMatchObject({ day: { temperature: 24 } });
+
+    // A preset applied to the place names it again; the name a hand edit cleared comes back with an undo that names it.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } }, 'vegetative', undefined, veg);
+    expect(await applied()).toEqual(veg);
+    const named = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...named, day: { temperature: 28, humidity: 60 } }, OWNER);
+    expect(await applied()).toBeNull();
+    await configuration.replace(DEVICE, named, OWNER, undefined, undefined, undefined, veg);
+    expect(await applied()).toEqual(veg);
+
+    // The light's hours saved by hand are a figure a preset sets too.
+    const now = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...now, daynight: { day: 25200, night: 64800 } }, OWNER);
+    expect(await applied()).toBeNull();
+  });
+
   it('replaces what is not a section on both sides rather than merging into it', async () => {
     await device({ configuration: { day: 68400, night: 25200, limit: 65 } });
 
@@ -722,6 +837,33 @@ describe('enrolling and claiming', () => {
       await enrol();
       expect(await channel()).toBe(chosen);
     }
+  });
+
+  it('tells the display whether to ask for the join password', () => {
+    const gate = (config: object) => new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, config as never).gate();
+
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: 'join-me' })).toBe('password');
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: '' })).toBe('open');
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: undefined })).toBe('open');
+    expect(gate({ enableSelfRegistration: false, selfRegistrationPassword: '' })).toBe('closed');
+  });
+
+  it('refuses a wrong join password', async () => {
+    expect(
+      await registration.register({ registration_password: 'guess', device_id: 'sim-fridge-9', device_type: 'fridge', username: 'u', password: 'p' }),
+    ).toBeNull();
+  });
+
+  it('enrols without a password where none is configured, whatever an older build sends', async () => {
+    const open = new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, {
+      enableSelfRegistration: true,
+      selfRegistrationPassword: '',
+    } as never);
+    const enrolAs = (id: string, registration_password: string) =>
+      open.register({ registration_password, device_id: id, device_type: 'fridge', username: `u-${id}`, password: 'p' });
+
+    expect(await enrolAs('sim-fridge-a', '')).toEqual({ fw: 'build-7' });
+    expect(await enrolAs('sim-fridge-b', 'typed anyway')).toEqual({ fw: 'build-7' });
   });
 
   it('refuses a device whose type this cloud has no class for', async () => {

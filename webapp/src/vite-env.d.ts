@@ -5,8 +5,11 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   /** An install's own links below the sign-in form. */
   readonly VITE_CUSTOM_LINKS_HTML?: string;
-  /** The install's privacy statement, which signing up asks agreement to. */
+  /** The install's privacy statement, which signing up links. */
   readonly VITE_PRIVACY_URL?: string;
+  /** The install's terms of use, which signing up accepts. */
+  readonly VITE_TERMS_URL?: string;
+  readonly VITE_CUSTOM_SCRIPT_TAG?: string;
 }
 
 interface ImportMeta {
@@ -15,3 +18,5 @@ interface ImportMeta {
 
 /** The app's own version, as `package.json` states it; `vite.config.ts` defines it, and the vitest configs share that. */
 declare const __APP_VERSION__: string;
+/** The commit the bundle is built from, seven characters, or empty where the build knew none; see `vite.config.ts`. */
+declare const __APP_COMMIT__: string;

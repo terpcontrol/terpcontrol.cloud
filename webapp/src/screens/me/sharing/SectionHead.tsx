@@ -6,7 +6,7 @@ export function SectionHead({ label, count }: { label: string; count?: ReactNode
   return (
     <header className={styles.sectionHead}>
       <span className="label">{label}</span>
-      {count === undefined ? null : <span className={`mono ${styles.count}`}>{count}</span>}
+      {count === undefined ? null : <span className={styles.count}>{count}</span>}
     </header>
   );
 }

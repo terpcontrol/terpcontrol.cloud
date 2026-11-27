@@ -43,7 +43,7 @@ describe('a screen that threw', () => {
     expect(screen.getByRole('heading', { name: 'This screen could not be drawn' })).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Nothing that was measured or written down is affected');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('button', { name: 'Try it again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
 
     // Nothing of the exception itself reaches the screen, and all of it reaches
     // the console, where whoever is working on the chart will want it.

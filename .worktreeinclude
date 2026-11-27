@@ -1,4 +1,4 @@
-/docker-compose.override.yml
+/docker-compose.override.yaml
 /CLAUDE.local.md
 /*.local.sh
 /scripts/*.local.sh

@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-10-08
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08
+updated: 2026-11-27
+source: the S3 store's spec against SeaweedFS (2026-11-27); an empty live region found before its refusal (the redesign session, 2026-11-26); a day's film refused just after the UTC midnight (CI, 2026-11-26); control.test.tsx broken by a dev server's .env.local too (the redesign session, 2026-11-26); a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -52,13 +52,25 @@ hardware, the development devices and copies of production data are in
 - `tsconfig.json` type-checks `src/` only. For the unit specs and fixtures:
   `./node_modules/.bin/tsc --noEmit -p tsconfig.unit.json --skipLibCheck --pretty false` (without `--skipLibCheck`
   mongodb-memory-server's own declarations report a missing `semver` type).
+- `capture-budget.spec.ts` and `timelapse-turned.spec.ts` run the real `ffmpeg` and `ffprobe`; CI installs them, a
+  machine without them fails those two only (`apt-get install -y ffmpeg` in a sandbox). libx265 crashes on frames
+  only a few dozen pixels wide, so film specs use realistic sizes (320x180).
+- `image-store.spec.ts` runs the S3 store against an in-memory stand-in for the six commands it sends; with
+  `TEST_S3_ENDPOINT` (and `TEST_S3_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`) against a real service. The MinIO images are
+  gone from Docker Hub and quay.io (2026-11-27); `docker run -d -p 127.0.0.1:<port>:8333 chrislusf/seaweedfs server
+  -s3 -dir=/data -volume.max=100 -master.volumeSizeLimitMB=64` serves S3 without credentials checks and passed the
+  spec. Without the two volume flags it has room for one bucket only: every PutObject to a second fails with an S3
+  `InternalError` ("We encountered an internal error"), its log saying "No writable volumes and no free volumes
+  left". The SDK's paginators refuse a client that
+  is not an `S3Client`, which is why `S3Objects.list` pages by hand.
 - The integration suite fakes InfluxDB and SMTP, so a live probe against a stack still finds what it cannot
   ([rebuild its server first](#own-test-stacks)).
 
 ## Webapp suites
 - `npm test` (vitest, jsdom) needs only the checkout. `npm run test:live` runs `test/live/` against a running stack;
   CI does not run it.
-- **`webapp/.env.local` breaks `test/me.test.tsx`**, which expects the fallback API `http://localhost:5081`: vitest
+- **`webapp/.env.local` breaks `test/me.test.tsx` and `test/feedback-context.test.ts`**, which expect the fallback API
+  `http://localhost:5081` (the second since #195, seen 2026-11-27), and twelve clock tests of `test/control.test.tsx` ("40 min" read as "0 s"; the redesign session, 2026-11-26): vitest
   reads the file, and `npm start` writes it from `API_URL_EXTERNAL`. Run `VITE_API_URL=http://localhost:5081 npm test`
   (the environment wins over the file) or delete it. A hand-written `.env.local` survives `npm start` since #133.
 - `shared-types/` needs its own `node_modules` (`npm --prefix shared-types ci --omit=dev`), or the contract's values
@@ -73,16 +85,57 @@ hardware, the development devices and copies of production data are in
 - **A type check that looks inexplicably wrong**: look at `server/node_modules/@fg2/shared-types` and its webapp twin,
   both links to `../../../shared-types`. An agent's scratch copy once repointed one mid-run;
   `ln -sfn ../../../shared-types shared-types` inside `node_modules/@fg2/` puts it back.
+- **The server's `tsc` runs out of memory** (12 GB and counting) when `server/node_modules/zod` and
+  `shared-types/node_modules/zod` are different releases: the contract's declarations name zod's types, and two
+  copies are compared structurally without end. `npm ci` in both puts them in step; an old worktree whose
+  `node_modules` predate a zod bump has exactly this after `npm ci` in `shared-types/` alone (2026-11-12). The
+  check itself needs more than the default heap: `NODE_OPTIONS=--max-old-space-size=8000 ./node_modules/.bin/tsc
+  --noEmit -p tsconfig.json --pretty false`.
 - **"Cannot use import statement outside a module" in a file that compiles** means the two server suites share a jest
   cache again. Each config has its own `cacheDirectory`; keep it so.
+- **A server spec that passes from the sources can fail on the image.** swc writes a union type's
+  `design:paramtypes` as `Object`, so `@Optional() private readonly x: Service | null` is the service under ts-node,
+  which the suite runs by default, and nothing in `dist/`: the claim never made the Terp Cam its controller had
+  paired, and the activation code was never sent again on a sign-in, while every spec passed (2026-11-14). An
+  `@Optional()` parameter names its token (`@Inject(Service)`, `@InjectModel(...)`), `npm run lint` refuses one
+  that does not (`server/eslint.config.mjs`), and `HARNESS_BUILT=1 npm test` after `npm run build` runs a spec as
+  the image would.
 
 ## Flakes we have had
+- *`sign-up.test.tsx` finds the alert empty:* the sign-up form's alert is a live region that stands there empty until
+  a refusal arrives, so `findByRole('alert')` answers at once and the text check can run before the refusal; a loaded
+  run showed it (the redesign session, 2026-11-26). Wait for such a region by its words
+  (`waitFor(() => expect(getByRole('alert')).toHaveTextContent(…))`).
+- *`v1-composer.spec.ts` refuses today's film with "too_few_pictures" just after midnight:* without an owner's zone
+  "today" is the UTC day, and a day's film keeps one picture every 57.6 s; at 00:18 UTC the day held too few
+  (CI, 2026-11-26). A test of an open day gives the owner a fixed-offset zone whose clock stands at noon.
+- *`cameras.spec.ts` finds an ffmpeg call where a refused address should have made none:* the poller reads the
+  cameras earlier tests added whenever it likes - since a camera report starts it over (#182) more often - so a call
+  for another camera can land between `resetFfmpeg()` and the check. Assert that no call names the address under test
+  (`ffmpegCalls().some(args => args.join(' ').includes(…))`), never that the log is empty (CI, 2026-11-25).
+- *A whole server unit spec file fails at once, every test with "Instance failed to start within 10000ms" or 'Port
+  "…" already in use':* each jest worker starts a spec file at the same moment, and each starts its own mongod. On a
+  busy machine one took longer than mongodb-memory-server's ten seconds to listen, or lost its port to another
+  process, and the file's `beforeAll` failed every test - all 53 of `v1-account.spec.ts` once in four runs
+  (2026-11-15). Start a spec's mongod with `startMongod` (`server/test/unit/support/mongod.ts`: a minute to come up,
+  another port when one is taken) in a `beforeAll` given `MONGOD_HOOK_MS`; `useV1TestDatabase` also waits there for
+  its collections and indexes (`model.init()`) - built beside the first test, on a busy drive they ran it past 30 s
+  and its writes broke the next with E11000.
+- *`terpcam-keyframe.spec.ts` "repairs a keyframe whose first fragment was lost" over its bound:* the bound is the
+  gap's abandonment (3 s, `GAP_ABANDON_MS`), not a speed - 0.35 s quiet, 2.3 s on a loaded machine.
 - *A spec file fails with "didn't exit with signal SIGINT within 10 seconds" while every test passed:* mongod's clean
   shutdown syncs every table, on macOS each sync is a full drive flush, and a dozen mongods stopping together outlast
   mongodb-memory-server's 10 s. Stop spec mongods with `stopMongod` (`server/test/unit/support/mongod.ts`).
 - *Camera specs time out after other specs added cameras:* unreachable test cameras held the server's ffmpeg slots
   (a Mac's ffmpeg waits 75 s per connect, and jest runs a previously failed spec first). The ffmpeg shim answers a
   stream on another machine as unreachable at once, and each spec's cameras are removed when it ends.
+- *`test/warm-up.test.ts` counts four requests where it expects two, or times out:* it waits on the clock of a
+  machine under load (seen beside the server's integration suite, 2026-11-13); alone it passes. Re-run it alone
+  before looking for a cause.
+- *`toasts.test.tsx` "hands the focus back to a control its undo holds disabled" finds the focus on the switch, not on
+  "Undo" (CI, 2026-11-16):* its toast comes from a write's promise, outside `act`, so the button can be in the DOM
+  before the effect that puts it into the keyboard's order has run, and a Tab sent right after `findByRole` changes
+  nothing. A test that tabs to something a promise drew retries the Tab inside `waitFor` until it lands.
 - *`write ECONNRESET` in a body-limit test:* Fastify refuses on `Content-Length` and closes while the client still
   writes. Announce the length, write a few bytes, read the 413 (`answerToABodyOf` in `http-contract.spec.ts`).
 
@@ -91,6 +144,11 @@ hardware, the development devices and copies of production data are in
   `vi.useFakeTimers({ toFake: ['Date'] })` plus `vi.setSystemTime(<midday Europe/Berlin>)`, real timers restored
   afterwards; a fixture's live answer says `transition: null` unless the test is about one. Server code takes `now`
   as an argument (`v1-home.spec` was red 22:00-23:00 UTC because `HomeService.read` passed none to `readingsOf`).
+- An assertion that words an instant counted back from now meets the same boundary: "came here on …" for an
+  arrival 20 hours ago is "came here at 01:25" late in the day, when that is still today (`timeline.test.tsx`, red
+  after 20:00 UTC until 2026-11-15) - match both forms, or pin the clock. A window days back laid from now names an
+  instant in it with or without its weekday by the hour the suite runs: lay it from today's noon (`NOON`,
+  `timeline.test.tsx`; two cases were red between 00:00 and 06:00 UTC until 2026-11-16).
 - Such tests were red between 00:00 and 02:20 in Berlin, for good once a fixed fixture date had aged past a limit, in
   early January, and in the quarter hour before a fixture fridge's 18:00 UTC light-off. To hunt them, run the whole
   suite with the process clock moved to every quarter hour of a day in Europe/Berlin, to weeks and months ahead and to
@@ -134,6 +192,16 @@ hardware, the development devices and copies of production data are in
   2026-09-16): its own `.env` with its own `DOCKER_COMPOSE_NAME` (plain `docker compose` reads `COMPOSE_PROJECT_NAME`
   instead) and every `*_PORT_EXTERNAL` moved. When the work is done - for one left up for review, after the merge -
   remove it with `./down.sh --volumes` from its own directory: the scripts act on the project their `.env` names.
+- **A stack started under a project name its `.env` does not carry** (a worktree's `.env` copied from the main
+  checkout still says the main stack's `COMPOSE_PROJECT_NAME`) is reached with `docker compose -p <project> ...`, the
+  project being the `com.docker.compose.project` label on its containers. A plain `docker compose up --build -d
+  webapp` there rebuilds the main stack's image and replaces its container: on 2026-10-23 the replacement could not
+  bind its port and the main stack's webapp stayed down until it was rebuilt from the main checkout.
+- **A `.env` copied from the main checkout names both projects**: set `COMPOSE_PROJECT_NAME` to the stack's own name
+  together with `DOCKER_COMPOSE_NAME`, before anything is started. On 2026-11-25 a stack for comparing master,
+  started from a scratch worktree with such a copy, was built, moved to new ports and seeded with demo data as the
+  main stack itself; the main stack had to be rebuilt from the main checkout, and the demo places stayed in its
+  database.
 - **After a server or contract change, rebuild the stack's server** (`docker compose up --build -d server`, about a
   minute) before a live probe, a screenshot or an agent drives the app. The image bakes the source in: a container
   from before the change answers 404 on every new route, and screens read fields it has never heard of.
@@ -157,8 +225,20 @@ hardware, the development devices and copies of production data are in
 - **Memory:** one VM of about 8 GB serves every stack. A restore's index build got mongod killed twice beside four
   stacks and orphaned Playwright browsers (~700 MB each). Before a restore or migration, stop the other stacks and
   close leftover browsers by their own PID - a broad `pkill` kills other agents' browsers. Close browsers in `finally`.
+- **Every `docker` command hangs without an error**, `docker ps` included, when Docker Desktop's engine has stopped
+  while its app keeps running: `docker desktop status` says `stopped`, and `docker desktop start` answers that it
+  is already running. `docker desktop restart` brings the engine back, and with it the containers of every stack
+  (found 2026-11-12). A stack script started meanwhile waits on its first `docker` call for good: stop it and run it
+  again.
 - **Pulls hang** when `docker-credential-desktop` waits on a keychain prompt; `DOCKER_CONFIG` pointing at a directory
   with a credential-free `config.json` gets builds going.
+- **Docker Hub answers 429** to anonymous pulls from a shared sandbox address: pull the same image from Google's
+  mirror and tag it, e.g. `docker pull mirror.gcr.io/library/mongo:9.0 && docker tag mirror.gcr.io/library/mongo:9.0
+  mongo:9.0` (likewise `node:24-alpine`, `influxdb`, `rabbitmq:management`, `debian:11.7-slim`, `debian`).
+- **`build-fw.sh` in a sandbox** fails in the build container's `pip install platformio` on the egress proxy's TLS.
+  Shadow its base with a local `debian:11.7-slim` that copies the proxy CA bundle in and points `SSL_CERT_FILE`,
+  `REQUESTS_CA_BUNDLE`, `PIP_CERT`, `GIT_SSL_CAINFO` and `CURL_CA_BUNDLE` at it; then
+  `FW_NO_UPLOAD=1 FW_VERSION_ID=<tag> ./build-fw.sh controller` compile-checks without touching a device.
 - **RabbitMQ crash-loops with `failed_to_parse_configuration_file`:** its entrypoint edits the config inside the
   container (with MQTTS it appends the TLS block on every start), so a restart keeps whatever the file has become.
   Recreate it (`./up.sh rabbitmq`). `docker compose restart rabbitmq` restarts the broker alone since the server's
@@ -168,6 +248,10 @@ hardware, the development devices and copies of production data are in
 - Playwright with the installed Chromium ([CLAUDE.md](../../CLAUDE.md#in-a-sandboxed-agent-session)). Its bundled
   Chromium plays no MP4, neither H.264 nor the H.265 the timelapses are encoded in: test playback logic with a VP9
   stand-in. `npm run start:public` serves the dev server to other machines - a phone, given an API address it reaches.
+- Print with `page.pdf()` after `page.emulateMedia({ media: null })`: an emulated media is kept for the PDF, and a
+  page printed under emulated `screen` shows the screen's colours, not the paper's.
+- A figure's look with values of one's choosing - ones, long numbers - needs no device: rewrite the read answers in
+  flight (`page.route` with `route.fetch()` and `route.fulfill({ response, body })`) and refuse every write.
 - A UI change is checked on the real stack in every state it has - live, stale, offline, device only, diary only,
   several places - light and dark, phone first (390x844, also 360 and 320 px), then desktop (1440 px).
 - Not defects: the service worker never registers in the Claude desktop app's built-in browser pane ("unknown error

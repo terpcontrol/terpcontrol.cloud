@@ -1,68 +1,67 @@
-/* Over the Log sheet, which stops short of it: the raised button keeps its
-   full circle where the sheet's edge would otherwise cut it. */
 .bar {
   position: fixed;
   inset: auto 0 0 0;
-  z-index: 25;
-  display: grid;
-  /* Five where the Log button is offered, four where it is not. */
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  z-index: 10;
+  display: flex;
+  align-items: center;
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  background: color-mix(in srgb, var(--card) 92%, transparent);
-  backdrop-filter: saturate(1.4) blur(14px);
-  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  /* 60 px inside it: the Eintrag circle and its name, which stand inside the bar rather than raised over it. */
+  padding: 2px var(--space-2) calc(2px + env(safe-area-inset-bottom));
+  /* Solid: the page scrolls under it, and nothing of it may show through. */
+  background: var(--card);
   border-top: var(--rule-solid);
   box-shadow: var(--shadow-bar);
 }
 
+/* Wider than a phone, the items keep to the column over them rather than spreading to the edges of the screen. */
+@media (min-width: 600px) {
+  .bar {
+    padding-inline: max(var(--space-2), calc((100% - var(--column-width)) / 2));
+  }
+}
+
+/* As many equal shares as the account has items: three for a device alone, five with the diary. Each stands on
+   the bar's foot, so every name - Eintrag's under its taller circle too - is on one line. */
 .tab {
   display: flex;
-  background: none;
-  border: 0;
-  padding: 0;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  height: var(--tabbar-height);
+  justify-content: flex-end;
+  align-self: stretch;
+  gap: 3px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0;
+  background: none;
+  border: 0;
   color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  line-height: var(--line-tight);
 }
 
-.icon {
+/* Where you are: the brand's colour, and the weight of a name. */
+.active {
+  color: var(--bar-current);
+  font-weight: var(--weight-heading);
+}
+
+/* Eintrag: the one green thing in the bar, a filled circle inside it over its own name. */
+.log {
+  gap: 2px;
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.circle {
   display: grid;
   place-items: center;
-  height: 26px;
-}
-
-.caption {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-caption);
-}
-
-.active {
-  color: var(--brand);
-}
-
-/* The raised green Log button sits proud of the bar, the rule passing behind it. */
-.raised .icon {
   width: var(--log-button);
   height: var(--log-button);
-  margin-top: calc(var(--log-button) * -0.5);
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--green-fill);
   color: var(--on-green);
-  /* The bar's own background around it, so the rule stops short of the circle. */
-  box-shadow:
-    0 0 0 4px var(--card),
-    var(--shadow-raised);
-}
-
-.raised,
-.raised.active {
-  color: var(--ink);
 }
 
 @media (min-width: 900px) {

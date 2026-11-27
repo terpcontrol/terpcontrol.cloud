@@ -28,6 +28,7 @@ let media: MediaService;
 let timelapse: TimelapseService;
 
 const thin = () => (timelapse as unknown as { thin(camera: CameraDocument): Promise<void> }).thin(CAMERA);
+const sweep = () => (timelapse as unknown as { sweep(camera: CameraDocument): Promise<void> }).sweep(CAMERA);
 
 /** Stills every two minutes over a day, ten days ago: well inside the tier that keeps one every five minutes. */
 const aDayOfStills = async (prefix: string): Promise<string[]> => {
@@ -52,8 +53,9 @@ const aDayOfStills = async (prefix: string): Promise<string[]> => {
 const remaining = async (prefix: string): Promise<number> => db.media.countDocuments({ cameraId: CAMERA.id, id: { $regex: `^${prefix}-` } });
 
 beforeAll(async () => {
-  media = new MediaService(db.media, db.grows, new ImageStore(db.connection));
-  timelapse = new TimelapseService(undefined as never, media, undefined as never, undefined as never);
+  media = new MediaService(db.media, db.grows, new ImageStore(db.connection), db.entries);
+  // Every camera is entitled here: what a sweep takes is then what is three years old.
+  timelapse = new TimelapseService(undefined as never, media, { isEntitled: () => true } as never, undefined as never);
 });
 
 beforeEach(() => db.reset());
@@ -85,5 +87,46 @@ describe('thinning stills as they age', () => {
     await thin();
 
     expect(await remaining('carried')).toBeLessThan(carried.length);
+  });
+
+  it('leaves a still a diary line names and a grow´s cover, which are the diary´s and no longer the camera´s', async () => {
+    const [named, cover, ...rest] = await aDayOfStills('own');
+    await db.entries.create({ id: 'line-1', kind: 'photo', occurredAt: new Date(), source: 'human', values: { kind: 'photo' }, mediaIds: [named] });
+    await db.grows.create({
+      id: 'grow-1',
+      ownerId: 'user-1',
+      name: 'Run',
+      type: 'photoperiod',
+      slug: 'run',
+      startedAt: new Date(),
+      coverMediaId: cover,
+    });
+
+    await thin();
+
+    expect(await db.media.countDocuments({ id: { $in: [named, cover] } })).toBe(2);
+    expect(await db.media.countDocuments({ id: { $in: rest } })).toBeLessThan(15);
+  });
+});
+
+describe('sweeping stills that are old enough to go', () => {
+  const THREE_YEARS = 3 * 365 * DAY;
+  const old = (id: string) => ({
+    id,
+    createdAt: new Date(Date.now() - THREE_YEARS - DAY),
+    kind: 'still',
+    mime: 'image/jpeg',
+    bytes: 1,
+    capturedAt: new Date(Date.now() - THREE_YEARS - DAY - Number(id.slice(-1)) * MINUTE),
+    cameraId: CAMERA.id,
+  });
+
+  it('takes the camera´s own history and leaves what a diary holds on to', async () => {
+    await db.media.create(['old-1', 'old-2', 'old-3'].map(old));
+    await db.entries.create({ id: 'line-1', kind: 'note', occurredAt: new Date(), source: 'human', values: { kind: 'note' }, mediaIds: ['old-2'] });
+
+    await sweep();
+
+    expect((await db.media.find({ cameraId: CAMERA.id }).lean()).map(row => row.id)).toEqual(['old-2']);
   });
 });

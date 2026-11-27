@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
@@ -23,7 +23,7 @@ import styles from './SheetParts.module.css';
 /** A row of chips, one of which is the answer. Wraps, because a row of plants is as long as the grow is. */
 export function Choices({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className={styles.choices} role="group" aria-label={label}>
+    <div className={`${ui.wrap} ${styles.choices}`} role="group" aria-label={label}>
       {children}
     </div>
   );
@@ -63,7 +63,7 @@ export function WhenField({ label, at, onChange, until }: { label: string; at: D
     <label className={`${ui.card} ${styles.when}`}>
       <span className={styles.whenLabel}>{label}</span>
       <input
-        className={`mono ${styles.whenInput}`}
+        className={styles.whenInput}
         type="date"
         max={dayOf(last, zone)}
         value={dayOf(at, zone)}
@@ -77,10 +77,8 @@ export function WhenField({ label, at, onChange, until }: { label: string; at: D
  * A labelled block inside a sheet, so that a long sheet reads as the few
  * questions it is.
  *
- * The aside is set in the text face and left there: it carries a count as
- * often as it carries a sentence of advice, and mono belongs to the figures.
- * A caller whose aside really is a figure or a caption wraps it in `mono`
- * itself, which is the one place that knows which of the two it has.
+ * The aside is a count or a sentence of advice beside the label, in the
+ * text's own digits: one width belongs to figures in a column.
  *
  * A block whose children are the rows of one list - the day's targets, the
  * night's - says `grouped`, and they are drawn as the app's one group: a card
@@ -103,8 +101,8 @@ export function Block({
   children: ReactNode;
 }) {
   return (
-    <section className={styles.block}>
-      <header className={styles.blockHeader}>
+    <section className={ui.stack2}>
+      <header className={ui.headRow}>
         <span className="label">
           {label}
           {help ? <Help topic={help} /> : null}
@@ -119,7 +117,8 @@ export function Block({
 /**
  * The handle typed out by hand before something that cannot be taken back, in
  * a field that is told not to capitalise or correct it; `matchesHandle` says
- * whether it is the one asked for.
+ * whether it is the one asked for. The label names the handle and prints it
+ * as it is written.
  */
 export function HandleField({
   className,
@@ -134,9 +133,9 @@ export function HandleField({
 }) {
   return (
     <label className={className}>
-      <span className="label">{label}</span>
+      <span className={`label ${styles.asWritten}`}>{label}</span>
       <input
-        className={`mono ${ui.input}`}
+        className={ui.input}
         value={value}
         autoComplete="off"
         autoCapitalize="none"
@@ -145,6 +144,23 @@ export function HandleField({
         onChange={event => onChange(event.target.value)}
       />
     </label>
+  );
+}
+
+/**
+ * What a sheet says once its question is answered - "Wartung läuft bis 14:20",
+ * "Gesendet" - in place of the question. It takes the focus as it is drawn: the
+ * button that was pressed is gone, and a live region drawn with its text is
+ * mostly not read, so this is the one way the answer is heard every time.
+ */
+export function Answered({ children, className }: { children: ReactNode; className?: string }) {
+  const line = useRef<HTMLParagraphElement>(null);
+  useEffect(() => line.current?.focus({ preventScroll: true }), []);
+
+  return (
+    <p className={className} ref={line} tabIndex={-1}>
+      {children}
+    </p>
   );
 }
 

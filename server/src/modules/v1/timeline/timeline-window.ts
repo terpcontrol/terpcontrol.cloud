@@ -1,14 +1,16 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growDayUpTo, growOriginOf, spineOf } from '@fg2/shared-types/v1-schemas';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
-import { stepFor as storeStepFor } from '@modules/data/flux';
+import type { DeviceHistory } from '@modules/data/data.service';
+import { MAX_SAMPLED_SECONDS, MIN_STEP_SECONDS, deficitGrainFor, stepFor as storeStepFor } from '@modules/data/flux';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { SETTLE_SECONDS, cycleOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { horizonOf } from '../diary/grow-calendar';
 import { targetsOf } from '../phase/phase-targets';
+import { climatesOf } from '../space/space-live';
 import { TargetStretch } from './timeline-series';
 
 /**
@@ -19,18 +21,18 @@ import { TargetStretch } from './timeline-series';
  * which grow before it will answer either.
  *
  * The step follows from the width of the window rather than from the rate the
- * device reported at, so every range is read with the same number of windows and
- * a grow costs what a day costs. That is also what makes a long range coarse in
- * one respect that matters: at hours to the window a light output is the mean of
- * a dozen switchings, so the night shading of a whole grow says which part of a
- * day was mostly dark and nothing finer.
+ * device reported at, so every range is read with about the same number of
+ * windows and a grow costs what a day costs. That is also what makes a long
+ * range coarse in one respect that matters: at hours to the window a light
+ * output is the mean of a dozen switchings, so the night shading of a whole
+ * grow says which part of a day was mostly dark and nothing finer.
  */
 
-/** How many windows a panel is drawn with, whatever the range. More than a phone has pixels, few enough to be one read. */
+/** How many windows a panel is drawn with at the most, whatever the range. More than a phone has pixels, few enough to be one read. */
 const PANEL_WINDOWS = 480;
 
-/** No device reports faster than this, so a narrower window would only interpolate. */
-const MIN_STEP_SECONDS = 60;
+/** Under a minute a step is a whole number of the five seconds a device reports at, so no window holds one sample and the next two. */
+const SAMPLE_SECONDS = MIN_STEP_SECONDS;
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -60,11 +62,30 @@ export interface TimelineWindow {
  * a link that closed last week is the last day of that week and not the last day
  * of this one, which would be a window the clamp leaves nothing of at all.
  */
-export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date, askedStep?: number): TimelineWindow => {
+export const windowOf = (
+  range: TimelineRange,
+  grant: Grant,
+  grow: GrowDocument | null,
+  zone: string | null,
+  asOf: Date,
+  askedStep?: number,
+  /** A window named outright - stepped back to, zoomed into - which the range then only says the grow of. */
+  named?: { startsAt: Date; endsAt: Date },
+): TimelineWindow => {
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
 
-  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow, at, askedStep);
+  // Nothing was measured after now: a window named to the end of today ends now, and so do its step and its days.
+  const upToNow = named && { startsAt: named.startsAt, endsAt: named.endsAt > at ? at : named.endsAt };
+
+  return narrowedTo(
+    upToNow ?? (grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at)),
+    grant,
+    grow,
+    zone,
+    at,
+    askedStep,
+  );
 };
 
 /**
@@ -76,6 +97,8 @@ export const narrowedTo = (
   asked: { startsAt: Date; endsAt: Date },
   grant: Grant,
   grow: GrowDocument | null,
+  /** The zone the grow's days are dates of: its owner's. */
+  zone: string | null,
   asOf: Date,
   askedStep?: number,
 ): TimelineWindow => {
@@ -83,7 +106,7 @@ export const narrowedTo = (
   const startsAt = clamped.startsAt ?? asked.startsAt;
   const endsAt = new Date(Math.max(startsAt.getTime(), (clamped.endsAt ?? asked.endsAt).getTime()));
 
-  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt, askedStep), ...daysOf(grow, asOf, startsAt, endsAt) };
+  return { startsAt, endsAt, stepSeconds: stepFor(startsAt, endsAt, askedStep), ...daysOf(grow, zone, asOf, startsAt, endsAt) };
 };
 
 /**
@@ -98,19 +121,23 @@ export const narrowedTo = (
  * all there is no day to name, and both ends are nothing rather than the first
  * or the last.
  */
-const daysOf = (grow: GrowDocument | null, asOf: Date, startsAt: Date, endsAt: Date): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
+const daysOf = (
+  grow: GrowDocument | null,
+  zone: string | null,
+  asOf: Date,
+  startsAt: Date,
+  endsAt: Date,
+): Pick<TimelineWindow, 'dayFrom' | 'dayTo'> => {
   if (!grow) return { dayFrom: null, dayTo: null };
 
   const origin = growOriginOf(grow);
   const horizon = horizonOf(grow, asOf);
   if (endsAt <= origin || startsAt > horizon) return { dayFrom: null, dayTo: null };
 
-  const last = growDayAt(origin, horizon);
+  const last = growDayUpTo(origin, horizon, zone);
   // The last instant inside the window rather than the first outside it: a
   // window ending where day 35 begins is still day 34.
-  const inside = new Date(Math.max(startsAt.getTime(), endsAt.getTime() - 1));
-
-  return { dayFrom: Math.min(growDayAt(origin, startsAt), last), dayTo: Math.min(growDayAt(origin, inside), last) };
+  return { dayFrom: Math.min(growDayAt(origin, startsAt, zone), last), dayTo: Math.min(growDayUpTo(origin, endsAt, zone), last) };
 };
 
 const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Date } => ({
@@ -121,7 +148,7 @@ const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Da
 /**
  * Nothing later than the instant asked about, and nothing after the grow ended.
  * The phase is the spine phase standing at that instant - a phase scoped to some
- * of the plants is a split, told in the event rail rather than by giving the
+ * of the plants is a split, told among the diary's lines rather than by giving the
  * tent a second timeline - so it runs up to the instant itself.
  */
 const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { startsAt: Date; endsAt: Date } => {
@@ -131,22 +158,69 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
   return { startsAt: phase?.startedAt ?? growOriginOf(grow), endsAt: horizon };
 };
 
+/**
+ * The step a window is read at: down to the five seconds a device reports at,
+ * so twenty minutes are every sample and an hour every second one, and a day
+ * three minutes. A step somebody chose is held to the store's own rule for one.
+ */
 const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
-  // A step somebody chose - the charts page offers five seconds to a week - is
-  // held to the store's own rule for one.
-  if (asked && asked > 0) return storeStepFor(startsAt, endsAt, asked);
-
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
-  return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
+  const even = asked && asked > 0 ? storeStepFor(startsAt, endsAt, asked) : Math.ceil(seconds / PANEL_WINDOWS);
+  // Beyond three days the deficit is worked out from means over a grain of five minutes (`grainsQuery`), so a
+  // step is a whole number of grains there: a point then holds whole grains and is the mean of what is drawn.
+  // At 541 s a point held one grain or two and was off by up to 0.09 kPa; a step asked finer is widened to one.
+  if (seconds > MAX_SAMPLED_SECONDS) {
+    const grain = deficitGrainFor({ startsAt, endsAt });
+    return Math.ceil(even / grain) * grain;
+  }
+  if (asked && asked > 0) return even;
+
+  return even >= 60 ? even : Math.max(SAMPLE_SECONDS, Math.ceil(even / SAMPLE_SECONDS) * SAMPLE_SECONDS);
 };
 
 /**
- * The device a place's band is the targets of: the first standing there whose
- * configuration states any, which is the one the cockpit judges the place's
- * readings against.
+ * The cameras a reader sees beside one climate of several: a camera paired to
+ * a device belongs to that device's climate, so the other one's pictures are
+ * left out; a camera paired to none watches the whole place and stays.
+ */
+export const camerasOfDevice = <T extends { deviceId?: string | null }>(cameras: T[], deviceId: string | undefined): T[] =>
+  deviceId ? cameras.filter(camera => !camera.deviceId || camera.deviceId === deviceId) : cameras;
+
+/**
+ * The device a place's band is the targets of: its first climate, which is the
+ * one Start judges the place's readings against where it draws one.
  */
 export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
-  devices.find(device => targetsOf(device.configuration) !== null) ?? null;
+  climatesOf(devices.filter(device => targetsOf(device.configuration) !== null))[0] ?? null;
+
+/**
+ * The device a place's curves are read from, out of the reads of the devices
+ * standing there (or of the one a reader asked for): the place's own climate,
+ * which is the device Start's readings and Steuerung's top are of; where
+ * nothing here holds targets, the first that measured anything in the window.
+ * Never two at once - see `panelsOf`.
+ */
+export const ownOf = (devices: readonly StoredDevice[], histories: readonly DeviceHistory[]): DeviceHistory | null => {
+  const steering = steeringOf(devices);
+
+  return (
+    histories.find(one => one.series.deviceId === steering?.id) ??
+    histories.find(one => one.series.metrics.some(row => row.points.some(point => point.value !== null))) ??
+    null
+  );
+};
+
+/**
+ * The devices whose outputs stand under a device's curves: its own, and whatever
+ * else in the place is no climate of its own - a socket, a lamp, a fan. Another
+ * climate's heater does not act on this one's air: a fridge module standing in
+ * a tent's place has its compressor under its own curves, not the tent's.
+ */
+export const actingOn = (devices: readonly StoredDevice[], ownId: string | null): StoredDevice[] => {
+  const climates = new Set(climatesOf(devices.filter(device => targetsOf(device.configuration) !== null)).map(device => device.id));
+
+  return devices.filter(device => device.id === ownId || !climates.has(device.id));
+};
 
 /**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the
@@ -156,10 +230,10 @@ export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | nul
  * The record is what the device really aimed at, so wherever it reaches it is
  * what a band is drawn from - over a phase's snapshot as well. A snapshot is
  * what ran when the phase was written; somebody who puts the tent on another
- * preset, or nudges the humidity, a week into the phase has the cockpit judge
+ * preset, or nudges the humidity, a week into the phase has Start judge
  * the tent against the new figures from that moment, and a Timeline still
  * banding the rest of the phase by the old ones said the opposite of the
- * cockpit about the same reading.
+ * Start about the same reading.
  *
  * Where the record does not reach - a window older than the record itself - the
  * phase's snapshot is the best there is. A phase that has none borrows what is

@@ -11,30 +11,30 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [0004 Server on NestJS and Fastify](adr/0004-server-on-nestjs-and-fastify.md) - before touching the server's wiring, configuration or HTTP layer
 - [0005 Device times on the wall clock](adr/0005-device-times-on-the-wall-clock.md) - before touching a time of day in a device document or the summer-time shift
 - [0006 Day and night by the device clock](adr/0006-day-and-night-by-the-device-clock.md) - before deciding day/night anywhere outside the firmware, a plug's and a fan's VPD included
-- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed` or the humidifier rules
+- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed`, the humidifier rules or what a lamp does in the dark
 
 ## Contracts
 - [Device protocol](device-protocol.md) - before changing anything a device and the cloud say to each other; what is frozen and how to extend it
 
 ## Knowledge (`knowledge/`)
-- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, memory and NVS limits, connection loss, safety stops
+- [Firmware](knowledge/firmware.md) - building, flashing, OTA and update channels, security hardening (RED), memory and NVS limits, reconnecting after a connection loss, safety stops
 - [Firmware regulation](knowledge/firmware-regulation.md) - how a fridge or tent controller regulates: work modes, ramps, CO2, lamp dimming, dehumidifier, cooling
-- [Smart sockets](knowledge/smart-sockets.md) - pairing, driving and reporting Tasmota sockets, and the stand-alone plug
+- [Smart sockets](knowledge/smart-sockets.md) - pairing, driving and reporting Tasmota sockets, and the Plantalytix Socket (`plug`)
 - [Terp Cam and other cameras](knowledge/terp-cam.md) - camera pairing, the device relay, RTSP capture, stills, timelapses, limits and failure modes
 - [Server](knowledge/server.md) - process and boot, configuration, the /v1 contract, sessions, demo mode, share links, media, broker, security decisions
 - [Server engines](knowledge/server-engines.md) - alarms and notifications, device settings and plans, the read models screens judge by
 - [Data](knowledge/data.md) - MongoDB pitfalls, GridFS pictures, InfluxDB, retention and cleanup, exports
-- [Data operations](knowledge/data-operations.md) - MongoDB upgrades, migration runs, legacy shapes in real databases, backups
+- [Data operations](knowledge/data-operations.md) - MongoDB upgrades, migration runs, legacy shapes in real databases, backups, getting disk space back
 - [Web app](knowledge/webapp.md) - layout and routes, build and dev server, API client and session, charts, media URLs, PWA, lint and tests
 - [Time and language in the web app](knowledge/webapp-time-and-language.md) - server clock, zones, date and figure formats, i18next mechanics
-- [How the app behaves and looks](knowledge/app-ux.md) - before changing a screen: one design, honest states, value ages, controls, help texts, charts
+- [How the app behaves and looks](knowledge/app-ux.md) - before changing a screen: one design, honest states, value ages, controls, help texts, charts, screen readers
 - [How the app speaks](knowledge/app-wording.md) - before writing a catalogue string: du-form, one word per thing, numbers, dates and units
 - [Garmin widget](knowledge/garmin.md) - the Connect IQ widget, the routes it calls, its build and release
 - [CI and release](knowledge/ci-and-release.md) - CI jobs, images, deploys and firmware releases; when a job or a deploy fails
 - [Testing](knowledge/testing.md) - the suites and their pitfalls, the simulator beyond `CLAUDE.md`, test stacks, browser checks
-- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, the development devices, copies of production data
-- [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word
-- [The app rewrite](app-rewrite-handover.md) - the rewrite is complete: where its knowledge lives and what it left open
+- [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, connection-loss tests, the development devices, copies of production data
+- [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word, /pr-merge
+- [The app rewrite and the navigation redesign](app-rewrite-handover.md) - both are built: where their knowledge lives, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk saw
 
 ## Runbooks (`runbooks/`)
 - [Backup and restore](runbooks/backup-and-restore.md) - a backup or restore beyond the README's commands

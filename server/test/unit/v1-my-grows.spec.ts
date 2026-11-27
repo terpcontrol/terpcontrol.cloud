@@ -143,6 +143,17 @@ const world = async (): Promise<void> => {
     },
     { id: 'running-1', growId: RUNNING, strain: 'Zkittlez', label: 'Zkittlez 1', status: 'active', createdAt: day('2026-09-01') },
   ]);
+  // What was weighed, as the harvest typed it in: the yield every page states.
+  await db.entries.create({
+    id: 'spring-harvest',
+    kind: 'harvest',
+    source: 'human',
+    authorId: OWNER,
+    growId: SPRING,
+    plantIds: ['spring-1', 'spring-2', 'spring-3'],
+    occurredAt: day('2026-06-01'),
+    values: { kind: 'harvest', wetWeightG: 1700, dryWeightG: 386 },
+  });
 };
 
 beforeEach(async () => {
@@ -211,7 +222,7 @@ describe('a card', () => {
       { strain: 'Amnesia Haze', count: 1 },
     ]);
     expect(spring.plantCount).toBe(3);
-    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: 1700, dryWeightG: 386 });
+    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: 1700, dryWeightG: 386, plantIds: [] });
     expect(spring.endedAt).toBe(day('2026-06-01').toISOString());
     expect(spring.dayNumber).toBe(121);
     expect(page.items.find(card => card.growId === RUNNING)!.harvest).toBeNull();
@@ -286,6 +297,20 @@ describe('a card', () => {
     expect(page.items.find(card => card.growId === SPRING)!.coverMediaId).toBe('chosen-cover');
   });
 
+  it('lists the tour the grow standing in a demo place, which is the one it can open', async () => {
+    // The fridge is put on the tour; nobody flagged the grow in it.
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { isDemo: true } });
+
+    const page = await myGrows.list(demo(null), {}, NOW);
+
+    // What stands there, as `access()` opens it - and nothing standing elsewhere.
+    const listed = page.items.map(card => card.growId);
+    expect(listed).toContain(RUNNING);
+    expect(listed).not.toContain(WINDOWSILL);
+    expect(listed).not.toContain(FRIENDS);
+    expect(page.items[0].owner).toBeNull();
+  });
+
   it('hides the counts and weights from the demo tour the way the owner´s privacy says', async () => {
     await db.grows.updateOne({ id: SPRING }, { $set: { isDemo: true } });
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });
@@ -300,6 +325,6 @@ describe('a card', () => {
       { strain: 'Gelato', count: null },
       { strain: 'Amnesia Haze', count: null },
     ]);
-    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: null, dryWeightG: null });
+    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: null, dryWeightG: null, plantIds: [] });
   });
 });

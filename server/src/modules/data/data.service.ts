@@ -4,6 +4,8 @@ import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { METRIC_DECIMALS } from '@fg2/shared-types/v1-schemas';
+import { quietLimits } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { isDayAt, plugScheduleOf, utcSecondsOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { logger } from '@utils/logger';
@@ -16,7 +18,7 @@ import {
   OUTPUT_LEVEL,
   STORED_FIELDS,
 } from '@common/v1/metrics';
-import { reportsNoSensor } from '@common/v1/sentinels';
+import { isSentinel, reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
 import { DeviceSample, DeviceSampleSink } from '@modules/device-protocol/device-sinks';
 import { LightStateReader } from '@modules/v1/camera/light-state';
@@ -27,36 +29,57 @@ import { influxConfig } from '../../config/configuration';
 import { CAMERA_DAYLIGHT, CameraDaylight } from './camera-daylight.port';
 import {
   computedValue,
+  coveredGrains,
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
+  edgesAround,
+  edgesOf,
+  edgesQuery,
+  Extremes,
+  extremesByField,
+  extremesQuery,
+  deficitGrainFor,
   fieldsFor,
+  figuresOf,
   FluxRow,
   FluxWindow,
+  grainsQuery,
   gridOf,
   instantsOf,
   latestByField,
-  levelsByField,
-  levelsQuery,
+  litOf,
+  countsByField,
+  countsQuery,
   liveQuery,
+  MAX_SAMPLED_SECONDS,
+  MIN_STEP_SECONDS,
   newestSampleQuery,
   oldestSampleQuery,
+  OutputCount,
+  OutputFigure,
   OutputSwitching,
   pointsOf,
+  everySamplePredicate,
   rawSamplePredicate,
+  SampleEdges,
   readingsOf,
-  runningMostOf,
-  runningSpansOf,
   SAMPLE_MEASUREMENT,
+  samplesInQuery,
+  samplesQuery,
   seriesQuery,
   stepFor,
   summaryQuery,
+  switchedGrains,
+  switchingGrainFor,
   SUMMARY_MEASUREMENT,
   switchingsByField,
   switchingsQuery,
   TimeWindow,
-  trendQuery,
   valveOpeningsQuery,
+  vpdOf,
+  WorkedOut,
+  workedOutBy,
 } from './flux';
 
 /**
@@ -79,6 +102,10 @@ import {
  */
 /** 1 while an AIR fan's light sensor says it is day, 0 by night. No other device writes it. */
 const DAY_FIELD = 'day';
+
+const LEAF_FIELD = 'leaf_temperature';
+
+const TEMPERATURE_FIELD = 'temperature';
 
 const DIAGNOSTIC_FIELDS = ['avg', 'p', 'i', 'd', 'rpm', DAY_FIELD, 'sensor_type'];
 
@@ -104,6 +131,13 @@ const NEWEST_SAMPLE_LANES = 8;
  * budget is reported unasked, and the caller comes round again a minute later.
  */
 const NEWEST_SAMPLES_BUDGET_MS = 20_000;
+
+/**
+ * How wide a window may be whose lamp is still read at the device's own rhythm: a week of a grow's diary and the lead
+ * before it, which is read at once. Read at five minutes there, a lamp that came on at 23:28 was "on since 23:25" in a
+ * long grow's diary and "since 23:28" in that of a grow begun beside it two days before.
+ */
+const LAMP_SAMPLED_SECONDS = 8 * 24 * 60 * 60;
 
 /** One device and the instant its caller wants its samples counted from. */
 export interface DeviceSince {
@@ -147,6 +181,11 @@ export interface SeriesRequest {
   endsAt: Date;
   /** Left out, the server picks a step from the range; too narrow a one for the range is widened. */
   stepSeconds?: number;
+  /**
+   * Whether each window's lowest and highest sample are read beside its mean
+   * (`extremesQuery`): two scans more, which only a chart that draws them asks for.
+   */
+  extremes?: boolean;
 }
 
 /** One output over a window, as something that switches rather than as something that averages. */
@@ -155,10 +194,11 @@ export interface OutputHistory {
   /** In order: the state the window is found in, then every switching after it. Empty where the device reported that output not at all. */
   switchings: OutputSwitching[];
   /**
-   * How hard it ran, window by window, as the device wrote it: only where the
-   * read asked for levels and the output is driven at one (`OUTPUT_LEVEL`).
+   * What its samples came to, one for every drawn window it was heard in: only
+   * where the read asked for them. Every figure said about an output is counted
+   * from these and from nothing else - never from a run rounded out to a grain.
    */
-  levels?: SeriesPoint[];
+  figures?: OutputFigure[];
 }
 
 /**
@@ -183,6 +223,16 @@ export interface DeviceHistory {
    * stretch nothing was heard across.
    */
   lastSampleAt: string | null;
+  /**
+   * When the first or the last sample of a window beside a silence was written, by the instant the window is
+   * stamped with: where a stretch of what was heard begins and ends. Only where the read counted the outputs' samples.
+   */
+  edges?: ReadonlyMap<number, SampleEdges>;
+  /**
+   * How many samples the device wrote in each drawn window, by the instant the window is stamped with: the most
+   * any of its outputs counted there. What a silence is measured by (`quietLimits`); only where the read counted.
+   */
+  samples?: ReadonlyMap<number, number>;
   /**
    * When an AIR fan said it ran its day and when its night, as the switchings
    * of the `day` it reports beside its readings. Only a read that asked about the
@@ -275,7 +325,13 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     }
 
     const isDay = self.reportsDay ? flag(latest, DAY_FIELD) : await this.plugDayAt(self, computedAt('vpd', latest));
-    const readings = readingsOf(field => latest.get(field)?.value ?? null, isDay);
+    // A reading's deficit uses a leaf temperature only if that reading carries one: a leaf sensor that was taken
+    // out, or wrote once days ago, is still the newest of its field and would bend "now" for a month.
+    const sampledAt = computedAt('vpd', latest)?.getTime() ?? null;
+    const readings = readingsOf(field => {
+      const one = latest.get(field);
+      return one && (field !== LEAF_FIELD || one.measuredAt.getTime() === sampledAt) ? one.value : null;
+    }, isDay);
     for (const name of ['vpd', 'ppfd'] as const) {
       const value = computedValue(name, readings, self.factors);
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
@@ -326,19 +382,88 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     // own because only VPD asks for it, and so is a plug's day, which waits for
     // the device to say it is one but not for the store.
     const self = fields.length ? this.selfOf(deviceId) : null;
-    const [rows, summaries, device, lamp, plugDay] = self
+    // A window as narrow as the device's own rhythm holds one sample, which is its own lowest and highest.
+    // The lamp's level is no reading, and neither is anything a deficit is worked out from: it has its own below.
+    const measured =
+      request.extremes && window.stepSeconds > MIN_STEP_SECONDS
+        ? fieldsFor(
+            request.metrics.filter(name => name !== 'vpd'),
+            [],
+          )
+        : [];
+    // The deficit is never worked out from the means of the windows drawn: each reading by itself, and then
+    // their mean. Up to three days the readings are the samples; beyond, means over a grain (`grainsQuery`).
+    const deficit = fields.length > 0 && request.metrics.includes('vpd');
+    const grainSeconds = window.endsAt.getTime() - window.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000 ? 0 : deficitGrainFor(window);
+    const inputs = [...fieldsFor(['vpd'], []), DAY_FIELD];
+    const [rows, summaries, device, plugDay, extremeRows, readings] = self
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
           self,
-          this.lampOf(deviceId, request.metrics, window, self),
-          request.metrics.includes('vpd') ? self.then(known => this.plugDayIn(known, window)) : null,
+          deficit ? self.then(known => this.plugDayIn(known, window)) : null,
+          measured.length > 0 ? this.read(extremesQuery(this.bucket, deviceId, measured, window)) : ([] as FluxRow[]),
+          !deficit
+            ? ([] as FluxRow[])
+            : this.read(
+                grainSeconds === 0
+                  ? samplesQuery(this.bucket, deviceId, inputs, window)
+                  : grainsQuery(this.bucket, deviceId, inputs, window, grainSeconds, [LEAF_FIELD, TEMPERATURE_FIELD]),
+              ),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[], null];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, null, [] as FluxRow[], [] as FluxRow[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
-    const isDayAt = plugDay ? (instant: string) => plugDay(middleOf(instant, window.stepSeconds)) : dayOfCycleIn(lamp, window);
+    const extremes = extremesByField(extremeRows);
+    // Which half of the day a reading was taken in is the reading's own to say, as a live one's is: a fan by its
+    // flag, a plug by its schedule or what the cameras saw then, everything else by its own lamp level (`vpdOf`).
+    const halfOf = (at: (field: string) => number | null, time: number): boolean | null =>
+      device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null);
+    // A grain's leaf temperature counts only where leaf readings cover the grain as the air's do.
+    const covered = grainSeconds === 0 ? readings : coveredGrains(readings, LEAF_FIELD, TEMPERATURE_FIELD);
+    const deficitOf = (at: (field: string) => number | null, time: number) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors);
+    // A grain the lamp switched in is neither day nor night: it is worked out from its own samples, each by itself
+    // (`switchedGrains`), which is what its lit and its dark part come to, weighted by their readings.
+    const switched =
+      grainSeconds === 0
+        ? []
+        : switchedGrains(covered, grainSeconds, (at, time) => litOf(readingsOf(at, halfOf(at, time))), device.reportsDay || plugDay !== null);
+    const split =
+      switched.length === 0 || switched.length > MAX_SWITCHED_GRAINS
+        ? new Map<number, WorkedOut>()
+        : workedOutBy(await this.samplesIn(deviceId, inputs, switched), { ...window, stepSeconds: grainSeconds }, deficitOf);
+    const worked = workedOutBy(covered, window, (at, time) => split.get(time + grainSeconds * 500)?.mean ?? deficitOf(at, time), grainSeconds);
+    const extremesAt = (name: Metric, instant: string): Extremes | null => {
+      const field = fieldOfMetric(name);
+      if (field !== null) return extremes.get(field)?.get(instant) ?? null;
+      if (name === 'vpd') return worked.get(Date.parse(instant)) ?? null;
+
+      // What is worked out from one reading alone rises and falls with it, so its extremes are that reading's.
+      const end = (which: keyof Extremes) =>
+        computedValue(
+          name,
+          readingsOf(input => extremes.get(input)?.get(instant)?.[which] ?? null),
+          device.factors,
+        );
+      const [min, max] = [end('min'), end('max')];
+      return min === null || max === null ? null : { min, max };
+    };
+    // A window no reading of the store's is left of - a day kept as its mean - has that mean to go by and no more.
+    const computedAtWindow = (name: Metric, instant: string): number | null => {
+      const known = name === 'vpd' ? worked.get(Date.parse(instant)) : undefined;
+      if (known) return rounded(known.mean, name);
+
+      const middle = Date.parse(instant) - window.stepSeconds * 500;
+      return computedValue(
+        name,
+        readingsOf(
+          input => valueAt(input, instant),
+          halfOf(() => null, middle),
+        ),
+        device.factors,
+      );
+    };
 
     return {
       deviceId,
@@ -347,19 +472,22 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       stepSeconds: window.stepSeconds,
       metrics: request.metrics.map(name => {
         const field = fieldOfMetric(name);
-        const at = (instant: string) =>
-          field === null
-            ? computedValue(
-                name,
-                readingsOf(input => valueAt(input, instant), isDayAt(instant)),
-                device.factors,
-              )
-            : valueAt(field, instant);
+        const at = (instant: string) => (field === null ? computedAtWindow(name, instant) : valueAt(field, instant));
         // A metric the device has no sensor for is answered as the empty series
         // it is, rather than as whatever the store kept before the sensor came
         // out - a panel is built from the points, and a chart of nothing is the
         // honest one.
-        return { metric: name, points: pointsOf(grid.instants, reportsNoSensor(device.hardware, name) ? () => null : at) };
+        if (reportsNoSensor(device.hardware, name)) return { metric: name, points: pointsOf(grid.instants, () => null) };
+
+        return {
+          metric: name,
+          points: grid.instants.map(instant => {
+            const value = at(instant);
+            const range = value === null || !request.extremes ? null : extremesAt(name, instant);
+            // Left out where the window held one figure and the mean is that figure; never bent towards the mean.
+            return { measuredAt: instant, value, ...(range && (range.max > range.min || range.min !== value) ? range : {}) };
+          }),
+        };
       }),
       outputs: outputs.map(name => ({
         output: name,
@@ -377,18 +505,54 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
    * beside it is a few hundred windows - the promise that a long range costs
    * what a short one costs still holds.
    */
-  public async history(deviceId: string, request: SeriesRequest, levels = false): Promise<DeviceHistory> {
+  public async history(deviceId: string, request: SeriesRequest, figures = false): Promise<DeviceHistory> {
     const outputs = request.outputs ?? [];
     // The fan's own day is read in the same scan as its output, so a chart of an AIR is shaded by its night.
     const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
-    // At the step the series settles on, so a level stands under the reading of the same window.
+    // At the step the series settles on, so an output's figures stand under the reading of the same window.
     const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
-    const [series, switchings, lastSampleAt, levelled] = await Promise.all([
+    // Within three days an AIR's own day, and within a week and a day the lamp's switchings, are read at the device's
+    // own rhythm, so a lamp's stretch is its samples' to the minute and the same on every zoom: read at the step, a
+    // day said "06:00 bis 18:03" and a month "06:00 bis 18:05" of a lamp that ran from 06:02 to 18:02. A read of its
+    // own beside the others, of one field or two: 25 ms over a day and 67 ms over three, at a sample every 5 s.
+    const width = request.endsAt.getTime() - request.startsAt.getTime();
+    const fine = width <= MAX_SAMPLED_SECONDS * 1000;
+    const lamp = outputs.filter(output => output === 'light' && width <= LAMP_SAMPLED_SECONDS * 1000);
+    const [series, coarse, sampled, lastSampleAt, counts] = await Promise.all([
       this.series(deviceId, request),
-      this.switchingsOf(deviceId, outputs, request, extra),
+      this.switchingsOf(
+        deviceId,
+        outputs.filter(output => !lamp.includes(output)),
+        request,
+        fine ? [] : extra,
+        switchingGrainFor(stepSeconds),
+      ),
+      this.switchingsOf(deviceId, lamp, request, fine ? extra : [], MIN_STEP_SECONDS),
       this.newestSampleIn(deviceId, outputs, request),
-      levels ? this.levelsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
+      figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
+    const switchings = new Map([...coarse, ...sampled]);
+    // A device is heard in a window any of its fields has a point in. Where those windows leave a silence - by the
+    // interval the device was keeping there, which its samples per window say (`quietLimits`) - the samples either
+    // side of it say when it began and ended (`edgesAround`); a device without one is asked nothing.
+    const window = { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds };
+    const heard = new Set(
+      [...series.metrics, ...series.outputs].flatMap(row => row.points.flatMap(point => (point.value === null ? [] : [point.measuredAt]))),
+    );
+    const samples = counts ? samplesOf(counts) : null;
+    const stamps = [...heard].map(instant => Date.parse(instant)).sort((one, other) => one - other);
+    const asked = figures
+      ? edgesAround(
+          stamps,
+          window,
+          quietLimits(
+            stamps,
+            stepSeconds * 1000,
+            stamps.map(stamp => samples?.get(stamp)),
+          ),
+        )
+      : [];
+    const edges = asked.length === 0 || asked.length > MAX_EDGES ? null : edgesOf(await this.read(edgesQuery(this.bucket, deviceId, asked)), asked);
     const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
@@ -396,26 +560,43 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       outputs: outputs.map(output => ({
         output,
         switchings: switchings.get(fieldOfOutputMetric(output)) ?? [],
-        ...(levelled && OUTPUT_LEVEL[output] ? { levels: levelled.get(fieldOfOutputMetric(output)) ?? [] } : {}),
+        ...(counts
+          ? {
+              figures: figuresOf(
+                series.outputs.find(one => one.output === output)?.points ?? [],
+                counts.get(fieldOfOutputMetric(output)),
+                OUTPUT_LEVEL[output] === undefined,
+              ),
+            }
+          : {}),
       })),
       lastSampleAt,
+      ...(edges ? { edges } : {}),
+      ...(samples ? { samples } : {}),
       ...(days.length > 0 ? { days } : {}),
     };
   }
 
-  /** How hard each output that has a level was driven, by the field it is stored under. A window of no width holds none. */
-  private async levelsOf(deviceId: string, outputs: readonly OutputMetric[], window: FluxWindow): Promise<Map<string, SeriesPoint[]>> {
-    const driven = outputs.filter(output => OUTPUT_LEVEL[output] !== undefined);
-    if (driven.length === 0 || window.endsAt <= window.startsAt || window.stepSeconds <= 0) return new Map();
+  /** How many samples every drawn window holds of each output, and in how many it ran, by the field it is stored under. A window of no width holds none. */
+  private async countsOf(deviceId: string, outputs: readonly OutputMetric[], window: FluxWindow): Promise<Map<string, Map<string, OutputCount>>> {
+    if (outputs.length === 0 || window.endsAt <= window.startsAt || window.stepSeconds <= 0) return new Map();
 
-    const fieldsOf = (unit: 'percent' | 'count') => driven.filter(output => OUTPUT_LEVEL[output]?.unit === unit).map(fieldOfOutputMetric);
-    return levelsByField(await this.read(levelsQuery(this.bucket, deviceId, fieldsOf('percent'), fieldsOf('count'), window)));
+    const counted = outputs.filter(output => OUTPUT_LEVEL[output] !== undefined).map(fieldOfOutputMetric);
+    return countsByField(await this.read(countsQuery(this.bucket, deviceId, outputs.map(fieldOfOutputMetric), counted, window)));
   }
 
   /**
-   * One stored metric over a window for several devices at once, keyed by
-   * device: the points a sparkline draws, in one query for all of them. A device
-   * that wrote nothing in the window has no entry rather than an empty one.
+   * One stored metric over a window for several devices, keyed by device: the
+   * points a sparkline draws. A device that wrote nothing in the window has no
+   * entry rather than an empty one.
+   *
+   * One read per device, side by side, and not one for the set. A set has to
+   * be named with `contains()`, which the store does not push down: it then
+   * reads every point every device on the install wrote in the window and
+   * throws away all but these - on a home of six devices that was 1.8 s of the
+   * 1.85 s the whole answer took. An `or` of equalities would be pushed down,
+   * but fails as too deeply nested once the set is long. A tag equality per
+   * device answers from the index, and the reads run at once.
    */
   public async trends(
     deviceIds: readonly string[],
@@ -426,18 +607,17 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     if (deviceIds.length === 0 || field === null) return new Map();
 
     const stepSeconds = stepFor(window.startsAt, window.endsAt, window.stepSeconds);
-    const rows = await this.read(trendQuery(this.bucket, deviceIds, field, { ...window, stepSeconds }));
-
-    const byDevice = new Map<string, FluxRow[]>();
-    for (const row of rows) {
-      if (row.device_id) byDevice.set(row.device_id, [...(byDevice.get(row.device_id) ?? []), row]);
-    }
+    const reads = await Promise.all(
+      deviceIds.map(async deviceId => [deviceId, await this.read(seriesQuery(this.bucket, deviceId, [field], { ...window, stepSeconds }))] as const),
+    );
 
     return new Map(
-      [...byDevice].map(([deviceId, own]) => {
-        const grid = gridOf(own);
-        return [deviceId, pointsOf(grid.instants, instant => grid.valuesByField.get(field)?.get(instant) ?? null)];
-      }),
+      reads
+        .filter(([, rows]) => rows.length > 0)
+        .map(([deviceId, rows]) => {
+          const grid = gridOf(rows);
+          return [deviceId, pointsOf(grid.instants, instant => grid.valuesByField.get(field)?.get(instant) ?? null)];
+        }),
     );
   }
 
@@ -445,6 +625,29 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   public async points(deviceId: string, metric: Metric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
     const { metrics } = await this.series(deviceId, { ...window, metrics: [metric] });
     return metrics[0].points;
+  }
+
+  /**
+   * Every raw sample of some metrics over a few short stretches, by metric and
+   * oldest first: what a mean cannot say - the instant a reading crossed a
+   * line. A metric worked out from others has none, and neither has a stretch
+   * whose samples were summarised away.
+   */
+  public async rawSamples(deviceId: string, metrics: readonly Metric[], stretches: readonly TimeWindow[]): Promise<Map<Metric, SeriesPoint[]>> {
+    const fields = metrics.flatMap(name => fieldOfMetric(name) ?? []);
+    const samples = new Map<Metric, SeriesPoint[]>();
+    if (fields.length === 0 || stretches.length === 0) return samples;
+
+    for (const row of await this.samplesIn(deviceId, fields, stretches)) {
+      const name = row._field ? metricOfField(row._field) : null;
+      const value = finiteOrNull(row._value);
+      if (!name || !row._time || value === null || isSentinel(row._field!, value)) continue;
+      const points = samples.get(name) ?? [];
+      points.push({ measuredAt: row._time, value });
+      samples.set(name, points);
+    }
+    for (const points of samples.values()) points.sort((one, other) => Date.parse(one.measuredAt) - Date.parse(other.measuredAt));
+    return samples;
   }
 
   /** The same, for an output: what an alarm on one reads back after a restart. */
@@ -543,9 +746,21 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
    * where the retention sweep picks up. Null is "nothing that old is left",
    * which is how a device that has been swept says it is done.
    */
-  public async oldestSampleBefore(deviceId: string, before: Date): Promise<Date | null> {
-    const instants = instantsOf(await this.read(oldestSampleQuery(this.bucket, deviceId, before)));
+  public async oldestSampleBefore(deviceId: string, before: Date, from: Date | null = null): Promise<Date | null> {
+    const instants = instantsOf(await this.read(oldestSampleQuery(this.bucket, deviceId, before, from)));
     return instants.length > 0 ? new Date(Math.min(...instants)) : null;
+  }
+
+  /**
+   * The last sample a device wrote before a window and the first after it, each within the stretch it stood where the
+   * window is read: where a silence across the whole window began, and where it ended - null where it has not.
+   */
+  public async samplesAround(deviceId: string, window: TimeWindow, stood: TimeWindow): Promise<{ before: Date | null; after: Date | null }> {
+    const [before, after] = await Promise.all([
+      stood.startsAt < window.startsAt ? this.newestSampleAt(deviceId, stood.startsAt, window.startsAt) : null,
+      window.endsAt < stood.endsAt ? this.oldestSampleBefore(deviceId, stood.endsAt, window.endsAt) : null,
+    ]);
+    return { before, after };
   }
 
   /** How often a device's CO2 valve opened over a stretch (see `valveOpeningsQuery`); nought where it never reported one. */
@@ -610,6 +825,26 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s raw samples: ${answer.status} ${await answer.text()}`);
   }
 
+  /**
+   * Every point a device wrote inside a stretch, dropped - its raw samples and
+   * the daily summaries made of them alike. What a deleted account's devices
+   * measured for it goes this way; a summary standing for a day the stretch
+   * only touches goes with it, because it speaks for that day's readings.
+   */
+  public async dropEverySample(deviceId: string, startsAt: Date, endsAt: Date): Promise<void> {
+    const url = new URL('/api/v2/delete', this.config.url);
+    url.searchParams.set('org', this.config.org!);
+    url.searchParams.set('bucket', this.bucket);
+
+    const answer = await fetch(url, {
+      method: 'POST',
+      headers: { authorization: `Token ${this.config.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ start: startsAt.toISOString(), stop: endsAt.toISOString(), predicate: everySamplePredicate(deviceId) }),
+    });
+
+    if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s samples: ${answer.status} ${await answer.text()}`);
+  }
+
   // Org and bucket are required environment - without them there is no
   // database to write to or read from at all.
   private get bucket(): string {
@@ -624,30 +859,6 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
 
   private read(query: string): Promise<FluxRow[]> {
     return this.influx.getQueryApi(this.config.org!).collectRows<FluxRow>(query);
-  }
-
-  /**
-   * When the lamp ran over this window, for the sake of the metrics that are
-   * computed per bucket rather than per sample.
-   *
-   * VPD is the only one so far: which half of the cycle a bucket belongs to
-   * cannot be read off what `out_light` averaged across it, and the switchings
-   * are the one thing in the store that says it. The read is the same
-   * five-minute-grain scan `history` makes of the outputs that were ticked, so
-   * a caller that ticked the light as well pays for one field twice; that is a
-   * scan of one field against a wrong figure on a panel the screen draws by
-   * default, and the alternative is to make the two reads wait for each other.
-   *
-   * An AIR fan has no lamp and says its half itself, so for a fan its `day` is
-   * read instead. It rides along in the same scan rather than waiting for the
-   * device to say it is a fan: no other device writes it, so it costs the
-   * others nothing.
-   */
-  private async lampOf(deviceId: string, metrics: readonly Metric[], window: TimeWindow, self: Promise<DeviceSelf>): Promise<OutputSwitching[]> {
-    if (!metrics.includes('vpd')) return [];
-    const [switchings, device] = await Promise.all([this.switchingsOf(deviceId, ['light'], window, [DAY_FIELD]), self]);
-
-    return switchings.get(device.reportsDay ? DAY_FIELD : fieldOfOutputMetric('light')) ?? [];
   }
 
   /**
@@ -671,11 +882,20 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     outputs: readonly OutputMetric[],
     window: TimeWindow,
     extra: readonly string[] = [],
+    grainSeconds?: number,
   ): Promise<Map<string, OutputSwitching[]>> {
-    if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();
-
     const fields = [...new Set([...outputs.map(fieldOfOutputMetric), ...extra])];
-    return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
+    if (fields.length === 0 || window.endsAt <= window.startsAt) return new Map();
+
+    return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window, grainSeconds)));
+  }
+
+  /** Every sample of some fields over several stretches, a few scripts of them side by side. */
+  private async samplesIn(deviceId: string, fields: readonly string[], stretches: readonly TimeWindow[]): Promise<FluxRow[]> {
+    const scripts = Array.from({ length: Math.ceil(stretches.length / STRETCHES_A_SCRIPT) }, (_, index) =>
+      stretches.slice(index * STRETCHES_A_SCRIPT, (index + 1) * STRETCHES_A_SCRIPT),
+    );
+    return (await Promise.all(scripts.map(some => this.read(samplesInQuery(this.bucket, deviceId, fields, some))))).flat();
   }
 
   /** A device's own VPD offsets, lux factor and hardware report, and a plug's day; the defaults for a device that is no longer there. */
@@ -718,40 +938,6 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
 }
 
 /**
- * Which half of the cycle each bucket of a window belongs to: lit for more than
- * half of itself, or dark.
- *
- * `aggregateWindow` stamps a bucket at its end, so the bucket an instant names
- * is the step before it. Anything before the first switching is left unanswered
- * rather than guessed: the switchings are read from the raw samples, and a day
- * old enough to have been summarised away has none - its own averaged light is
- * then the only thing left to read it by, which is what a null falls back to.
- */
-const dayOfCycleIn = (lamp: readonly OutputSwitching[], window: FluxWindow): ((instant: string) => boolean | null) => {
-  const spans = runningSpansOf(lamp);
-  const knownFrom = lamp.length > 0 ? Date.parse(lamp[0].at) : null;
-  const step = window.stepSeconds * 1000;
-
-  return instant => {
-    const ends = Date.parse(instant);
-
-    return knownFrom === null || ends <= knownFrom ? null : runningMostOf(spans, ends - step, ends);
-  };
-};
-
-/**
- * The middle of the window an instant stamps, which is where a plug's half is
- * read for it: the half that held at its middle is the one that held for most
- * of a window that holds one switch, as the lamp's is read (`dayOfCycleIn`).
- * `aggregateWindow` cuts the windows on the step from the epoch and stamps each
- * at its end.
- */
-const middleOf = (instant: string, stepSeconds: number): number => {
-  const step = stepSeconds * 1000;
-  return Math.floor((Date.parse(instant) - 1) / step) * step + step / 2;
-};
-
-/**
  * How old a computed value is: as old as the stalest reading it was built from.
  * A VPD from a fresh temperature and an hour-old humidity is an hour old.
  */
@@ -761,6 +947,34 @@ const computedAt = (name: 'vpd' | 'ppfd', latest: Map<string, { measuredAt: Date
 
   return instants.length === inputs.length ? new Date(Math.min(...instants.map(at => at.getTime()))) : null;
 };
+
+/** What a reading's own flag says, where it carries one: a sample's is 0 or 1, a grain's the share of it that was day. */
+const saidOf = (value: number | null): boolean | null => (value === null ? null : value > 0.5);
+
+/**
+ * How many stretches of samples one script reads, the scripts side by side. It costs about a millisecond a
+ * stretch however they are bundled: the 238 grains a lamp switched in over four months, at a sample every five
+ * seconds, were read in 232 ms - after the grains' own 200 ms, since they say which those are.
+ */
+const STRETCHES_A_SCRIPT = 60;
+
+/** How many samples the device wrote in each drawn window: the most any one of its fields counted there. */
+const samplesOf = (counts: ReadonlyMap<string, ReadonlyMap<string, OutputCount>>): Map<number, number> => {
+  const samples = new Map<number, number>();
+  for (const windows of counts.values()) {
+    for (const [instant, { heard }] of windows) samples.set(Date.parse(instant), Math.max(heard, samples.get(Date.parse(instant)) ?? 0));
+  }
+  return samples;
+};
+
+/** As many edges of silences as one script asks about; a device slower than its step, silent between any two points, is asked none. */
+const MAX_EDGES = 120;
+
+/** A safety net: a flag flapping all season must not become a read of everything; such a read keeps its grains whole. */
+const MAX_SWITCHED_GRAINS = 1500;
+
+/** A computed figure as it goes out: what the sensors behind it can say, and no more. */
+const rounded = (value: number, name: Metric): number => Number(value.toFixed(METRIC_DECIMALS[name]));
 
 /** A field a device writes as 1 or 0, read back as the flag it is. Absent is null, not false. */
 const flag = (latest: Map<string, { value: number }>, field: string): boolean | null => {

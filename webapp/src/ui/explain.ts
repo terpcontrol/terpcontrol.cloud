@@ -9,43 +9,41 @@ export const HELP_TOPICS = [
   'vpd',
   'liveness',
   'band',
+  'dayCurve',
+  'dayShare',
   'verdict',
   'climatePreset',
   'stage',
   'stepPreset',
+  'stepSettings',
   'plan',
   'planMoves',
   'dayNight',
   'lightLimit',
   'lightsOn',
+  'lightHardStart',
   'resumePlan',
   'growDay',
   'growWeek',
-  'schemeWeek',
   'autoTag',
   'phasePreset',
   'phaseCorrection',
   'autoflower',
   'growEnds',
-  'myGrows',
+  'harvestWeights',
   'dayNightAverages',
   'feedStrength',
   'waterEc',
   'feedFlip',
-  'chartLayout',
-  'chartLayoutPlace',
-  'chartZoom',
-  'chartOutputs',
-  'chartMessages',
+  'mixing',
+  'feedGrid',
   'muteAll',
-  'silence',
   'maintenance',
-  'endMaintenance',
-  'reboot',
   'presetRules',
   'offlineRule',
   'alarmTemplates',
   'alarmQuiet',
+  'alarmFor',
   'alarmRepeat',
   'webhookTemplate',
   'severity',
@@ -53,15 +51,21 @@ export const HELP_TOPICS = [
   'routingGrid',
   'emailAlarms',
   'quietHours',
+  'tasks',
   'rhythms',
   'rhythmEvery',
   'taskFor',
   'socketRoles',
+  'socketAddress',
+  'claimCode',
+  'claimLater',
   'socketHold',
-  'findSocket',
   'lightHold',
   'firmwareChannel',
+  'deviceName',
+  'deviceMove',
   'stillCadence',
+  'cameraOrientation',
   'cameraPauses',
   'staleWarning',
   'premiumCamera',
@@ -72,23 +76,32 @@ export const HELP_TOPICS = [
   'unpair',
   'rtsp',
   'streamAddress',
+  'streamChange',
   'rolloutFailures',
+  'rolloutStages',
+  'firmwareClasses',
+  'firmwareRegister',
+  'adminAddresses',
+  'demoObjects',
   'publicPage',
   'linkActions',
   'shareWindow',
   'spaceLink',
   'privacyRedaction',
   'publicProfile',
+  'publicGrow',
+  'timezone',
+  'sessions',
+  'accountExport',
   'deleteAccount',
   'passwordChange',
   'installApp',
   'memberRole',
+  'removeMember',
   'invite',
   'diaryLayer',
-  'deviceOffer',
   'follow',
   'compressor',
-  'dayCurve',
   'nightBand',
   'ppfd',
   'leafTemperature',
@@ -102,7 +115,6 @@ export const HELP_TOPICS = [
   'timerWindows',
   'fanMode',
   'fanSpeeds',
-  'lightSchedule',
   'stepLightHours',
   'readyPlans',
   'drying',
@@ -141,12 +153,10 @@ interface Placement {
 /**
  * What a bubble must keep clear of: the trigger itself, and the block it
  * stands in as long as that block is short - the sentence an (i) ends, the
- * label a word sits in, the row of buttons it follows. An (i) at the end of a
- * three-line sentence would otherwise open over the first two lines, which
- * are what it explains. A tall block - a card, a whole panel - is not kept
- * clear, because the bubble would then have nowhere to go; the trigger's own
- * line still is. Across, the bubble stays on the trigger, so its arrow points
- * at what was pressed.
+ * label a word sits in - since those lines are what it explains. A tall block
+ * - a card, a whole panel - is not kept clear, because the bubble would then
+ * have nowhere to go; the trigger's own line still is. Across, the bubble
+ * stays on the trigger, so its arrow points at what was pressed.
  */
 export function anchorOf(trigger: Box, block: Box | null): Box {
   // Read field by field: a DOMRect keeps its sides on its prototype, so spreading one copies nothing.
@@ -170,21 +180,24 @@ const ARROW_INSET = 14;
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), Math.max(low, high));
 
+type Size = { width: number; height: number };
+
 /**
- * Where an explanation stands: above the line it explains when there is room
- * for it there, below it when there is not, and on whichever side has more
- * room when neither is enough. Above first, because what a word or a heading
- * explains is that line and what follows it - a bubble dropped over the field
- * under its label would hide the very control it is about, and on a phone
- * there is no second column for it to move into. It never overlaps the line
- * it was opened from, and it is kept inside the window's gutters, with its
- * arrow still pointing at the trigger when the bubble has had to slide.
+ * Where an explanation stands: above the line it explains when there is room,
+ * below it when there is not, and on whichever side has more room when
+ * neither is enough. Above first, because a bubble dropped over the field
+ * under its label would hide the control it is about. It never overlaps the
+ * line it was opened from and is kept inside the window's gutters, its arrow
+ * still pointing at the trigger when the bubble has had to slide.
+ * One too tall for its side scrolls inside itself, cut between two lines of its text and not through one
+ * (`lines`: where the text begins under the bubble's top, and a line's height).
  */
-export function placeBubble(anchor: Box, size: { width: number; height: number }, view: { width: number; height: number }): Placement {
+export function placeBubble(anchor: Box, size: Size, view: Size, lines: { top: number; height: number } | null = null): Placement {
   const above = anchor.top - GAP - EDGE_Y;
   const below = view.height - anchor.bottom - GAP - EDGE_Y;
   const side = size.height <= above ? 'above' : size.height <= below ? 'below' : above > below ? 'above' : 'below';
-  const room = Math.max(0, side === 'above' ? above : below);
+  const most = Math.max(0, side === 'above' ? above : below);
+  const room = size.height > most && lines && lines.height > 0 && most > lines.top ? most - ((most - lines.top) % lines.height) : most;
   const height = Math.min(size.height, room);
   const centre = (anchor.left + anchor.right) / 2;
   const left = clamp(centre - size.width / 2, EDGE_X, view.width - EDGE_X - size.width);

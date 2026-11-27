@@ -4,34 +4,36 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Me, NotificationCategory, NotificationChannel, TelegramLink, WebhookMethod } from '@fg2/shared-types/v1';
-import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { useMe, useSubscribePush, useTelegramLink, useUnsubscribePush } from '@/api/account';
 import { ApiError } from '@/api/problem';
 import { isIos, isStandalone } from '@/app/install';
 import { INSTALL_ANCHOR } from '@/screens/me/appearance/InstallRow';
 import { Asking } from '@/ui/Asking';
+import { Facts } from '@/ui/Facts';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, clock, zoneOf } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, usePushSubscription } from './push';
-import { ChannelCard } from './parts';
+import { Row } from '@/screens/me/parts';
+import parts from '@/screens/me/parts.module.css';
+import { Switch } from '@/ui/Switch';
 import { useWriteNotifications } from './write';
 import { headersOf, headersText } from '@/ui/headers';
-import { categoriesOn, hostOf, listed, routingWith, WEBHOOK_METHODS } from './settings';
-import { alarmsReach } from './reach';
+import { useCallingRows } from './calling';
+import { mailAddressOf } from './reach';
+import { categoriesOn, hostOf, inWords, WEBHOOK_METHODS } from './settings';
 import styles from './Notifications.module.css';
 
 /**
  * The four channels, each a card with its switch.
  *
  * A channel that is null is off, and there is no fallback: the login address
- * is never mailed to unless it is entered here or asked for in the one tap the
- * notice above offers. Two of the four need the
- * install's half as well as the person's - a push key, a bot - and a card
- * whose install has none says so in place of offering a switch that could
- * never send.
+ * is never mailed to unless its switch here or the notice's tap asks for it.
+ * Two of the four need the install's half as well as the person's - a push
+ * key, a bot - and a card whose install has none says so in place of offering
+ * a switch that could never send.
  */
 
 interface CardProps {
@@ -46,17 +48,9 @@ const REPLYABLE: NotificationCategory[] = ['alerts', 'warnings', 'tasks'];
 /** The line under a card that is on: what the grid sends its way. */
 function Carries({ me, channel }: { me: Me; channel: NotificationChannel }) {
   const { t, i18n } = useTranslation();
-  const categories = categoriesOn(me.notifications.routing, channel);
+  const rows = categoriesOn(me.notifications.routing, channel);
 
-  if (categories.length === 0) return <>{t('notifications.nothingRouted')}</>;
-  return (
-    <>
-      {listed(
-        categories.map(category => t(`notifications.short.${category}`)),
-        i18n.language,
-      )}
-    </>
-  );
+  return <>{rows.length > 0 ? inWords(t, i18n.language, rows, false) : t('notifications.nothingRouted')}</>;
 }
 
 /** The chip that opens a card's fields, drawn only while they are closed. */
@@ -75,7 +69,7 @@ function EditActions({ save, onCancel }: { save: boolean; onCancel: () => void }
   const { t } = useTranslation();
 
   return (
-    <div className={styles.actions}>
+    <div className={ui.wrap}>
       <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!save}>
         {t('notifications.save')}
       </button>
@@ -102,9 +96,8 @@ export function PushCard({ me, held }: CardProps) {
   const [fault, setFault] = useState<{ key: string } | { error: unknown } | null>(null);
   const [asking, setAsking] = useState(false);
 
-  // Safari on an iPhone pushes only to the app on the home screen, so there it
-  // is not the browser that cannot but the place it was opened from - which is
-  // said, with the way to the other one.
+  // Safari on an iPhone pushes only to the app on the home screen: there it is not the browser that cannot but
+  // the place it was opened from - which is said, with the way to the other one.
   const cannot = !me.pushPublicKey ? 'noKey' : !pushSupported() ? (isIos() && !isStandalone() ? 'iosInstall' : 'unsupported') : null;
   const on = subscription.data != null;
 
@@ -148,7 +141,7 @@ export function PushCard({ me, held }: CardProps) {
   };
 
   return (
-    <ChannelCard
+    <Row
       title={t('notifications.channel.push')}
       line={
         cannot === 'iosInstall' ? (
@@ -160,30 +153,31 @@ export function PushCard({ me, held }: CardProps) {
           </>
         ) : cannot ? (
           t(`notifications.push.${cannot}`)
-        ) : on ? (
-          <>
-            {t('notifications.push.thisBrowser')} · <Carries me={me} channel="push" />
-          </>
-        ) : me.pushSubscribed ? (
-          <>
-            {t('notifications.push.otherDevice')} · <Carries me={me} channel="push" />
-          </>
+        ) : on || me.pushSubscribed ? (
+          <Facts facts={[t(`notifications.push.${on ? 'thisBrowser' : 'otherDevice'}`), <Carries me={me} channel="push" />]} />
         ) : (
-          `${t('notifications.off')} · ${t('notifications.push.notSubscribed')}`
+          <Facts facts={[t('notifications.off'), t('notifications.push.notSubscribed')]} />
         )
       }
-      on={on}
-      disabled={held || cannot !== null || asking || subscription.isPending}
-      onToggle={() => void (on ? switchOff() : switchOn())}
+      below={
+        <>
+          {asking ? <p className={ui.note}>{t('notifications.push.asking')}</p> : null}
+          {fault && 'key' in fault ? (
+            <p className={ui.problem} role="alert">
+              {t(`notifications.push.${fault.key}`)}
+            </p>
+          ) : null}
+          {fault && 'error' in fault ? <Refused error={fault.error} /> : null}
+        </>
+      }
     >
-      {asking ? <p className={ui.note}>{t('notifications.push.asking')}</p> : null}
-      {fault && 'key' in fault ? (
-        <p className={ui.problem} role="alert">
-          {t(`notifications.push.${fault.key}`)}
-        </p>
-      ) : null}
-      {fault && 'error' in fault ? <Refused error={fault.error} /> : null}
-    </ChannelCard>
+      <Switch
+        label={t('notifications.channel.push')}
+        on={on}
+        disabled={held || cannot !== null || asking || subscription.isPending}
+        onChange={() => void (on ? switchOff() : switchOn())}
+      />
+    </Row>
   );
 }
 
@@ -196,9 +190,7 @@ export function PushCard({ me, held }: CardProps) {
  */
 export function TelegramCard({ me, held }: CardProps) {
   const { t } = useTranslation();
-  // When the link runs out is a clock time like every other the app draws, so
-  // it is the account's hour in the account's 24-hour shape rather than the
-  // locale's, which put an "AM" on this line alone.
+  // When the link runs out is a clock time like every other: the account's hour in its 24-hour shape, not the locale's.
   const zone = zoneOf(me);
   const { write, error } = useWriteNotifications(me);
   const link = useTelegramLink();
@@ -231,146 +223,141 @@ export function TelegramCard({ me, held }: CardProps) {
   };
 
   return (
-    <ChannelCard
+    <Row
       title={t('notifications.channel.telegram')}
       line={
         cannot ? (
           t('notifications.telegram.noBot')
         ) : linked ? (
-          <>
-            {t('notifications.telegram.linked', { date: calendarDay(linked.linkedAt, zone) })} · <Carries me={me} channel="telegram" />
-            {answerable ? ` · ${t('notifications.telegram.replies')}` : ''}
-          </>
+          <Facts
+            facts={[
+              t('notifications.telegram.linked', { date: calendarDay(linked.linkedAt, zone) }),
+              <Carries me={me} channel="telegram" />,
+              answerable ? t('notifications.telegram.replies') : null,
+            ]}
+          />
         ) : waiting ? (
           t('notifications.telegram.waiting')
         ) : (
-          `${t('notifications.off')} · ${t('notifications.telegram.notLinked')}`
+          <Facts facts={[t('notifications.off'), t('notifications.telegram.notLinked')]} />
         )
       }
-      on={on}
-      disabled={held || cannot || link.isPending}
-      onToggle={toggle}
+      below={
+        <>
+          {offered && waiting ? (
+            <p className={`${ui.wrapRow} ${styles.linkLine}`}>
+              <a className={`${ui.button} ${ui.primary}`} href={offered.url} target="_blank" rel="noreferrer">
+                {t('notifications.telegram.open')}
+              </a>
+              <span className={ui.note}>{t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}</span>
+            </p>
+          ) : null}
+          {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}
+          {asking && linked ? (
+            <Asking
+              note={t('notifications.telegram.ask')}
+              yes={t('notifications.telegram.unlink')}
+              danger
+              busy={held}
+              onYes={() => {
+                setAsking(false);
+                setOffered(null);
+                write(
+                  { channels: { ...me.notifications.channels, telegram: null } },
+                  t('notifications.told.unlinked'),
+                  t('notifications.told.on', { what: t('notifications.channel.telegram') }),
+                );
+              }}
+              onCancel={() => setAsking(false)}
+            />
+          ) : null}
+          <Refused error={link.error ?? error} />
+        </>
+      }
     >
-      {offered && waiting ? (
-        <p className={styles.linkLine}>
-          <a className={`${ui.button} ${ui.primary}`} href={offered.url} target="_blank" rel="noreferrer">
-            {t('notifications.telegram.open')}
-          </a>
-          <span className={`mono ${ui.note}`}>{t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}</span>
-        </p>
-      ) : null}
-      {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}
-      {asking && linked ? (
-        <Asking
-          note={t('notifications.telegram.ask')}
-          yes={t('notifications.telegram.unlink')}
-          danger
-          busy={held}
-          onYes={() => {
-            setAsking(false);
-            setOffered(null);
-            write({ channels: { ...me.notifications.channels, telegram: null } });
-          }}
-          onCancel={() => setAsking(false)}
-        />
-      ) : null}
-      <Refused error={link.error ?? error} />
-    </ChannelCard>
+      <Switch label={t('notifications.channel.telegram')} on={on} disabled={held || cannot || link.isPending} onChange={toggle} />
+    </Row>
   );
 }
 
 /**
- * An address, entered here on purpose. At rest the card is the address and the
- * switch; the field is opened by the chip, and switching on with no address
- * yet opens it too: the switch reads as on, and the line under it says what is
- * still missing before anything is sent.
- *
- * The field starts on the address the account signs in with, which is the one
- * nearly everybody types, and nothing is written until Save confirms it. A
- * first address saved while critical alarms reach nobody carries them too:
- * an address that is sent nothing was the second step few found in the grid.
+ * An address. The switch does what the notice's tap does (`mailOn`): mail
+ * to the address the account signs in with, carrying what can call on the
+ * account, so e-mail is switched on one way and an address that is sent
+ * nothing does not exist. At rest the card is the address and the switch; the
+ * chip opens the field for another address, and nothing of it is written until
+ * Save confirms it.
  */
 export function EmailCard({ me, held }: CardProps) {
   const { t } = useTranslation();
-  const { write, error, pending } = useWriteNotifications(me);
+  const { write, mailOn, error, pending } = useWriteNotifications(me);
+  const rows = useCallingRows();
   const address = me.notifications.channels.email;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(address ?? me.email);
+  const [draft, setDraft] = useState('');
+  const typed = draft.trim();
 
-  const on = address !== null || editing;
-  const changed = draft.trim() !== (address ?? '');
-
-  const open = () => {
-    setDraft(address ?? me.email);
-    setEditing(true);
-  };
-
-  const save = (typed: string) => {
-    const first = address === null && !alarmsReach(me);
-    write({
-      channels: { ...me.notifications.channels, email: typed },
-      ...(first ? { routing: routingWith(me.notifications.routing, alertCategory('critical')!, 'email', true) } : {}),
-    });
-  };
-
+  const off = t('notifications.told.off', { what: t('notifications.channel.email') });
   const toggle = () => {
-    if (address !== null) {
-      setEditing(false);
-      write({ channels: { ...me.notifications.channels, email: null } });
-      return;
-    }
-    if (editing) {
-      setEditing(false);
-      return;
-    }
-    open();
+    setEditing(false);
+    if (address === null) mailOn(rows.length > 0 ? rows : undefined);
+    else write({ channels: { ...me.notifications.channels, email: null } }, off, t('notifications.told.email', { address }));
   };
 
   return (
-    <ChannelCard
+    <Row
       title={t('notifications.channel.email')}
+      // Off, it names the address its switch would send to, as the notice over the cards does: never "nicht eingerichtet".
       line={
-        address ? (
-          <>
-            {address} · <Carries me={me} channel="email" />
-          </>
-        ) : editing ? (
-          t('notifications.email.addressNeeded')
-        ) : (
-          `${t('notifications.off')} · ${t('notifications.notConfigured')}`
-        )
+        <Facts
+          facts={address ? [address, <Carries me={me} channel="email" />] : [t('notifications.off'), t('notify.to', { email: mailAddressOf(me) })]}
+        />
       }
-      on={on}
-      disabled={held}
-      onToggle={toggle}
-      action={address !== null && !editing ? <EditChip disabled={held} onOpen={open} /> : null}
+      below={
+        <>
+          {editing ? (
+            <form
+              className={ui.stack3}
+              onSubmit={event => {
+                event.preventDefault();
+                if (!typed) return;
+                setEditing(false);
+                write(
+                  { channels: { ...me.notifications.channels, email: typed } },
+                  t('notifications.told.email', { address: typed }),
+                  address ? t('notifications.told.email', { address }) : off,
+                );
+              }}
+            >
+              <label className={parts.field}>
+                <span className="label">{t('notifications.email.address')}</span>
+                <input
+                  className={ui.input}
+                  type="email"
+                  autoComplete="email"
+                  value={draft}
+                  disabled={held}
+                  onChange={event => setDraft(event.target.value)}
+                />
+              </label>
+              <EditActions save={!held && !pending && typed !== '' && typed !== address} onCancel={() => setEditing(false)} />
+            </form>
+          ) : null}
+          <Refused error={error} />
+        </>
+      }
     >
-      {editing ? (
-        <form
-          className={styles.fields}
-          onSubmit={event => {
-            event.preventDefault();
-            if (!draft.trim()) return;
-            setEditing(false);
-            save(draft.trim());
+      {address !== null && !editing ? (
+        <EditChip
+          disabled={held}
+          onOpen={() => {
+            setDraft(address);
+            setEditing(true);
           }}
-        >
-          <label className={styles.field}>
-            <span className="label">{t('notifications.email.address')}</span>
-            <input
-              className={ui.input}
-              type="email"
-              autoComplete="email"
-              value={draft}
-              disabled={held}
-              onChange={event => setDraft(event.target.value)}
-            />
-          </label>
-          <EditActions save={!held && !pending && changed && draft.trim() !== ''} onCancel={() => setEditing(false)} />
-        </form>
+        />
       ) : null}
-      <Refused error={error} />
-    </ChannelCard>
+      <Switch label={t('notifications.channel.email')} on={address !== null} disabled={held} onChange={toggle} />
+    </Row>
   );
 }
 
@@ -399,10 +386,11 @@ export function WebhookCard({ me, held }: CardProps) {
     setEditing(true);
   };
 
+  const off = t('notifications.told.off', { what: t('notifications.channel.webhook') });
   const toggle = () => {
     if (webhook !== null) {
       setEditing(false);
-      write({ channels: { ...me.notifications.channels, webhook: null } });
+      write({ channels: { ...me.notifications.channels, webhook: null } }, off, t('notifications.told.webhook', { host: hostOf(webhook.url) }));
       return;
     }
     if (editing) {
@@ -413,67 +401,75 @@ export function WebhookCard({ me, held }: CardProps) {
   };
 
   return (
-    <ChannelCard
+    <Row
       title={t('notifications.channel.webhook')}
       line={
-        webhook
-          ? `${hostOf(webhook.url)} · ${t('notifications.webhook.json')}`
-          : editing
-            ? t('notifications.webhook.urlNeeded')
-            : `${t('notifications.off')} · ${t('notifications.notConfigured')}`
+        editing && !webhook ? (
+          t('notifications.webhook.urlNeeded')
+        ) : (
+          <Facts
+            facts={webhook ? [hostOf(webhook.url), t('notifications.webhook.json')] : [t('notifications.off'), t('notifications.notConfigured')]}
+          />
+        )
       }
-      on={on}
-      disabled={held}
-      onToggle={toggle}
-      action={webhook !== null && !editing ? <EditChip disabled={held} onOpen={open} /> : null}
+      below={
+        <>
+          {editing ? (
+            <form
+              className={ui.stack3}
+              onSubmit={event => {
+                event.preventDefault();
+                if (!draft.url) return;
+                setEditing(false);
+                write(
+                  { channels: { ...me.notifications.channels, webhook: draft } },
+                  t('notifications.told.webhook', { host: hostOf(draft.url) }),
+                  webhook ? t('notifications.told.webhook', { host: hostOf(webhook.url) }) : off,
+                );
+              }}
+            >
+              <label className={parts.field}>
+                <span className="label">{t('notifications.webhook.url')}</span>
+                <input
+                  className={ui.input}
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  value={url}
+                  disabled={held}
+                  onChange={event => setUrl(event.target.value)}
+                />
+              </label>
+              <div className={parts.field}>
+                <span className="label">{t('notifications.webhook.method')}</span>
+                <Choices label={t('notifications.webhook.method')}>
+                  {WEBHOOK_METHODS.map(one => (
+                    <Choice key={one} chosen={method === one} disabled={held} onChoose={() => setMethod(one)}>
+                      {one}
+                    </Choice>
+                  ))}
+                </Choices>
+              </div>
+              <label className={parts.field}>
+                <span className="label">{t('notifications.webhook.headers')}</span>
+                <textarea
+                  className={`${ui.input} ${styles.text}`}
+                  rows={3}
+                  value={headers}
+                  disabled={held}
+                  placeholder={t('notifications.webhook.headersHint')}
+                  onChange={event => setHeaders(event.target.value)}
+                />
+              </label>
+              <EditActions save={!held && !pending && changed && draft.url !== ''} onCancel={() => setEditing(false)} />
+            </form>
+          ) : null}
+          <Refused error={error} />
+        </>
+      }
     >
-      {editing ? (
-        <form
-          className={styles.fields}
-          onSubmit={event => {
-            event.preventDefault();
-            if (!draft.url) return;
-            setEditing(false);
-            write({ channels: { ...me.notifications.channels, webhook: draft } });
-          }}
-        >
-          <label className={styles.field}>
-            <span className="label">{t('notifications.webhook.url')}</span>
-            <input
-              className={`mono ${ui.input}`}
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              value={url}
-              disabled={held}
-              onChange={event => setUrl(event.target.value)}
-            />
-          </label>
-          <div className={styles.field}>
-            <span className="label">{t('notifications.webhook.method')}</span>
-            <Choices label={t('notifications.webhook.method')}>
-              {WEBHOOK_METHODS.map(one => (
-                <Choice key={one} chosen={method === one} disabled={held} onChoose={() => setMethod(one)}>
-                  {one}
-                </Choice>
-              ))}
-            </Choices>
-          </div>
-          <label className={styles.field}>
-            <span className="label">{t('notifications.webhook.headers')}</span>
-            <textarea
-              className={`mono ${ui.input} ${styles.text}`}
-              rows={3}
-              value={headers}
-              disabled={held}
-              placeholder={t('notifications.webhook.headersHint')}
-              onChange={event => setHeaders(event.target.value)}
-            />
-          </label>
-          <EditActions save={!held && !pending && changed && draft.url !== ''} onCancel={() => setEditing(false)} />
-        </form>
-      ) : null}
-      <Refused error={error} />
-    </ChannelCard>
+      {webhook !== null && !editing ? <EditChip disabled={held} onOpen={open} /> : null}
+      <Switch label={t('notifications.channel.webhook')} on={on} disabled={held} onChange={toggle} />
+    </Row>
   );
 }

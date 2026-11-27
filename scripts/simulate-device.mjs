@@ -83,7 +83,7 @@ const SOCKET_ROLES = [
 const HUMIDIFIER_MIN_BAND = 5;
 
 // The commands beyond the three socket ones this build takes.
-const SOCKET_CAPABILITIES = ['socket_override', 'socket_timer', 'light_override'];
+const SOCKET_CAPABILITIES = ['socket_override', 'socket_timer', 'light_override', 'light_hold'];
 
 // The seconds a role's socket is given to switch itself off in if the module
 // stops talking to it - Tasmota's own watchdog, as the firmware programs it.
@@ -1022,6 +1022,7 @@ class SimulatedDevice {
     this.lightOverride = null;
     this.lastSocketReport = 0;
     this.reportedSockets = null;
+    this.socketReportDue = false;
     // Which sensor faults were there on the last pass, and when each kind was
     // last reported. RAM rather than the state file, because the firmware keeps
     // this in RTC memory: a reboot command leaves the interval running, a power
@@ -1303,10 +1304,13 @@ class SimulatedDevice {
    * `socket_list<k>` chunks, because a log message has a fixed size budget.
    *
    * A row is `role|id|ip|state|override-or-timer`. A reader that stops after
-   * the third column reads exactly what it used to.
+   * the third column reads exactly what it used to. `light_hold` goes with
+   * them: the hold on the module's own light output, or `none`.
    */
   publishSockets() {
     const sockets = this.memory.sockets;
+    const light = this.#lightHoldSecondsLeft();
+    this.hardwareInfo('light_hold', light > 0 ? `${this.lightOverride.state}@${light}` : 'none');
     const roles = [...new Set(sockets.map(socket => socket.role))];
     this.hardwareInfo('sockets', roles.length ? roles.join(',') : 'none');
     this.hardwareInfo(
@@ -1322,6 +1326,11 @@ class SimulatedDevice {
 
     this.reportedSockets = this.#socketSignature();
     this.lastSocketReport = Date.now();
+    this.socketReportDue = false;
+  }
+
+  #lightHoldSecondsLeft() {
+    return this.lightOverride ? Math.max(0, Math.ceil((this.lightOverride.until - Date.now()) / 1000)) : 0;
   }
 
   #socketRow(socket) {
@@ -1346,7 +1355,8 @@ class SimulatedDevice {
   // table forever.
   #socketSignature() {
     const held = socket => (this.#overrideSecondsLeft(socket) > 0 ? socket.override.state : '');
-    return this.memory.sockets.map(socket => `${socket.state ?? ''}@${held(socket)}`).join(';');
+    const light = this.#lightHoldSecondsLeft() > 0 ? this.lightOverride.state : '';
+    return [`light@${light}`, ...this.memory.sockets.map(socket => `${socket.state ?? ''}@${held(socket)}`)].join(';');
   }
 
   /**
@@ -1376,11 +1386,14 @@ class SimulatedDevice {
    * Drives the sockets from the sample just published and sends the table again
    * when a row is doing something else than the last report said - no more
    * often than the firmware does it. Without the re-report a socket would keep
-   * the state of the boot report forever.
+   * the state of the boot report forever. An override command is reported on
+   * the next pass whatever the spacing, as a hold sent again with another
+   * length changes nothing the signature sees.
    */
   syncSockets(sample, at = new Date()) {
     if (!SOCKET_HOST_TYPES.includes(this.type)) return;
     for (const socket of this.memory.sockets) socket.state = this.#socketState(socket, sample, at);
+    if (this.socketReportDue) return this.publishSockets();
     if (this.#socketSignature() === this.reportedSockets) return;
     if (Date.now() - this.lastSocketReport < SOCKET_REPORT_MIN_MS) return;
     this.publishSockets();
@@ -1455,6 +1468,7 @@ class SimulatedDevice {
     if (command.output !== undefined) {
       if (command.output !== 'light') return failed();
       this.lightOverride = hold;
+      this.socketReportDue = true;
       return;
     }
 
@@ -1463,6 +1477,7 @@ class SimulatedDevice {
     const socket = this.memory.sockets[subject];
     if (!socket) return failed();
     socket.override = hold;
+    this.socketReportDue = true;
   }
 
   #removeSockets(command) {

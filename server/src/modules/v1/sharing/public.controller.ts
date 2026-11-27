@@ -2,7 +2,7 @@ import { Controller, Get, HttpStatus, Param, Req, Res, UseGuards } from '@nestjs
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import type { GrowWeekCard, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
+import type { GrowDiaryWeek, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { publicGrowPage, publicUserPage, publicWeekPage, sharedResolution } from '@fg2/shared-types/v1-schemas';
 import { RateLimited, RateLimitGuard } from '@common/rate-limit.guard';
 import { Caller } from '@common/v1/access.guard';
@@ -11,7 +11,7 @@ import { CursorPage } from '@common/v1/pages';
 import { V1Query } from '@common/v1/validation';
 import { pictureSizeQuery, renderSizeOf } from '@modules/v1/camera/media-presentation.service';
 import { MediaDeliveryService } from '@modules/v1/camera/media-delivery.service';
-import { weeksQuery } from '@modules/v1/diary/weeks.service';
+import { diaryQuery } from '@modules/v1/diary/grow-diary.service';
 import { PUBLIC_OPERATION } from '../../../openapi';
 import { ApiPictureBytes, V1Answer } from '../answer-shape';
 import { CARD_CACHE_SECONDS, CARD_HEIGHT, CARD_WIDTH } from './link-card';
@@ -29,7 +29,7 @@ import { PublicPagesService } from './public-pages.service';
  *
  * What they do carry is a budget each. These are the only routes here that
  * anybody at all can call, and they are not cheap: resolving a link is a write
- * and up to twenty-six week cards of time-series reads, and a card is a
+ * and a diary's weeks of time-series reads, and a card is a
  * 1200x630 composite. Without one, the cost of making this server work is a
  * loop. The budgets are per address and per route, so a burst on the pictures of
  * one diary cannot shut the pages themselves.
@@ -39,10 +39,10 @@ import { PublicPagesService } from './public-pages.service';
 const CARD_BYTES = { 'image/png': { schema: { type: 'string', format: 'binary' } } };
 
 /**
- * A page of a whole grow draws one thumbnail per day of up to twenty-six weeks,
- * so a single reader scrolling one diary is a couple of hundred picture
- * requests. The budget has to be a page and not a screenful, or reading a long
- * diary throttles itself.
+ * A diary draws a picture per day and a reader pages back through months of
+ * it, so one reader scrolling one diary is a couple of hundred picture
+ * requests. The budget has to be a diary and not a screenful, or reading a long
+ * one throttles itself.
  */
 const PICTURES_PER_MINUTE = 600;
 
@@ -73,7 +73,7 @@ export class PublicController {
   @RateLimited({ limit: 30, message: 'Too many requests for shared diaries, please try again later.' })
   @ApiOperation({ summary: 'The weeks before the ones a shared diary carried', ...PUBLIC_OPERATION })
   @V1Answer(publicWeekPage)
-  public sharedWeeks(@Param('token') token: string, @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>): Promise<CursorPage<GrowWeekCard>> {
+  public sharedWeeks(@Param('token') token: string, @V1Query(diaryQuery) query: z.infer<typeof diaryQuery>): Promise<CursorPage<GrowDiaryWeek>> {
     return this.pages.sharedWeeks(token, query);
   }
 
@@ -102,8 +102,8 @@ export class PublicController {
   public async weeks(
     @Caller() ctx: AccessContext,
     @Param('slug') slug: string,
-    @V1Query(weeksQuery) query: z.infer<typeof weeksQuery>,
-  ): Promise<CursorPage<GrowWeekCard>> {
+    @V1Query(diaryQuery) query: z.infer<typeof diaryQuery>,
+  ): Promise<CursorPage<GrowDiaryWeek>> {
     const { grow, grant } = await this.pages.publicGrow(ctx, slug);
     return this.pages.weeksPage(grow, grant, query);
   }

@@ -14,6 +14,23 @@ body,
   height: 100%;
 }
 
+/* While a sheet is open (`data-scrim`, ui/Sheet.tsx) the page behind it stays
+   where it is, rather than scrolling under a wheel or a thumb meant for the
+   sheet. */
+html:has([data-scrim]) {
+  overflow: hidden;
+}
+
+/* Below the rail's width the top bar and the tab bar stand over the page, and
+   a control the keyboard moves to is scrolled clear of both rather than under
+   them - on every page, a desktop zoomed past the breakpoint included. */
+@media (max-width: 899px) {
+  html {
+    scroll-padding-top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-2));
+    scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  }
+}
+
 body {
   margin: 0;
   background:
@@ -38,11 +55,12 @@ p {
 
 /* The names a person gave things - a page, a place, a grow - are headings in
    the one face, ranked by weight and size the way the site ranks its own: a
-   title bold, a name a step lighter, both closed up and in the heading ink.
-   A page's title is the one size a screen does not choose for itself, so the
-   forty screens that never set one still get the same title. The optical-size
-   axis follows the size on its own. `.name` is a name that is not a heading -
-   a grow's in a list, a week's on its card - at the name size. */
+   title the one heavy thing on a screen, a name a step lighter, both closed up
+   and in the heading ink. A page's title is the one size a screen does not
+   choose for itself, so the forty screens that never set one still get the
+   same title. The optical-size axis follows the size on its own. `.name` is a
+   name that is not a heading - a grow's in a list, a week's on its card - at
+   the name size. */
 h1,
 h2,
 .display,
@@ -55,8 +73,15 @@ h2,
   text-wrap: balance;
 }
 
+/* A page's title fits the narrowest phone: a word longer than its line -
+   "Benachrichtigungen" beside a way back at 320 px - breaks between two of
+   its syllables with a hyphen, never between two letters, and only a word of
+   16 letters or more does (Safari and Firefox ignore the limit). Below 360 px
+   the title steps down a size as well (`--text-title`). */
 h1 {
   font-size: var(--text-title);
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
 }
 
 h2,
@@ -67,6 +92,19 @@ h2,
 
 .name {
   font-size: var(--text-name);
+}
+
+/* Nothing but a title and a name is set heavier than the medium: what an
+   element would set bold by itself - a `b`, a `strong`, a table's head, a
+   heading under an `h2` - is the medium, where a button's words and a figure
+   stand too. */
+b,
+strong,
+th,
+h3,
+h4,
+optgroup {
+  font-weight: var(--weight-medium);
 }
 
 /* A field does not inherit the page's type on its own, and a browser's own
@@ -86,7 +124,6 @@ select {
 input[type='number'] {
   appearance: textfield;
   -moz-appearance: textfield;
-  font-family: var(--font-figure);
 }
 
 input[type='number']::-webkit-outer-spin-button,
@@ -95,33 +132,35 @@ input[type='number']::-webkit-inner-spin-button {
   appearance: none;
 }
 
-/* Figures, timestamps and captions: tabular, so a column of numbers lines up.
-   A big figure is the sans at a heavier weight rather than a second face.
+/* Digits of one width, for figures that stand under one another or change in
+   place: a table's column, an axis, a list's time column, a stepper's value, a
+   countdown. Nothing else takes it - a sentence, a date, a chip, a title and a
+   figure standing alone are set in the face's own digits, which are spaced as
+   letters are: a tabular "1" stands in a zero's width and reads loose in a
+   date or a large figure.
 
-   Tabular comes from the face `--font-figure` names first, never from
-   `font-variant-numeric`. Inter's tabular feature is not only the digits: it
-   gives the hyphen, the full stop, the comma, the colon, the brackets and the
-   space a digit's width as well, and a caption is as often a sentence as a
-   figure - "long-press a tile for details" came out as "long - press". */
-.figure,
+   One width comes from the face `--font-figure` names first, which holds the
+   ten digits and nothing else, never from `font-variant-numeric`: Inter's
+   tabular feature widens the hyphen, the stops, the colon, the brackets and the
+   space as well - "long-press" came out "long - press". */
 .mono {
   font-family: var(--font-figure);
 }
 
+/* A big figure is the sans at the medium rather than a second face: larger rather than bolder. */
 .figure {
   font-weight: var(--weight-figure);
 }
 
-/* A section label: small capitals, tracked open, in the label colour. It is
-   the kicker over a block and the name over a field, and it never competes
-   with the figures or the names under it. */
+/* A section label: small, at the medium and in the label colour, in sentence
+   case - nothing in the app is set in capitals. It is the kicker over a block
+   and the name over a field, and it never competes with the figures or the
+   names under it. */
 .label {
   font-family: var(--font-text);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-label);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
-  text-transform: uppercase;
   color: var(--label);
 }
 
@@ -131,7 +170,7 @@ input[type='number']::-webkit-inner-spin-button {
 .caption {
   font-family: var(--font-text);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular);
   line-height: var(--line-tight);
   color: var(--muted);
 }
@@ -223,9 +262,19 @@ button:disabled {
   cursor: default;
 }
 
+/* Every icon is drawn a step finer than lucide's own line, as the type is a step lighter than the site's. */
+svg.lucide {
+  stroke-width: 1.75;
+}
+
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* Text takes focus only to bring a screen reader to it - a new page, a question, a receipt; it is not a control. */
+:is(h1, h2, p)[tabindex='-1']:focus {
+  outline: none;
 }
 
 ::selection {
@@ -243,9 +292,11 @@ button:disabled {
 
 /* Paper. The browser's own print is the only way a report reaches it, and a
    printed page has nothing to tap: the rail, the top bar, the tab bar with its
-   Log button, a page's tabs and its row of actions, and the export card are
-   the app around the record rather than the record, so they are left off it.
-   An element says so with data-print="omit". */
+   Eintrag button, a page's tabs and its row of actions - a grow's menu and
+   "Alle Grows" -, and the export card are the app around the record rather
+   than the record, so they are left off it. An element says so with
+   data-print="omit". Paper is light whatever the theme: the dark tokens are
+   the screen's alone (theme/tokens.css). */
 @media print {
   [data-print='omit'] {
     display: none !important;

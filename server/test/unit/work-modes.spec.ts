@@ -43,6 +43,12 @@ const device = (fields: Partial<StoredDevice> = {}) =>
 
 const stored = async () => (await db.devices.findOne({ id: DEVICE }).lean<StoredDevice>())!;
 
+/**
+ * A device on a named climate: ending a germination by itself gives back the night from before only where a climate
+ * had a name; where none had, it ends on "Sämling · mit Licht" (`v1-stage-alarms.spec`).
+ */
+const NAMED = { appliedClimate: { stage: 'vegetative' as const, preset: null } };
+
 beforeEach(async () => {
   await db.reset();
   ({ published, configuration, ingest } = deviceStackOn(db));
@@ -298,7 +304,7 @@ describe('a setting changed by name', () => {
    * left every night after it at 24 °C.
    */
   it('puts the night back that germination wrote over, when the device goes back to another mode by itself', async () => {
-    await device();
+    await device(NAMED);
 
     await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
     const germinating = await stored();
@@ -479,8 +485,84 @@ describe('every other way a document is written', () => {
     expect(after.beforeGermination).toBeNull();
   });
 
+  /**
+   * Germination is dark for every lamp of the place (ADR 0007): a lamp module beside the controller has a brightness
+   * of its own that no work mode reaches, and burnt on under "Keimung · dunkel".
+   */
+  it('puts the lamp modules of its place to nothing while it germinates, and gives them their light back after it', async () => {
+    const lampDocument = { day: 25200, night: 82800, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
+    await device({ configuration: fridgeDocument({ workmode: 'full' }), spaceId: 'tent' });
+    await db.devices.create({ id: 'lamp', type: 'light', ownerId: OWNER, spaceId: 'tent', configuration: lampDocument });
+    await db.devices.create({ id: 'elsewhere', type: 'light', ownerId: OWNER, spaceId: 'other', configuration: lampDocument });
+    const lamp = async (id = 'lamp') => (await db.devices.findOne({ id }).lean<StoredDevice>())!;
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0, day: 25200, night: 82800 });
+    expect((await lamp()).limitBeforeDark).toBe(70);
+    expect(documentsOf(published).at(-1)).toMatchObject({ limit: 0 });
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 70 });
+
+    // Lit again by hand while it germinates, it is darkened again by the next germination climate.
+    await configuration.configure('lamp', { brightness: 50 }, OWNER);
+    await configuration.lampsFollow('tent');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0 });
+
+    // A lamp that comes into the place goes dark; one that leaves it gets its light back.
+    await db.devices.updateOne({ id: 'elsewhere' }, { $set: { spaceId: 'tent' } });
+    await configuration.lampsFollow('tent');
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 0 });
+    await db.devices.updateOne({ id: 'elsewhere' }, { $set: { spaceId: null } });
+    await configuration.lampsFollow(null, ['elsewhere']);
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp('elsewhere')).limitBeforeDark).toBeNull();
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('seedling', null, (await stored()).configuration, true)!, 'seedling');
+    expect((await lamp()).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp()).limitBeforeDark).toBeNull();
+  });
+
+  /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
+  it('puts the lamp modules of its place to nothing while it dries, and gives them their light back when the drying ends', async () => {
+    const lampDocument = { day: 25200, night: 82800, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
+    await device({ configuration: fridgeDocument({ workmode: 'full' }), spaceId: 'tent' });
+    await db.devices.create({ id: 'lamp', type: 'light', ownerId: OWNER, spaceId: 'tent', configuration: lampDocument });
+    const lamp = async () => (await db.devices.findOne({ id: 'lamp' }).lean<StoredDevice>())!;
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('drying', null, (await stored()).configuration, true)!, 'drying');
+    expect((await stored()).configuration).toMatchObject({ workmode: 'dry' });
+    expect((await lamp()).configuration).toMatchObject({ limit: 0 });
+    expect((await lamp()).limitBeforeDark).toBe(70);
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('flowering', null, (await stored()).configuration, true)!, 'flowering');
+    expect((await lamp()).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp()).limitBeforeDark).toBeNull();
+  });
+
+  /** However it came to (ADR 0007): germination or drying begun at the device's own menu darkens the lamps too. */
+  it('puts the lamp modules of its place to nothing when the device germinates or dries by its own menu, and gives the light back after', async () => {
+    const lampDocument = { day: 25200, night: 82800, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
+    await device({ type: 'controller', configuration: fridgeDocument({ workmode: 'small' }), baseWorkmode: 'small', spaceId: 'tent' });
+    await db.devices.create({ id: 'lamp', type: 'light', ownerId: OWNER, spaceId: 'tent', configuration: lampDocument });
+    const lamp = async () => (await db.devices.findOne({ id: 'lamp' }).lean<StoredDevice>())!;
+    const fromItsMenu = async (workmode: string) =>
+      ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...(await stored()).configuration, workmode }));
+
+    await fromItsMenu('breed');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0 });
+    expect((await lamp()).limitBeforeDark).toBe(70);
+
+    await fromItsMenu('small');
+    expect((await lamp()).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp()).limitBeforeDark).toBeNull();
+
+    await fromItsMenu('dry');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0 });
+    await fromItsMenu('small');
+    expect((await lamp()).configuration).toMatchObject({ limit: 70 });
+  });
+
   it('brings the night from before germination back where the next stage comes without a climate, and keeps the light on re-sends', async () => {
-    await device();
+    await device(NAMED);
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
 
     await configuration.applyConfiguration(DEVICE, {}, 'seedling');
@@ -488,7 +570,7 @@ describe('every other way a document is written', () => {
 
     // The plan's hourly re-send of a seedling step leaves the light where it is.
     published.length = 0;
-    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling');
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling', undefined, null);
     expect((await stored()).configuration?.workmode).toBe('small');
     expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'small' });
   });
@@ -506,17 +588,26 @@ describe('every other way a document is written', () => {
     await configuration.applyConfiguration(DEVICE, { workmode: 'breed', night: { temperature: 24 } }, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
 
-    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } }, null);
+    // A step with figures of its own writes a climate, its stage's or none (`applied: null`), as the plan engine sends it.
+    await configuration.applyConfiguration(
+      DEVICE,
+      { day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } },
+      null,
+      undefined,
+      null,
+    );
     const after = await stored();
     expect(after.configuration).toMatchObject({ workmode: 'full', day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } });
     expect(after.beforeGermination).toBeNull();
 
     // A step of nothing but a light limit brings the night from before germination back with the light.
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, after.configuration, true)!, 'germination');
-    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null);
+    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null, undefined, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 22 }, lights: { limit: 60 } });
 
-    // And so does a step that names nothing at all, the one "+ Schritt hinzufügen" makes.
+    // And so does a step that names nothing at all, the one "+ Schritt hinzufügen" makes: as "Keimung beenden" does, on the
+    // climate it came from - here the one put back by hand.
+    await db.devices.updateOne({ id: DEVICE }, { $set: NAMED });
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
     published.length = 0;
@@ -671,7 +762,7 @@ describe('a humidifier while the device germinates', () => {
   });
 
   it('gives a fridge its tuning back when germination ends, from the day humidity as ever', async () => {
-    await device({ configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 } }) });
+    await device({ ...NAMED, configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 } }) });
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination', { humidifierHolds: false });
     expect(bandOf((await stored()).configuration)).toBe(100);
 
@@ -751,7 +842,7 @@ describe('a humidifier while the device germinates', () => {
   });
 
   it('writes the humidity germination is saved with, and puts the night from before back afterwards', async () => {
-    await device();
+    await device(NAMED);
     // The page prefills germination's 75 % with its chip; the save writes it as the night's.
     await configuration.replace(DEVICE, fridgeDocument({ night: { temperature: 24, humidity: 75 } }), OWNER, false, true);
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
@@ -766,7 +857,7 @@ describe('a humidifier while the device germinates', () => {
 
   it('brings germination its own humidity however it begins, and gives the night from before back however it ends', async () => {
     // The operating mode by name names no humidity: germination brings its 75 % all the same.
-    await device({ configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } }) });
+    await device({ ...NAMED, configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } }) });
     await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
     const germinating = await stored();
     // The temperature stays the night's until the grower sets another; the humidity is germination's.
@@ -805,7 +896,7 @@ describe('a humidifier while the device germinates', () => {
     await device();
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24, humidity: 80 } }, 'germination');
 
-    await configuration.applyConfiguration(DEVICE, { night: { temperature: 21 } }, null);
+    await configuration.applyConfiguration(DEVICE, { night: { temperature: 21 } }, null, undefined, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 21, humidity: 55 } });
   });
 

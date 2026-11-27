@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { anchorOf, placeBubble, type HelpTopic } from './explain';
+import { focusIsRescued } from './focus-rescue';
 import styles from './Help.module.css';
 
 /**
@@ -105,7 +106,10 @@ function useExplanation(topic: HelpTopic) {
       if (button.bottom < 0 || button.top > window.innerHeight) return false;
       const anchor = anchorOf(button, trigger.current?.parentElement?.getBoundingClientRect() ?? null);
       const height = box.offsetHeight - content.clientHeight + content.scrollHeight;
-      const at = placeBubble(anchor, { width: box.offsetWidth, height }, { width: window.innerWidth, height: window.innerHeight });
+      // Where the text begins under the bubble's top, and how high one of its lines is.
+      const top = (content.lastElementChild?.getBoundingClientRect().top ?? 0) - box.getBoundingClientRect().top + content.scrollTop;
+      const lines = { top, height: parseFloat(getComputedStyle(content).lineHeight) };
+      const at = placeBubble(anchor, { width: box.offsetWidth, height }, { width: window.innerWidth, height: window.innerHeight }, lines);
       box.style.top = `${at.top}px`;
       box.style.left = `${at.left}px`;
       box.style.setProperty('--room', `${at.room}px`);
@@ -143,7 +147,8 @@ function useExplanation(topic: HelpTopic) {
       pressing.current = false;
     },
     onFocus: () => {
-      if (!pressing.current && !returning.current) show();
+      // Opened for somebody who tabbed here; a focus the page placed itself opens nothing.
+      if (!pressing.current && !returning.current && !focusIsRescued()) show();
     },
     onBlur: (event: FocusEvent) => {
       if (!(event.relatedTarget instanceof Node && bubble.current?.contains(event.relatedTarget))) close();
@@ -200,6 +205,24 @@ export function Help({ topic }: { topic: HelpTopic }) {
         <Info size={15} strokeWidth={2} aria-hidden />
       </button>
       {parts}
+    </>
+  );
+}
+
+/**
+ * A label with its (i): the mark stays with the label's last word, so a label that takes two lines keeps it beside
+ * the second rather than standing apart from the words - or alone on a third.
+ */
+export function Named({ label, topic }: { label: string; topic?: HelpTopic }) {
+  const last = label.lastIndexOf(' ') + 1;
+
+  return (
+    <>
+      {label.slice(0, last)}
+      <span className={styles.last}>
+        {label.slice(last)}
+        {topic ? <Help topic={topic} /> : null}
+      </span>
     </>
   );
 }

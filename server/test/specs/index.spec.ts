@@ -50,6 +50,7 @@ describe('service endpoints', () => {
       ['/v1/sessions/refresh', 'post'],
       ['/v1/users', 'post'],
       ['/v1/password-resets', 'post'],
+      ['/v1/password-resets/{token}', 'get'],
       ['/device/register', 'post'],
       ['/device/claimcode', 'post'],
       ['/device/firmware/{firmware_id}/{binary}', 'get'],

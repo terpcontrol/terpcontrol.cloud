@@ -1,9 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
@@ -14,9 +15,27 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** The version the app states about itself, read from its own package rather than typed a second time. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
-/** What the app is compiled with, which the vitest configs take too: the version and the `@` alias. */
+/**
+ * The commit the bundle is built from, short: `APP_COMMIT` where the build is handed it (the image has no `.git`, so
+ * `up.sh` passes it in), else the checkout's own `HEAD`. Anything that is not a commit hash - no git, no checkout, a
+ * stray value - is empty, and the app then states its version without one.
+ */
+const commitOf = (): string => {
+  let commit = process.env.APP_COMMIT ?? '';
+  if (!commit) {
+    try {
+      commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      commit = '';
+    }
+  }
+  commit = commit.trim().toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(commit) ? commit.slice(0, 7) : '';
+};
+
+/** What the app is compiled with, which the vitest configs take too: the version, the commit and the `@` alias. */
 export const shared = {
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: { __APP_VERSION__: JSON.stringify(version), __APP_COMMIT__: JSON.stringify(commitOf()) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
 };
 
@@ -56,11 +75,24 @@ const followContract = (): Plugin => ({
   },
 });
 
+/**
+ * An install's own markup at the end of every page - a feedback widget, analytics - from `VITE_CUSTOM_SCRIPT_TAG`
+ * (the image's build arg `CUSTOM_SCRIPT_TAG`). It goes into `index.html` itself rather than through React, because
+ * such a snippet is a plain `<script src>` that expects to be parsed with the page; markup set as `innerHTML` never
+ * runs its scripts. Whoever builds the image writes it, as with `CUSTOM_LINKS_HTML`; empty adds nothing.
+ */
+const customScriptTag = (tag: string): Plugin => ({
+  name: 'custom-script-tag',
+  transformIndexHtml: html => (tag.trim() ? html.replace('</body>', `  ${tag.trim()}\n  </body>`) : html),
+});
+
 export default defineConfig(({ mode }) => ({
   ...shared,
   plugins: [
     react(),
     followContract(),
+    // `loadEnv` because Vite has not yet read `.env*` into `process.env` while the config is being evaluated.
+    customScriptTag(loadEnv(mode, process.cwd(), 'VITE_').VITE_CUSTOM_SCRIPT_TAG ?? ''),
     VitePWA({
       registerType: 'autoUpdate',
       // `public/manifest.webmanifest` is the manifest, linked from index.html.
@@ -109,6 +141,7 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/plan-clock.js',
       '@fg2/shared-types/v1-schemas/steering.js',
       '@fg2/shared-types/v1-schemas/pages.js',
+      '@fg2/shared-types/v1-schemas/place-names.js',
       '@fg2/shared-types/v1-schemas/entitlement.js',
       '@fg2/shared-types/v1-schemas/firmware-channels.js',
     ],

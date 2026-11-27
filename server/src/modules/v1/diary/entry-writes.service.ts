@@ -1,13 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { Entry, EntryCreate, EntryUpdate } from '@fg2/shared-types/v1';
+import type { Entry, EntryCreate, EntryUpdate, HarvestEntryValues } from '@fg2/shared-types/v1';
 import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
+import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
 import { serialiseEntry } from '@common/v1/entries';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { badRequest, forbidden, notFound, unauthenticated } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -15,8 +18,11 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { spacesNow } from '../grow/grow-places';
+import { shareOut } from '../grow/harvest-shares';
 import { completionsOf, dueTasksOf, remindersAbout } from './due-tasks';
 import { requireLogOn } from './entry-targets';
 import { requireMatchingKind, resolveEntryValues } from './entry-values';
@@ -38,14 +44,6 @@ import { MAINTENANCE_STARTER, MaintenancePort } from './maintenance.port';
  */
 
 /**
- * How far ahead an entry may be dated. A backdated entry is ordinary - the
- * person is writing down this morning's watering - but a future one would sit at
- * the top of every timeline until the day it named, and the only way it gets
- * written is a mistyped year or a phone whose clock is wrong.
- */
-const CLOCK_SKEW_MS = 60_000;
-
-/**
  * How far ahead a watering or a feed written by hand still counts as the task
  * of that kind: today's, or one due before this time tomorrow.
  */
@@ -59,10 +57,17 @@ export class EntryWritesService {
     @InjectModel(MODEL_V1.plant) private readonly plants: Model<PlantDocument>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
+    @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     private readonly access: AccessService,
     private readonly writer: EntryWriterService,
     @Inject(MAINTENANCE_STARTER) private readonly maintenance: MaintenancePort,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
+
+  /** The zone the week of a feed is counted in: the calendar of the grow's owner. */
+  private zoneOf(grow: GrowDocument | null): Promise<string | null> {
+    return grow ? zoneOfOwner(this.users, grow.ownerId) : Promise.resolve(null);
+  }
 
   public async create(ctx: AccessContext, body: EntryCreate): Promise<Entry> {
     requireMatchingKind(body.kind, body.values);
@@ -70,6 +75,11 @@ export class EntryWritesService {
     const authorId = authorOf(ctx);
     const occurredAt = momentOf(body.occurredAt);
     await requireLogOn(this.access, ctx, body);
+    // A line somebody writes about a place that has ended would be read on no
+    // screen. What a machine writes - an alarm, a device's message, a plan -
+    // goes through the writer itself and is not asked: it records what
+    // happened, and a refusal there would be thrown at nobody.
+    if (body.spaceId) await refuseEndedId(this.spaces, body.spaceId);
 
     const grow = await this.growOf(body.growId ?? null, body.plantIds ?? []);
     const line = {
@@ -83,12 +93,13 @@ export class EntryWritesService {
       plantIds: body.plantIds ?? [],
       text: body.text ?? null,
       mediaIds: body.mediaIds ?? [],
-      values: resolveEntryValues(body.values, grow, occurredAt),
+      values: resolveEntryValues(body.values, grow, occurredAt, await this.zoneOf(grow)),
     };
-    const closes = body.taskId === undefined ? await this.dueTaskOf(body.kind, grow, occurredAt) : null;
+    const closes = body.taskId !== undefined ? body.taskId : await this.dueTaskOf(body.kind, grow, occurredAt);
 
-    const entry = await this.writer.write({ ...line, taskId: body.taskId ?? closes }).catch(error => {
-      // Ticked off by somebody else in the same moment: the watering is still written.
+    const entry = await this.writer.write({ ...line, taskId: closes }).catch(error => {
+      // Ticked off by somebody else in the same moment - the task the sheet was opened from too: the watering is
+      // still written.
       if (closes !== null && isDuplicateKey(error)) return this.writer.write({ ...line, taskId: null });
       throw error;
     });
@@ -115,7 +126,12 @@ export class EntryWritesService {
       plantIds: body.plantIds ?? entry.plantIds,
       mediaIds: body.mediaIds ?? entry.mediaIds,
     };
-    await requireLogOn(this.access, ctx, targets);
+    // A plant deleted since the line was written is still what the line recorded: the line is corrected with it, and
+    // only a plant it is newly about has to be there to be written to. Refused, such a line could never be put right.
+    const gone = await this.goneOf(entry.plantIds);
+    await requireLogOn(this.access, ctx, { ...targets, plantIds: targets.plantIds.filter(plantId => !gone.has(plantId)) });
+    // Moved onto an ended place it would be a new line there; a line that already stands on one stays correctable.
+    if (body.spaceId && body.spaceId !== entry.spaceId) await refuseEndedId(this.spaces, body.spaceId);
 
     const occurredAt = body.occurredAt === undefined ? entry.occurredAt : momentOf(body.occurredAt);
     const grow = await this.growOf(targets.growId, targets.plantIds ?? []);
@@ -130,11 +146,33 @@ export class EntryWritesService {
       ...(body.text !== undefined ? { text: body.text } : {}),
       ...(body.mediaIds !== undefined ? { mediaIds: body.mediaIds ?? [] } : {}),
       ...(body.occurredAt !== undefined ? { occurredAt } : {}),
-      ...(body.values ? { values: resolveEntryValues(body.values, grow, occurredAt) } : {}),
+      ...(body.values ? { values: resolveEntryValues(body.values, grow, occurredAt, await this.zoneOf(grow)) } : {}),
     };
 
     await this.entries.updateOne({ id }, { $set: changed });
+    if (entry.values.kind === 'harvest' && changed.values?.kind === 'harvest') await this.reshare(entry, entry.values, changed.values);
     return serialiseEntry({ ...entry, ...changed });
+  }
+
+  /**
+   * A harvest's weights corrected on its line - the dry weight typed in days later, a typo put right - are shared out
+   * again over the plants the line names, as the harvest shared them: the line is the yield every page states, and
+   * a plant's share is what the export lists.
+   */
+  private async reshare(line: EntryDocument, before: HarvestEntryValues, after: HarvestEntryValues): Promise<void> {
+    const plants = await this.plants.find({ id: { $in: line.plantIds }, harvest: { $ne: null } }, { id: 1 }).lean<Pick<PlantDocument, 'id'>[]>();
+    const shares = (field: 'wetWeightG' | 'dryWeightG') => (before[field] === after[field] ? null : shareOut(after[field], plants.length));
+    const [wet, dry] = [shares('wetWeightG'), shares('dryWeightG')];
+    if (plants.length === 0 || (!wet && !dry)) return;
+
+    await this.plants.bulkWrite(
+      plants.map((plant, index) => ({
+        updateOne: {
+          filter: { id: plant.id },
+          update: { $set: { ...(wet ? { 'harvest.wetWeightG': wet[index] } : {}), ...(dry ? { 'harvest.dryWeightG': dry[index] } : {}) } },
+        },
+      })),
+    );
   }
 
   /**
@@ -196,6 +234,13 @@ export class EntryWritesService {
     return first?.id ?? null;
   }
 
+  /** Which of these plants no longer exist. */
+  private async goneOf(plantIds: string[]): Promise<Set<string>> {
+    if (plantIds.length === 0) return new Set();
+    const there = await this.plants.find({ id: { $in: plantIds } }, { id: 1 }).lean<Pick<PlantDocument, 'id'>[]>();
+    return new Set(plantIds.filter(plantId => !there.some(plant => plant.id === plantId)));
+  }
+
   /** The grow a feed is resolved against: the one named, else the one the plants belong to. */
   private async growOf(growId: string | null, plantIds: string[]): Promise<GrowDocument | null> {
     if (growId) return this.grows.findOne({ id: growId }).lean<GrowDocument>();
@@ -226,8 +271,14 @@ const authorOf = (ctx: AccessContext): string => {
   return ctx.userId;
 };
 
+/**
+ * When a line happened. A backdated entry is ordinary - the person is writing
+ * down this morning's watering - but a future one would sit at the top of every
+ * timeline until the day it named, and the only way it gets written is a
+ * mistyped year or a phone whose clock is wrong.
+ */
 const momentOf = (occurredAt: string | undefined): Date => {
-  const at = occurredAt ? new Date(occurredAt) : new Date();
+  const at = heldToNow(occurredAt ? new Date(occurredAt) : new Date());
 
   if (at.getTime() > Date.now() + CLOCK_SKEW_MS) {
     throw badRequest('occurred_in_the_future', 'An entry records something that has happened; it can be backdated but not postdated.', [

@@ -1,13 +1,41 @@
 import { useEffect, useRef, type RefObject } from 'react';
+import { ANNOUNCER } from './live-region';
 
 /** Everything inside a panel that a Tab can land on, in the order it would. */
 const STOPS =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
+ * Makes everything but `panel` inert - every sibling of it and of each of its
+ * ancestors - and returns how to undo exactly that. `aria-modal` alone does not
+ * keep VoiceOver on iOS or TalkBack inside a dialog: swiping walks on into the
+ * page behind it. It is hidden from the tree as well, for a tool that reads the
+ * page's own markup rather than the browser's tree and does not know `inert`.
+ * The app's live region stays heard.
+ */
+const inertOutside = (panel: HTMLElement): (() => void) => {
+  const made: { element: Element; hid: boolean }[] = [];
+  for (let node: HTMLElement = panel; node.parentElement && node !== document.body; node = node.parentElement) {
+    for (const sibling of node.parentElement.children) {
+      if (sibling === node || sibling.hasAttribute('inert') || sibling.hasAttribute(ANNOUNCER)) continue;
+      const hid = !sibling.hasAttribute('aria-hidden');
+      sibling.setAttribute('inert', '');
+      if (hid) sibling.setAttribute('aria-hidden', 'true');
+      made.push({ element: sibling, hid });
+    }
+  }
+  return () =>
+    made.forEach(({ element, hid }) => {
+      element.removeAttribute('inert');
+      if (hid) element.removeAttribute('aria-hidden');
+    });
+};
+
+/**
  * What makes an element announced as a dialog behave like one: the focus goes
  * into it when it opens, stays inside it while it is there, comes back out to
- * whatever had it when it closes, and Escape closes it. The ref it answers is
+ * whatever had it when it closes, Escape closes it, and the page behind it
+ * cannot be reached while it is open. The ref it answers is
  * put on the panel, which needs `tabIndex={-1}` to be able to hold the focus.
  *
  * It lives here rather than inside either of the modals the app draws, because
@@ -32,6 +60,7 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void): RefOb
   useEffect(() => {
     const before = document.activeElement;
     panel.current?.focus();
+    const release = panel.current ? inertOutside(panel.current) : () => {};
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -53,6 +82,7 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void): RefOb
 
     return () => {
       document.removeEventListener('keydown', onKey);
+      release();
       if (before instanceof HTMLElement) before.focus();
     };
   }, []);

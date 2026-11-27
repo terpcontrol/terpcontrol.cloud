@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Invite, MemberRole, SpaceKind } from '@fg2/shared-types/v1';
+import type { Invite, MemberRole } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useCreateInvite } from '@/api/invites';
 import { useDiaryLayer } from '@/api/layers';
-import { useSpaceOverview } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { useCopied } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
@@ -12,7 +11,7 @@ import { Refused } from '@/ui/PageState';
 import { QrCode } from '@/ui/QrCode';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { InviteTerms } from './InviteTerms';
+import { InviteAddress, InviteTerms } from './InviteTerms';
 import { codeEntryAddress, expiresAtFor, inviteAddress, ROLES, shownAddress, VALIDITIES, type Validity } from './invites';
 import styles from './Invite.module.css';
 
@@ -26,9 +25,9 @@ type Way = (typeof WAYS)[number];
  * characters to read aloud, and as a square to hold a phone up to.
  *
  * It is two screens on one sheet because the link does not exist until the
- * server has cut it. First the two questions - the role and the validity - and
- * the sentence that says what the guest will and will not see; then, once the
- * server has answered, the code it answered, and under it what that code
+ * server has cut it. First the two questions - the role and the validity,
+ * what a guest will and will not see behind the second's help -; then, once
+ * the server has answered, the code it answered, and under it what that code
  * grants read off the answer rather than off what was asked for. A code that
  * is already out opens the sheet on its second screen, so a host at a meeting
  * can show yesterday's link as a QR without cutting another.
@@ -36,13 +35,14 @@ type Way = (typeof WAYS)[number];
 export function InviteSheet({
   spaceId,
   spaceName,
-  kind,
+  room = false,
   shown,
   onClose,
 }: {
   spaceId: string;
   spaceName: string;
-  kind: SpaceKind;
+  /** Whether it is a room's invitation, which lets into every place of the room. */
+  room?: boolean;
   /** A code already out, to be shown rather than made; null asks the two questions first. */
   shown: Invite | null;
   onClose: () => void;
@@ -55,16 +55,18 @@ export function InviteSheet({
   const [role, setRole] = useState<MemberRole>('can_log');
   const [validity, setValidity] = useState<Validity>('week');
 
-  const title = t('space.members.sheet.title', { name: spaceName });
+  // The place's name stands by itself, as the sheet's second line and in what a share is headed by.
+  const title = t('space.members.sheet.title');
 
   if (made) {
     return (
       <Sheet
         title={title}
+        note={spaceName}
         onClose={onClose}
         actions={
           <>
-            <ShareButton url={inviteAddress(made.code)} title={title} />
+            <ShareButton url={inviteAddress(made.code)} title={`${t('space.members.join.label')} · ${spaceName}`} />
             <button type="button" className={ui.button} onClick={onClose}>
               {t('space.members.sheet.done')}
             </button>
@@ -72,7 +74,8 @@ export function InviteSheet({
         }
       >
         <div className={styles.sheetBody}>
-          <Made invite={made} />
+          {/* A code already out was opened by "Code · QR", so it opens on the code; one just made on its link. */}
+          <Made invite={made} first={shown ? 'code' : 'link'} />
         </div>
       </Sheet>
     );
@@ -81,6 +84,7 @@ export function InviteSheet({
   return (
     <Sheet
       title={title}
+      note={spaceName}
       onClose={onClose}
       actions={
         <button
@@ -102,13 +106,13 @@ export function InviteSheet({
             {ROLES.map(one => (
               <button key={one} type="button" role="radio" aria-checked={role === one} className={styles.role} onClick={() => setRole(one)}>
                 <span className={styles.roleName}>{t(`space.members.role.${one}`)}</span>
-                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}${diary ? '' : 'Plain'}`)}</span>
+                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}${diary ? '' : 'Plain'}${room ? 'Room' : ''}`)}</span>
               </button>
             ))}
           </div>
         </Block>
 
-        <Block label={t('space.members.sheet.valid')}>
+        <Block label={t('space.members.sheet.valid')} help="invite">
           <Choices label={t('space.members.sheet.valid')}>
             {VALIDITIES.map(one => (
               <Choice key={one} chosen={validity === one} onChoose={() => setValidity(one)}>
@@ -118,47 +122,20 @@ export function InviteSheet({
           </Choices>
         </Block>
 
-        <WhatTheySee spaceId={spaceId} spaceName={spaceName} kind={kind} />
         <Refused error={create.error} />
       </div>
     </Sheet>
   );
 }
 
-/**
- * The board's sentence: that the guest needs an account of their own, what
- * they will see, and what they will not. What they will see names the grows
- * standing here when the tent's overview is already in hand - it is the page
- * this sheet opens over, so it costs nothing - and says "what is growing in
- * it" when it is not, rather than waiting for a read to finish a sentence.
- */
-function WhatTheySee({ spaceId, spaceName, kind }: { spaceId: string; spaceName: string; kind: SpaceKind }) {
-  const { t } = useTranslation();
-  const overview = useSpaceOverview(spaceId);
-  const grows = overview.data?.grows.map(grow => grow.name) ?? [];
-
-  const what =
-    kind === 'room'
-      ? t('space.members.sheet.seesRoom', { name: spaceName })
-      : t('space.members.sheet.sees', {
-          what: [spaceName, ...(grows.length > 0 ? grows : [t('space.members.sheet.whatGrows')]), t('space.members.sheet.theCams')].join(', '),
-        });
-
-  return (
-    <p className={styles.sentence}>
-      {t('space.members.sheet.needAccount')} {what} {t('space.members.sheet.doesNotSee')}
-    </p>
-  );
-}
-
 /** The code the server answered, three ways, and under it what it grants - from the answer. */
-function Made({ invite }: { invite: Invite }) {
+function Made({ invite, first }: { invite: Invite; first: Way }) {
   const { t } = useTranslation();
-  const [way, setWay] = useState<Way>('link');
+  const [way, setWay] = useState<Way>(first);
   const address = inviteAddress(invite.code);
 
   return (
-    <div className={styles.made}>
+    <div className={`${ui.stack2} ${styles.made}`}>
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="tablist" aria-label={t('space.members.sheet.waysLabel')}>
         {WAYS.map(one => (
           <button
@@ -178,20 +155,20 @@ function Made({ invite }: { invite: Invite }) {
 
       <div id="invite-way-panel" role="tabpanel" aria-labelledby={`invite-way-${way}`} className={`${ui.card} ${styles.pane}`}>
         {way === 'link' ? (
-          <div className={styles.addressRow}>
-            <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
+          <div className={`${ui.row2} ${styles.addressRow}`}>
+            <InviteAddress code={invite.code} />
             <CopyButton value={address} label={t('space.members.copyLink')} />
           </div>
         ) : way === 'code' ? (
           <>
-            <code className={`mono ${styles.code}`}>{invite.code}</code>
-            <p className={`mono ${styles.hint}`}>{t('space.members.sheet.codeHint', { address: codeEntryAddress() })}</p>
+            <code className={styles.code}>{invite.code}</code>
+            <p className={styles.hint}>{t('space.members.sheet.codeHint', { address: codeEntryAddress() })}</p>
             <CopyButton value={invite.code} label={t('space.members.sheet.copyCode')} />
           </>
         ) : (
           <>
             <QrCode value={address} label={t('space.members.sheet.qrLabel', { address: shownAddress(invite.code) })} />
-            <p className={`mono ${styles.hint}`}>{t('space.members.sheet.qrHint')}</p>
+            <p className={styles.hint}>{t('space.members.sheet.qrHint')}</p>
           </>
         )}
       </div>

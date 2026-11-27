@@ -1,10 +1,11 @@
+import { arrivalOf } from '@common/v1/device-placements';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DataService } from '@modules/data/data.service';
 import { PANEL_METRICS } from './timeline-series';
 
 /**
- * When anything standing in a place last measured one of the panels' metrics,
- * whenever that was - inside the window, or months before it.
+ * When each device standing in a place last measured one of the panels' metrics
+ * there, whenever that was - inside the window, or months before it.
  *
  * A screen with no curves has two sentences to choose between and no way of its
  * own to choose: a place where nothing measures, and a place that measures and
@@ -22,20 +23,26 @@ import { PANEL_METRICS } from './timeline-series';
  * hardware went quiet.
  *
  * It lives beside the arithmetic rather than inside either service because the
- * Timeline of a tent and the Charts view of the grow standing in it are two
- * screens about one silence, and a grower moving between them must not be given
+ * Timeline of a tent and the series of the grow standing in it are two
+ * reads about one silence, and a grower moving between them must not be given
  * two different accounts of when the tent last spoke.
  */
-export const lastReadingOf = async (data: DataService, devices: readonly StoredDevice[]): Promise<string | null> => {
-  if (devices.length === 0) return null;
-
+export const lastReadingsOf = async (data: DataService, devices: readonly StoredDevice[], spaceId: string): Promise<Map<string, string | null>> => {
   const live = await Promise.all(devices.map(device => data.live(device.id)));
-  const measured = live.flatMap(one =>
-    PANEL_METRICS.flatMap(metric => {
-      const measuredAt = one.metrics[metric]?.measuredAt;
-      return measuredAt ? [measuredAt] : [];
+  return new Map(
+    devices.map((device, index) => {
+      // A device that came from another place speaks here from when it came: what it measured before is the other
+      // place's, and a "last reading" from there would point the page at an instant in which this place shows nothing.
+      const came = arrivalOf(device.placements, spaceId)?.at.getTime() ?? -Infinity;
+      const measured = PANEL_METRICS.flatMap(metric => {
+        const measuredAt = live[index].metrics[metric]?.measuredAt;
+        return measuredAt && Date.parse(measuredAt) >= came ? [measuredAt] : [];
+      });
+      return [device.id, newestOf(measured)];
     }),
   );
-
-  return measured.length === 0 ? null : measured.reduce((newest, one) => (new Date(one) > new Date(newest) ? one : newest));
 };
+
+/** The newest of these instants, or null where there is none. */
+export const newestOf = (instants: readonly (string | null)[]): string | null =>
+  instants.reduce<string | null>((newest, one) => (one !== null && (newest === null || Date.parse(one) > Date.parse(newest)) ? one : newest), null);

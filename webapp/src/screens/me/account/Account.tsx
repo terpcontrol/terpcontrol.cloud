@@ -1,33 +1,41 @@
 import { type DateTime } from 'luxon';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
+import { PASSWORD_MIN_LENGTH, useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
 import { itemsOf } from '@/api/pages';
+import { refusalCode } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
+import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { calendarDay, useZone } from '@/ui/zone';
-import { AccountPage, ExportRow, Row } from '../parts';
-import { DeleteRow } from '../privacy/DeleteRow';
+import { useLog } from '@/log/log-context';
+import { browserZone, calendarDay, useZone, zoneNames } from '@/ui/zone';
+import { AccountPage, ExportRow, Menu, Row } from '../parts';
+import parts from '../parts.module.css';
+import { useSaveAccount } from '../save';
+import { DeleteRow } from './DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
 import styles from './Account.module.css';
 
 /**
- * Me › Account: how this person signs in, where they are signed in, and the
- * two ways of taking the account away - as a file, and for good.
+ * Ich › Konto: how this person signs in, the zone their clock times are read
+ * in, where they are signed in, and the two ways of taking the account away -
+ * as a file, and for good.
  *
  * The address is shown and not changed: it is the login identity, and this
  * server has no route that moves it. The password is changed with the current
  * one in hand, so that a session somebody else is holding cannot lock the
- * owner out. The sessions are every browser and script signed in as this
- * account; this one is named as this device and cannot be ended from here by
- * accident, because the way to end it is the sign-out button and not a row in
- * a list. The export is the same job a grow's export is, for everything at
- * once, and deletion is the same sheet the privacy page carries, because a
- * second door to the same irreversible thing should be the same door.
+ * owner out. The zone is the one setting the server acts on rather than
+ * merely draws - quiet hours are read in it - so the browser's zone is
+ * offered as a hint and never written by itself. The sessions are every
+ * browser and script signed in as this account; this one is named as this
+ * device and cannot be ended from here by accident, because the way to end it
+ * is the sign-out button and not a row in a list.
  */
 export function Account() {
   const { t } = useTranslation();
@@ -35,27 +43,21 @@ export function Account() {
   const { sessionId } = useSession();
 
   return (
-    <AccountPage title={t('me.account.title')} demo={t('me.account.demo')}>
+    <AccountPage title={t('me.account.title')} demo={t('me.demo')}>
       {(account, held) => (
         <>
-          <span className="label">{t('me.account.signIn')}</span>
-
-          <Row
-            title={t('me.account.email.title')}
-            line={
-              <>
-                <span className="mono">{account.email}</span> · {t('me.account.email.line')}
-              </>
-            }
-          />
-
+          <Row title={t('me.account.email.title')} line={<Facts facts={[account.email, ...factsOf(t('me.account.email.line'))]} />} />
           <PasswordRow held={held} />
+          <ZoneRow kept={account.preferences.timezone} held={held} />
 
-          <span className="label">{t('me.account.sessions.title')}</span>
+          <span className="label">
+            {t('me.account.sessions.title')}
+            <Help topic="sessions" />
+          </span>
           <Sessions currentId={sessionId} now={now} held={held} />
 
           <span className="label">{t('me.account.data')}</span>
-          <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
+          <ExportRow />
           <DeleteRow handle={account.handle} disabled={held} />
         </>
       )}
@@ -64,28 +66,81 @@ export function Account() {
 }
 
 /**
+ * The zones the menu offers: everything this browser knows, plus UTC, the
+ * account's own and this device's. The three are added by hand because the
+ * browser's list is of places rather than of offsets and holds no UTC at all,
+ * and an account that keeps a zone it cannot be given back - which is every
+ * account the migration left on UTC - would be a menu that only goes one way.
+ */
+const offeredZones = (kept: string): string[] => {
+  const known = new Set(zoneNames());
+  known.add('UTC');
+  known.add(kept);
+  const here = browserZone();
+  if (here) known.add(here);
+
+  return [...known].sort();
+};
+
+/** The zone every clock time is drawn in, with what this device is in where that is something else - the one hint an account still on the migration's UTC needs. */
+function ZoneRow({ kept, held }: { kept: string; held: boolean }) {
+  const { t } = useTranslation();
+  const { save, error } = useSaveAccount();
+  const here = browserZone();
+
+  return (
+    <>
+      <Row
+        title={t('me.account.timezone')}
+        help="timezone"
+        line={here && here !== kept ? t('me.account.timezoneHere', { zone: here }) : t('me.account.timezoneLine')}
+      >
+        <Menu
+          name={t('me.account.timezone')}
+          value={kept}
+          className={styles.zone}
+          disabled={held}
+          onChange={timezone => {
+            const said = (zone: string) => t('me.saved.setting', { what: t('me.account.timezone'), value: zone });
+            save({ preferences: { timezone } }, said(timezone), { to: () => ({ preferences: { timezone: kept } }), undone: said(kept) });
+          }}
+        >
+          {offeredZones(kept).map(zone => (
+            <option key={zone} value={zone}>
+              {zone}
+            </option>
+          ))}
+        </Menu>
+      </Row>
+      <Refused error={error} />
+    </>
+  );
+}
+
+const FIELDS = ['current', 'new', 'repeat'] as const;
+const UNTYPED = { current: '', new: '', repeat: '' };
+
+/**
  * The password, changed in place. The form checks only what keeps a pointless
  * request from being sent - the new password typed the same way twice - and
- * whether the current one is right is the server's answer, said under the
- * form where the tap was.
+ * whether the current one is right is the server's answer, said at its field;
+ * any other refusal is said under the form. A change that landed is said in a
+ * toast; it cannot be taken back.
  */
 function PasswordRow({ held }: { held: boolean }) {
   const { t } = useTranslation();
   const change = useChangePassword();
+  const { tell } = useLog();
   const [open, setOpen] = useState(false);
-  const [changed, setChanged] = useState(false);
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [again, setAgain] = useState('');
+  const [typed, setTyped] = useState(UNTYPED);
 
-  const mismatch = again !== '' && next !== again;
-  const ready = current !== '' && next !== '' && next === again && !change.isPending;
+  const mismatch = typed.repeat !== '' && typed.new !== typed.repeat;
+  const ready = typed.current !== '' && typed.new !== '' && typed.new === typed.repeat && !change.isPending;
+  const wrong = refusalCode(change.error) === 'current_password_wrong';
 
   const close = () => {
     setOpen(false);
-    setCurrent('');
-    setNext('');
-    setAgain('');
+    setTyped(UNTYPED);
     change.reset();
   };
 
@@ -93,51 +148,44 @@ function PasswordRow({ held }: { held: boolean }) {
     <Row
       title={t('me.account.password.title')}
       help="passwordChange"
-      line={changed && !open ? t('me.account.password.changed') : t('me.account.password.line')}
+      line={t('me.account.password.line')}
       below={
         open ? (
           <form
-            className={styles.fields}
+            className={ui.stack3}
             onSubmit={event => {
               event.preventDefault();
               if (!ready) return;
               change.mutate(
-                { currentPassword: current, newPassword: next },
+                { currentPassword: typed.current, newPassword: typed.new },
                 {
                   onSuccess: () => {
                     close();
-                    setChanged(true);
+                    tell({ label: t('me.account.password.changed'), undo: null });
                   },
                 },
               );
             }}
           >
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.current')}</span>
-              <input
-                className={ui.input}
-                type="password"
-                autoComplete="current-password"
-                value={current}
-                onChange={event => setCurrent(event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.new')}</span>
-              <input className={ui.input} type="password" autoComplete="new-password" value={next} onChange={event => setNext(event.target.value)} />
-            </label>
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.repeat')}</span>
-              <input
-                className={ui.input}
-                type="password"
-                autoComplete="new-password"
-                value={again}
-                onChange={event => setAgain(event.target.value)}
-              />
-            </label>
+            {FIELDS.map(key => (
+              <Fragment key={key}>
+                <label className={parts.field}>
+                  <span className="label">{t(`me.account.password.${key}`)}</span>
+                  <input
+                    className={ui.input}
+                    type="password"
+                    autoComplete={key === 'current' ? 'current-password' : 'new-password'}
+                    minLength={key === 'current' ? undefined : PASSWORD_MIN_LENGTH}
+                    aria-invalid={(key === 'current' && wrong) || undefined}
+                    value={typed[key]}
+                    onChange={event => setTyped({ ...typed, [key]: event.target.value })}
+                  />
+                </label>
+                {key === 'current' && wrong ? <Refused error={change.error} /> : null}
+              </Fragment>
+            ))}
             {mismatch ? <p className={ui.problem}>{t('me.account.password.mismatch')}</p> : null}
-            <div className={styles.actions}>
+            <div className={ui.wrap}>
               <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!ready}>
                 {change.isPending ? t('me.account.password.saving') : t('me.account.password.save')}
               </button>
@@ -145,21 +193,13 @@ function PasswordRow({ held }: { held: boolean }) {
                 {t('me.account.password.cancel')}
               </button>
             </div>
-            <Refused error={change.error} />
+            {wrong ? null : <Refused error={change.error} />}
           </form>
         ) : null
       }
     >
       {open ? null : (
-        <button
-          type="button"
-          className={ui.chip}
-          disabled={held}
-          onClick={() => {
-            setChanged(false);
-            setOpen(true);
-          }}
-        >
+        <button type="button" className={ui.chip} disabled={held} onClick={() => setOpen(true)}>
           {t('me.account.password.change')}
         </button>
       )}
@@ -168,12 +208,10 @@ function PasswordRow({ held }: { held: boolean }) {
 }
 
 /**
- * How many sessions stand on the page before it offers the rest: this device,
- * which is always first, and a handful of the browsers used most recently.
- * Every agent run and every script signs in, so an account that is worked on
- * accumulates rows nobody will ever tap, and the two irreversible controls
- * below - the export and the deletion - are what somebody came to this page
- * for. They must not sit under a screen and a half of scrolling.
+ * How many sessions stand on the page before it offers the rest: this device
+ * and a handful of the browsers used most recently. Every script signs in, so
+ * an account that is worked on gathers rows nobody will tap, and the export
+ * and the deletion below must not sit under a screen and a half of them.
  */
 const SESSIONS_SHOWN = 6;
 
@@ -195,33 +233,49 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const sessions = useSessions();
   const revoke = useRevokeSession();
   const others = useRevokeOtherSessions();
+  const { tell } = useLog();
   const [all, setAll] = useState(false);
   const [sweeping, setSweeping] = useState(false);
 
   if (sessions.isPending) return <Waiting lines={2} />;
-  if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
+  if (!sessions.data) return <LoadFailed read={sessions} />;
 
   const rows = sortedSessions(itemsOf(sessions.data), currentId);
   const shown = all ? rows : rows.slice(0, SESSIONS_SHOWN);
   const rest = rows.length > shown.length || sessions.hasNextPage;
 
   return (
-    <section className={`${ui.card} ${styles.sessions}`}>
-      <p className={ui.note}>{t('me.account.sessions.line')}</p>
+    <section className={`${ui.card} ${ui.stack3} ${styles.sessions}`}>
       <ul className={styles.sessionList}>
         {shown.map(row => (
           <li key={row.id} className={styles.session}>
-            <div className={styles.sessionText}>
+            <div className={ui.textColumn}>
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
-              <span className={`mono ${styles.sessionMeta}`}>
-                {t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) })} ·{' '}
-                {t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) })}
-              </span>
+              <Facts
+                className={styles.sessionMeta}
+                facts={[
+                  t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) }),
+                  t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) }),
+                ]}
+              />
             </div>
             {row.id === currentId ? (
               <span className={`${ui.chip} ${styles.thisDevice}`}>{t('me.account.sessions.thisDevice')}</span>
             ) : (
-              <button type="button" className={ui.chip} disabled={held || revoke.isPending} onClick={() => revoke.mutate(row.id)}>
+              <button
+                type="button"
+                className={ui.chip}
+                disabled={held || revoke.isPending}
+                onClick={() =>
+                  revoke.mutate(row.id, {
+                    onSuccess: () =>
+                      tell({
+                        label: t('me.account.sessions.signedOut', { device: deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice') }),
+                        undo: null,
+                      }),
+                  })
+                }
+              >
                 {t('me.account.sessions.signOut')}
               </button>
             )}
@@ -239,15 +293,10 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
         </button>
       ) : null}
       {/*
-        One act rather than a row at a time, because the sessions worth ending
-        are the ones nobody can see from here: a browser left signed in
-        somewhere is not on the first page of anything. It spares this one.
-
-        It asks first. Every other control on this card ends the one row it
-        sits on, and this one sits among them while reaching every device the
-        account is signed in on - a tap meant for the row above it would sign
-        somebody's phone, their partner's tablet and whatever script they run
-        out at once, and nothing about that can be taken back from here.
+        One act rather than a row at a time: the sessions worth ending are the
+        ones nobody can see from here. It spares this one, and it asks first -
+        every other control on this card ends its own row, and this one
+        reaches every device the account is signed in on, with no way back.
       */}
       {rows.length > 1 ? (
         <button
@@ -260,27 +309,29 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
         </button>
       ) : null}
       <Refused error={revoke.error} />
-      {sweeping ? <SweepSheet sweep={others} onClose={() => setSweeping(false)} /> : null}
+      {sweeping ? (
+        <SweepSheet
+          sweep={others}
+          onClose={() => setSweeping(false)}
+          onDone={() => {
+            setSweeping(false);
+            tell({ label: t('me.account.sessions.sweep.done'), undo: null });
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
 /**
  * The question in front of the sweep: what it ends, whom it reaches, and what
- * it leaves standing.
- *
- * It says the effect and not a number. What this browser has loaded is not
- * what the account has - the list is paged and the cursor may still have
- * pages behind it - so a figure here would be an answer to a different
- * question, and one that reads as a promise about how much is being ended.
- *
- * A tap is the whole gate, without the typed word the account's deletion asks
- * for: what is lost here is convenience rather than anything of the grower's,
- * and every session ended this way can be signed back in with the password
- * they already have. The sheet closes only once the server has answered, so a
- * refusal is read where the tap was rather than on the card behind it.
+ * it leaves standing - the effect and not a number, for the reason the list
+ * states none. A tap is the whole gate, without the typed word the account's
+ * deletion asks for: what is lost is convenience, and every session ended can
+ * be signed back in. The sheet closes only once the server has answered, so a
+ * refusal is read where the tap was.
  */
-function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void }) {
+function SweepSheet({ sweep, onClose, onDone }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -292,13 +343,13 @@ function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOthe
           type="button"
           className={`${ui.button} ${ui.primary}`}
           disabled={sweep.isPending}
-          onClick={() => sweep.mutate(undefined, { onSuccess: onClose })}
+          onClick={() => sweep.mutate(undefined, { onSuccess: onDone })}
         >
           {sweep.isPending ? t('me.account.sessions.sweep.signingOut') : t('me.account.sessions.sweep.yes')}
         </button>
       }
     >
-      <div className={styles.sweepSheet}>
+      <div className={styles.asked}>
         <p>{t('me.account.sessions.sweep.what')}</p>
         <p>{t('me.account.sessions.sweep.thisOne')}</p>
         <Refused error={sweep.error} />

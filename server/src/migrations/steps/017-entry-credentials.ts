@@ -33,8 +33,8 @@ const CARRYING_A_CREDENTIAL = {
  * command line into the line it wrote about it. The old app kept that line as
  * it came, so the migrated diary holds the password of every stream that ever
  * failed - 15,110 lines in the production database this was written for, 706 of
- * them on one grower's fridge - and the diary is read in the rail, on a week
- * card, in the report and in the export's `diary.csv`.
+ * them on one grower's fridge - and the diary is read on the Timeline, on a
+ * day card, in the report and in the export's `diary.csv`.
  *
  * That contradicts a decision the code states out loud elsewhere: the camera
  * row answers its own `url` with the credentials struck out, because they are

@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SeriesPoint } from '@fg2/shared-types/v1';
+import { growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -31,8 +32,8 @@ interface TimelapseCaption {
 }
 
 export interface TimelapseContext {
-  /** Day one of the grow these frames are of; null where no grow stood here. */
-  growStartedAt: Date | null;
+  /** Where the grow these frames are of begins (`growOriginOf`), its day 1; null where no grow stood here. */
+  growOrigin: Date | null;
   temperature: SeriesPoint[];
   humidity: SeriesPoint[];
   /** The light output over the span, which is what says a frame was taken in the dark. */
@@ -40,6 +41,8 @@ export interface TimelapseContext {
   captions: TimelapseCaption[];
   /** The language the camera's owner last used the app in; English where none is known. */
   language?: string;
+  /** The owner's zone, whose midnights a grow's days change at; UTC where none is known. */
+  zone?: string | null;
 }
 
 /** Enough points for a curve a thumb-sized chart can draw, whatever the span. */
@@ -74,7 +77,7 @@ export class TimelapseContextService {
     ]);
 
     return {
-      growStartedAt: grow?.phases[0]?.startedAt ?? grow?.startedAt ?? null,
+      growOrigin: grow ? growOriginOf(grow) : null,
       ...climate,
       captions,
     };

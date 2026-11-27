@@ -1,12 +1,17 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowDiaryDay, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
+import { useGrowPlants } from '@/api/grows';
+import { headPicture } from '@/screens/grow/diary/days';
+import { Plants } from '@/screens/grow/Plants';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -72,14 +77,9 @@ const series = {
   range: 'grow',
   startsAt: at(35),
   endsAt: at(0),
-  stepSeconds: 0,
   originAt: at(35),
   dayFrom: 1,
   dayTo: 35,
-  deviceIds: [],
-  climate: [],
-  outputs: [],
-  nights: [],
   measurements: [
     {
       key: 'height',
@@ -213,6 +213,12 @@ describe('a member who may only log', () => {
 });
 
 describe('a plant of a grow', () => {
+  /** A long name made a title of three lines at 390 px: it takes two and is cut there, as a grow's own does. */
+  it('gives a long name two lines of title at most', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/grow/plant/Plant.module.css'), 'utf8');
+    expect(sheet).toMatch(/\.titles h1 \{[^}]*-webkit-line-clamp: 2;/);
+  });
+
   it('names the plant, the grow and which of its plants this is', async () => {
     await drawLoaded();
 
@@ -248,6 +254,27 @@ describe('a plant of a grow', () => {
     expect(screen.getByText('grow entries apply too')).toBeInTheDocument();
   });
 
+  /** "1 / own entries" stood as a figure over a second heading "Own entries": one heading says it, singular for one. */
+  it('heads its own lines once, with how many there are, singular for one', async () => {
+    state.lines = [entry({})];
+    await drawLoaded();
+
+    expect(screen.getByText('1 own entry')).toBeInTheDocument();
+    expect(screen.queryByText('Own entries')).not.toBeInTheDocument();
+    expect(screen.queryByText('own entries')).not.toBeInTheDocument();
+  });
+
+  /** A line with three pictures read "1 Foto" here and "3 Fotos" in the Bericht; the day card's cover was its last picture, the hero its first. */
+  it('counts the pictures of its lines, and is headed by a line´s first picture as the day card is', async () => {
+    state.lines = [entry({ id: 'e-5', kind: 'photo', occurredAt: at(5), mediaIds: ['media-1', 'media-2', 'media-3'], values: { kind: 'photo' } })];
+    await drawLoaded();
+
+    expect(screen.getByText('3 photos')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Amnesia 1, day/ }).getAttribute('src')).toContain('media-1');
+    const day = { dayNumber: 4, date: '2026-11-10', still: null, entries: state.lines } as unknown as GrowDiaryDay;
+    expect(headPicture(day)?.mediaId).toBe('media-1');
+  });
+
   it('says what is missing rather than drawing an empty frame', async () => {
     state.lines = [];
     state.series = { ...series, measurements: [] };
@@ -269,6 +296,28 @@ describe('a plant of a grow', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(vi.mocked(api.patch).mock.calls[0][0]).toBe('/plants/plant-1');
     expect(vi.mocked(api.patch).mock.calls[0][1]).toEqual({ label: 'Tall one', strain: 'Amnesia' });
+
+    // The write answers with what holds now, and taking it back sends the name it had.
+    expect(await screen.findByText('Amnesia 1 is now called Tall one')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.patch).mock.calls[1][1]).toEqual({ label: 'Amnesia 1', strain: 'Amnesia' });
+    expect(await screen.findByText(reading('Undone · Tall one is now called Amnesia 1'))).toBeInTheDocument();
+  });
+
+  /** Two plants of one grow under one name are one plant wherever a line names them. */
+  it('does not save a name another plant of the grow has', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const sheet = screen.getByRole('dialog');
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Label' }), { target: { value: ' Amnesia 2 ' } });
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('Another plant of this grow is already called “Amnesia 2”.');
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Label' }), { target: { value: 'Amnesia 3' } });
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows the sentence the server refused the rename with', async () => {
@@ -305,6 +354,15 @@ describe('a plant of a grow', () => {
     expect(within(move).getByRole('button', { name: 'Mother tent' })).toBeInTheDocument();
   });
 
+  /** Three of the five carried an icon: one form for all, words alone. */
+  it('says its actions in one form, words without icons', async () => {
+    await drawLoaded();
+
+    const actions = screen.getByRole('group', { name: 'What happens to this plant' });
+    expect(within(actions).getAllByRole('button')).toHaveLength(5);
+    expect(actions.querySelector('svg')).toBeNull();
+  });
+
   it('will not offer a harvest for a plant that is already down', async () => {
     state.plants = [{ ...plants[0], status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 100, dryWeightG: null } }, plants[1]];
     await drawLoaded();
@@ -320,8 +378,8 @@ describe('a plant of a grow', () => {
     fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Measure' });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take this line back' }));
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take it back' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete this entry' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/e-2'));
   });
@@ -335,5 +393,191 @@ describe('a plant of a grow', () => {
     expect(screen.queryByText('Nothing measured for this plant yet')).not.toBeInTheDocument();
     // The lines are read separately and are still there to be read.
     expect(within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem')[0]).toHaveTextContent('Height 58 cm');
+  });
+});
+
+/**
+ * The harvest sheet's help says both weights may stay empty and be filled in later on the plant - and nothing in the
+ * app could add or correct a weight once the harvest was written.
+ */
+describe('a harvest´s weights, later', () => {
+  const cut = entry({
+    id: 'cut',
+    kind: 'harvest',
+    occurredAt: at(4),
+    plantIds: ['plant-1', 'plant-2'],
+    values: { kind: 'harvest', wetWeightG: 1000, dryWeightG: null } as never,
+  });
+  const down = (plant: Plant): Plant => ({ ...plant, status: 'harvested', harvest: { harvestedAt: at(4), wetWeightG: 500, dryWeightG: null } });
+
+  beforeEach(() => {
+    state.plants = plants.map(down);
+    state.lines = [cut];
+  });
+
+  it('adds the dry weight and puts a typo right on the harvest´s line, for the plants weighed together', async () => {
+    vi.mocked(api.patch).mockResolvedValue(cut as never);
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add the weight' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Harvest weight' });
+    expect(within(sheet).getByText(/^Amnesia 1, Amnesia 2 · harvested on/)).toBeInTheDocument();
+    expect((within(sheet).getByLabelText('Wet') as HTMLInputElement).value).toMatch(/^1,?000$/);
+    fireEvent.change(within(sheet).getByLabelText('Wet'), { target: { value: '100' } });
+    fireEvent.change(within(sheet).getByLabelText('Dry'), { target: { value: '22' } });
+    expect(within(sheet).getByText(/100 g wet shared over 2 plants/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/entries/cut', { values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } }));
+    expect(await screen.findByText('dry 22 g saved')).toBeInTheDocument();
+    expect(screen.getByText('Harvest Amnesia 1, Amnesia 2: wet 100 g')).toBeInTheDocument();
+  });
+
+  /** "Harvest · wet 1,000 g" on one plant's page read as that plant's own yield. */
+  it('names the plants a harvest was weighed together with beside its total', async () => {
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    expect(own[0]).toHaveTextContent(/Harvested · wet 1000 g · with Amnesia 2/);
+  });
+
+  it('opens the harvest´s own line on its weights', async () => {
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
+    expect(await screen.findByRole('dialog', { name: 'Harvest weight' })).toBeInTheDocument();
+  });
+
+  it('corrects a plant no harvest line names on the plant itself', async () => {
+    state.lines = [];
+    state.plants = [{ ...down(plants[0]), harvest: { harvestedAt: at(4), wetWeightG: 500, dryWeightG: 120 } }, plants[1]];
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct the weight' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Harvest weight' });
+    fireEvent.change(within(sheet).getByLabelText('Dry'), { target: { value: '110' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/plants/plant-1', { harvest: { harvestedAt: expect.any(String), wetWeightG: 500, dryWeightG: 110 } }),
+    );
+  });
+});
+
+/** A plant put in by mistake is taken out again: asked first, since nothing brings it back. */
+/** Its "Neue Pflanze" taken back on its own page left "This plant is not part of this grow." with no title and no way back. */
+describe('a plant that is gone', () => {
+  it('leaves its grow´s Pflanzen open in its place', async () => {
+    state.plants = plants.filter(one => one.id !== 'plant-1');
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
+          <Route path="/grows/:growId/plants" element={<h1>Plants of the grow</h1>} />
+        </Routes>
+      </LogProvider>,
+      { at: '/grows/grow-1/plants/plant-1' },
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Plants of the grow' })).toBeInTheDocument();
+    // It asked nothing about the plant on the way: its lines answered 404.
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/entries')).toEqual([]);
+  });
+});
+
+describe('taking a plant out of its grow', () => {
+  it('asks, deletes it and says so, with no way back', async () => {
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(screen.getByText(/^Delete Amnesia 1\? The plant leaves the grow/)).toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/plants/plant-1'));
+    expect(await screen.findByText('Amnesia 1 deleted')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A harvested plant takes its own harvest's line out of the diary, weight and all; one cut with others leaves that
+   * line as weighed. The question said "What the diary says about it stays" over both.
+   */
+  it('says that its own harvest goes with it, and that one shared with others stays as weighed', async () => {
+    const harvest = (plantIds: string[]) =>
+      entry({ id: 'cut', kind: 'harvest', plantIds, values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } as never });
+    const down = { ...plants[0], status: 'harvested' as const, harvest: { harvestedAt: at(1), wetWeightG: 50, dryWeightG: 11 } };
+    state.plants = [down, plants[1]];
+    state.lines = [harvest(['plant-1'])];
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(await screen.findByText(/its harvest leaves the diary with its weight/)).toBeInTheDocument();
+    expect(screen.queryByText(/What the diary says about it stays/)).not.toBeInTheDocument();
+    cleanup();
+
+    state.plants = [down, plants[1]];
+    state.lines = [harvest(['plant-1', 'plant-2'])];
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(await screen.findByText(/Its harvest with Amnesia 2 stays in the diary as weighed and names only Amnesia 2/)).toBeInTheDocument();
+  });
+});
+
+/** The Pflanzen tab: the grow's plants, and one more after the start - what replaces a dead one, a cutting that came later. */
+describe('the plants of a grow', () => {
+  function Tab({ ended = false, mayManage = true }: { ended?: boolean; mayManage?: boolean }) {
+    const read = useGrowPlants('grow-1');
+    return <Plants grow={{ ...grow, endedAt: ended ? at(1) : null }} plants={read} spaces={spaces()} mayManage={mayManage} />;
+  }
+  const drawTab = (props: { ended?: boolean; mayManage?: boolean } = {}) =>
+    drawAt(
+      <LogProvider>
+        <Tab {...props} />
+      </LogProvider>,
+    );
+
+  it('adds a plant of the last plant´s strain, numbered by the server where no name is typed, and offers to take it out again', async () => {
+    vi.mocked(api.post).mockResolvedValue(plant('plant-3', 'Amnesia 3') as never);
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a plant' }));
+    const sheet = screen.getByRole('dialog', { name: 'Add a plant' });
+    expect(within(sheet).getByRole('textbox', { name: 'Strain' })).toHaveValue('Amnesia');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/plants', { strain: 'Amnesia' }));
+    expect(await screen.findByText('New plant: Amnesia 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/plants/plant-3'));
+  });
+
+  it('does not add a plant under a name another plant of the grow has, nor one without a strain', async () => {
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a plant' }));
+    const sheet = screen.getByRole('dialog', { name: 'Add a plant' });
+    fireEvent.change(within(sheet).getByRole('textbox', { name: /^Name/ }), { target: { value: 'Amnesia 2' } });
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('Another plant of this grow is already called “Amnesia 2”.');
+    expect(within(sheet).getByRole('button', { name: 'Add' })).toBeDisabled();
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: /^Name/ }), { target: { value: '' } });
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Strain' }), { target: { value: ' ' } });
+    expect(within(sheet).getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
+  it('offers no plant to a grow that has ended', async () => {
+    drawTab({ ended: true });
+    expect(await screen.findByText('Amnesia 2')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add a plant' })).not.toBeInTheDocument();
+  });
+
+  it('offers none to a reader who may not manage the grow', async () => {
+    drawTab({ mayManage: false });
+    expect(await screen.findByText('Amnesia 2')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add a plant' })).not.toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE, mailFloorSecondsOf } from '@fg2/shared-types/v1-schemas';
-import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { isStageTooHumid, restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -13,6 +13,7 @@ import { DataService } from '../data/data.service';
 import { AlertService, AlertSubject } from './alert.service';
 import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
+import { germinationHere } from './place-germination';
 
 /**
  * The state machine: what a device just said, the rules watching it, and the
@@ -84,20 +85,24 @@ export class AlarmEngineService implements MetricSampleSink {
       const rules = await this.rules
         .find({ deviceId: device.id, $or: [{ 'watch.metric': { $in: metrics } }, { 'watch.output': { $in: outputs } }] })
         .lean<StoredAlarmRule[]>();
+      // Germination is the place's: a lamp module's "too humid" rests beside a germinating controller as its own does.
+      const { workmode, choices } = rules.some(isStageTooHumid)
+        ? await germinationHere(this.devices, device.id)
+        : { workmode: device.configuration?.workmode, choices: device.germinationChoices };
       for (const stored of rules) {
         const value = watchedValue(stored.watch, sample);
         // Asked before the band is, because deciding that costs a query into the
         // stored series for a rule that is patient.
         if (value === undefined || this.saysNothingNew(stored, sample.measuredAt)) continue;
-        if (restsInGermination(stored, device.configuration?.workmode, device.germinationChoices)) {
+        if (restsInGermination(stored, workmode, choices)) {
           await this.rest(stored, sample.measuredAt);
           continue;
         }
 
         // The band the rule watches where the device is now - the stage's "too
-        // humid" watches germination's own line while it germinates - is the
-        // band it is judged, raised and remembered by.
-        const rule = { ...stored, watch: watchNow(stored, device.configuration?.workmode) };
+        // humid" watches germination's own line while its place germinates - is
+        // the band it is judged, raised and remembered by.
+        const rule = { ...stored, watch: watchNow(stored, workmode) };
         await this.evaluate(rule, device, value, sample.measuredAt, await this.isOutOfBand(rule, device.id, value, at));
       }
     } finally {
@@ -114,7 +119,8 @@ export class AlarmEngineService implements MetricSampleSink {
   public async onVerdict(rule: StoredAlarmRule, device: AlarmDevice, value: number, outOfBand: boolean, at: Date): Promise<void> {
     const release = await this.lock(device.id);
     try {
-      await this.evaluate(rule, device, value, at, outOfBand);
+      // Stamped at the pass's moment, which the silence it counts is counted to: its start is then the last sample.
+      await this.evaluate(rule, device, value, at, outOfBand, at);
     } finally {
       release();
     }
@@ -149,13 +155,19 @@ export class AlarmEngineService implements MetricSampleSink {
    * while nothing is being said, and an all-clear afterwards naming a gentler
    * extreme than the tent actually reached would be the record lying about the
    * one stretch nobody was watching.
+   *
+   * The quiet holds back what is said, not an episode ending: a reading back in
+   * its band while somebody works on the tent ends the alert then, with nothing
+   * sent. Held until the settle ran out, an alert stood open over a good
+   * reading for up to ten minutes after the door shut, and the record called a
+   * stretch of eighteen minutes twenty-seven.
    */
-  private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
+  private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean, moment?: Date): Promise<void> {
     if (this.saysNothingNew(rule, at)) return;
 
     const workedOn = device.state.maintenanceUntil && device.state.maintenanceUntil.getTime() + MAINTENANCE_COOLDOWN_MS > Date.now();
-    if (outOfBand !== rule.state.triggered && !workedOn) {
-      await this.turn(rule, device, value, at, outOfBand);
+    if (outOfBand !== rule.state.triggered && (!workedOn || !outOfBand)) {
+      await this.turn(rule, device, value, at, outOfBand, !workedOn, moment);
       return;
     }
 
@@ -172,12 +184,10 @@ export class AlarmEngineService implements MetricSampleSink {
   public async restNow(deviceId: string): Promise<void> {
     const release = await this.lock(deviceId);
     try {
-      const device = await this.deviceOf(deviceId);
-      if (!device) return;
-
+      const { workmode, choices } = await germinationHere(this.devices, deviceId);
       const rules = await this.rules.find({ deviceId, enabled: true, 'watch.metric': 'humidity' }).lean<StoredAlarmRule[]>();
       for (const rule of rules) {
-        if (restsInGermination(rule, device.configuration?.workmode, device.germinationChoices)) await this.rest(rule, new Date());
+        if (restsInGermination(rule, workmode, choices)) await this.rest(rule, new Date());
       }
     } finally {
       release();
@@ -202,15 +212,27 @@ export class AlarmEngineService implements MetricSampleSink {
     if (alert) await this.alerts.quieten(alert, new Date());
   }
 
-  /** The turn itself: what is written down first, and what is said afterwards. */
-  private async turn(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
-    const now = new Date();
+  /**
+   * The turn itself: what is written down first, and what is said afterwards - an end during maintenance is not `told`.
+   * `now` is when a verdict's value was counted to: a silence raised a second later than its seconds were counted
+   * began a second after the device's last word, and one whose last word fell in a minute's last second split that
+   * minute between Start and Meldungen.
+   */
+  private async turn(
+    rule: StoredAlarmRule,
+    device: AlarmDevice,
+    value: number,
+    at: Date,
+    outOfBand: boolean,
+    told = true,
+    now = new Date(),
+  ): Promise<void> {
     const subject = subjectOf(rule, device);
 
     if (!outOfBand) {
       const alert = await this.alerts.openOfRule(rule.id);
       await this.write(rule, at, { 'state.triggered': false, 'state.extremeValue': null, 'state.lastResolvedAt': now });
-      if (alert) await this.alerts.settle(subject, alert, value, now);
+      if (alert) await this.alerts.settle(subject, alert, value, now, told);
       return;
     }
 

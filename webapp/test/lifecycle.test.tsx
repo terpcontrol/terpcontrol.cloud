@@ -1,16 +1,19 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Route, Routes } from 'react-router';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
+import { LogProvider } from '@/log/LogProvider';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
-import { GrowLifecycle } from '@/screens/grow/Lifecycle';
+import { GrowMenu } from '@/screens/grow/GrowMenu';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
 import { RenameSheet } from '@/screens/grow/RenameSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { deviceWith } from './fixtures';
-import { drawAt, json } from './harness';
+import { drawAt, testClient, json, reading } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -79,6 +82,7 @@ const grow: GrowListItem = {
     phaseDay: 11,
     stageWeek: 2,
     weekNumber: 5,
+    zone: 'UTC',
     isAuto: false,
     groups: [],
     locations: [{ spaceId: 'space-1', plantIds: ['plant-1', 'plant-2', 'plant-3'] }],
@@ -101,6 +105,237 @@ const plants = [plant('plant-1', 'Amnesia 1'), plant('plant-2', 'Amnesia 2'), pl
 beforeAll(() => translate());
 
 /**
+ * What can be done to a grow stands behind the menu beside its name; a
+ * desktop has the phase and sharing as buttons of their own beside it.
+ */
+describe('the grow´s menu', () => {
+  const open = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+  const offered = () => {
+    const list = document.getElementById(screen.getByRole('button', { name: `More about ${grow.name}` }).getAttribute('aria-controls')!)!;
+    return [...list.children].map(item => item.textContent);
+  };
+
+  it('offers every change to whoever owns the grow, and what it measures and the stage´s tips to everybody', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn />);
+    open();
+
+    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and type', 'Tips for this phase']);
+    expect(screen.getByRole('link', { name: 'Measurements' })).toHaveAttribute('href', `/grows/${grow.id}/measurements`);
+  });
+
+  it('offers a session that may only look nothing that changes the grow', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
+    open();
+
+    expect(offered()).toEqual(['Measurements', 'Tips for this phase']);
+  });
+
+  // A fan's "too humid" resting in germination leads here: the page opens on the phase, which ends the rest.
+  it('opens on the phase sheet where the page was opened for it, for whoever may manage the grow', () => {
+    const view = drawAt(
+      <LogProvider>
+        <GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn opening="phase" />
+      </LogProvider>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Phase' })).toBeInTheDocument();
+    view.unmount();
+
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} opening="phase" />
+      </LogProvider>,
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens four tips for the stage the grow is in', () => {
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Tips for this phase' }));
+
+    const tips = screen.getByRole('dialog', { name: 'Tips for this phase' });
+    expect(within(tips).getAllByRole('listitem')).toHaveLength(4);
+    expect(tips).toHaveTextContent(/Keep humidity at or below 50 %/);
+  });
+});
+
+/**
+ * A grow started by mistake - "Grow starten" on an empty form makes one at once - is deleted from its menu by its
+ * owner while nothing but the line of its phase stands in its diary. Its phases go first, each with its line, so no
+ * line of a grow that is gone stays on its place's Start.
+ */
+describe('deleting a grow', () => {
+  const diaryOf = (kinds: string[]) => ({
+    items: [{ days: [{ entries: kinds.map((kind, index) => ({ id: `e${index}`, kind, source: kind === 'alarm' ? 'alarm' : 'human' })) }] }],
+    nextCursor: null,
+    people: [],
+    earlier: [],
+  });
+  const wire = (kinds: string[]) => {
+    const asked: { method: string; path: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        const method = init?.method ?? 'GET';
+        asked.push({ method, path });
+        if (method === 'DELETE') return new Response(null, { status: 204 });
+        if (path === '/grows/grow-1/diary') return json(diaryOf(kinds));
+        return json({ items: [], nextCursor: null });
+      }),
+    );
+    return asked;
+  };
+  const drawMenu = (mayOwn = true) =>
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/grows/:growId" element={<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={mayOwn} />} />
+          <Route path="/grows" element={<h1>All grows</h1>} />
+        </Routes>
+      </LogProvider>,
+      { at: '/grows/grow-1' },
+    );
+  const menu = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is offered to the owner of a grow whose diary holds only its phases, asks, and goes to every grow after', async () => {
+    const asked = wire(['phase', 'phase']);
+    drawMenu();
+    menu();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete grow' }));
+    const sheet = screen.getByRole('dialog', { name: 'Delete grow' });
+    expect(sheet).toHaveTextContent('Delete Spring run? The grow goes with its plants and the line of its phase. This cannot be undone.');
+    expect(asked.filter(one => one.method === 'DELETE')).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('heading', { name: 'All grows' })).toBeInTheDocument();
+    expect(asked.filter(one => one.method === 'DELETE').map(one => one.path)).toEqual([
+      '/grows/grow-1/phases/p2',
+      '/grows/grow-1/phases/p1',
+      '/grows/grow-1',
+    ]);
+    expect(await screen.findByText('Spring run deleted')).toBeInTheDocument();
+  });
+
+  /** A place's alarm is every grow's standing there: a second grow started by mistake in a tent with an alert open is still one. */
+  it('is offered where the only other lines are the place´s own', async () => {
+    wire(['phase', 'alarm', 'alarm']);
+    drawMenu();
+    menu();
+
+    expect(await screen.findByRole('button', { name: 'Delete grow' })).toBeInTheDocument();
+  });
+
+  it('is not offered where somebody wrote in the diary', async () => {
+    const asked = wire(['phase', 'water']);
+    drawMenu();
+    await waitFor(() => expect(asked).toContainEqual({ method: 'GET', path: '/grows/grow-1/diary' }));
+    // The answer is read before the menu is asked.
+    await new Promise(resolve => setTimeout(resolve, 20));
+    menu();
+    expect(screen.queryByRole('button', { name: 'Delete grow' })).not.toBeInTheDocument();
+  });
+
+  it('is not offered to a reader who manages the grow without owning it', async () => {
+    const asked = wire(['phase']);
+    drawMenu(false);
+    menu();
+    expect(screen.queryByRole('button', { name: 'Delete grow' })).not.toBeInTheDocument();
+    expect(asked.some(one => one.path === '/grows/grow-1/diary')).toBe(false);
+  });
+});
+
+/**
+ * An ended grow could be reopened through the API alone: its resting reminders came back only there (Chris,
+ * 2026-11-14: "Grow wieder öffnen" under its ⋯, with a question).
+ */
+describe('reopening a grow', () => {
+  const ended: GrowListItem = { ...grow, endedAt: at(2) };
+  const wire = () => {
+    const sent: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') sent.push({ method, path, body: JSON.parse(String(init?.body ?? 'null')) });
+        if (method === 'PATCH') return json({ ...ended, endedAt: null });
+        return json({ items: [], nextCursor: null, people: [], earlier: [] });
+      }),
+    );
+    return sent;
+  };
+  const drawMenu = (spaces: ReturnType<typeof spaceWhere>[], running = ended) =>
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={running} plants={plants} spaces={spaces} mayManage mayOwn />
+      </LogProvider>,
+    );
+  const menu = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks, opens the grow again where it stood, and offers to end it again', async () => {
+    const sent = wire();
+    drawMenu([spaceWhere('own', { id: 'space-1', name: 'Tent' })]);
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Reopen the grow' });
+    expect(sheet).toHaveTextContent(
+      'Reopen Spring run? It runs on where it stood: entries, phases and harvests can be written again, and its reminders come back.',
+    );
+    expect(sent).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Reopen' }));
+
+    await waitFor(() => expect(sent).toEqual([{ method: 'PATCH', path: '/grows/grow-1', body: { endedAt: null } }]));
+    expect(await screen.findByText('Spring run is running again')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+  });
+
+  it('says that a grow whose place was removed with it runs on at no fixed place', async () => {
+    wire();
+    drawMenu([]);
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+    expect(screen.getByRole('dialog', { name: 'Reopen the grow' })).toHaveTextContent(
+      /Its place has been removed, so it runs on at no fixed place\./,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }));
+
+    expect(await screen.findByText('Spring run is running again')).toBeInTheDocument();
+    expect(screen.getByText('no fixed place')).toBeInTheDocument();
+  });
+
+  it('is offered to an ended grow alone', () => {
+    wire();
+    drawMenu([], grow);
+    menu();
+    expect(screen.queryByRole('button', { name: 'Reopen the grow' })).not.toBeInTheDocument();
+  });
+
+  it('promises no harvest to a grow whose plants have all come down, and says where it is ended again', () => {
+    wire();
+    const cut = plants.map(one => ({ ...one, status: 'harvested' as const, harvest: { harvestedAt: at(2), wetWeightG: null, dryWeightG: null } }));
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={ended} plants={cut} spaces={[spaceWhere('own', { id: 'space-1', name: 'Tent' })]} mayManage mayOwn />
+      </LogProvider>,
+    );
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Reopen the grow' });
+    expect(sheet).toHaveTextContent('entries and phases can be written again');
+    expect(sheet).not.toHaveTextContent(/harvests can be written/);
+    expect(sheet).toHaveTextContent('Its plants are all harvested – it is ended again under “Harvest”.');
+  });
+});
+
+/**
  * The name, which is the one thing about a grow the app could not change.
  *
  * It is invented by the sheet that makes the grow - "Mimosa Sunrise XXL Auto
@@ -111,12 +346,13 @@ beforeAll(() => translate());
  */
 describe('renaming a grow', () => {
   it('is offered beside the other moves, for a session that may make them', () => {
-    drawAt(<GrowLifecycle grow={grow} plants={plants} spaces={[]} />);
+    drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={false} />);
+    fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
 
-    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Name and type' })).toBeInTheDocument();
   });
 
-  it('sends the trimmed name and nothing else, because a rename moves nothing that was recorded', async () => {
+  it('sends the trimmed name and the kind of plant, and nothing else: a rename moves nothing that was recorded', async () => {
     const asked: { method: string; path: string; body: unknown }[] = [];
     vi.stubGlobal(
       'fetch',
@@ -132,19 +368,38 @@ describe('renaming a grow', () => {
 
     drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '  Spring run, Amnesia  ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save the name' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     const wrote = () => asked.filter(call => call.method !== 'GET');
     await waitFor(() => expect(wrote()).toHaveLength(1));
     expect(wrote()[0].method).toBe('PATCH');
     expect(wrote()[0].path).toBe('/v1/grows/grow-1');
-    expect(wrote()[0].body).toEqual({ name: 'Spring run, Amnesia' });
+    expect(wrote()[0].body).toEqual({ name: 'Spring run, Amnesia', type: grow.type });
+  });
+
+  /** The form a grow is started with asks only what cannot wait, so the kind of plant is said here. */
+  it('says which kind of plant the grow is, which the form that started it did not ask', async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') sent.push(JSON.parse(String(init.body)));
+        return json(grow);
+      }),
+    );
+
+    drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Photoperiod' })).toHaveAttribute('aria-pressed', String(grow.type === 'photoperiod'));
+    fireEvent.click(screen.getByRole('button', { name: 'Autoflower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(sent).toEqual([{ name: grow.name, type: 'autoflower' }]));
   });
 
   it('will not save an empty name, nor the one the grow already has', () => {
     drawAt(<RenameSheet grow={grow} onClose={() => {}} />);
 
-    const save = screen.getByRole('button', { name: 'Save the name' });
+    const save = screen.getByRole('button', { name: 'Save' });
     expect(save).toBeDisabled();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '   ' } });
@@ -201,9 +456,12 @@ describe('what correcting a phase would move', () => {
   });
 });
 
+/** The harvest sheet says through a toast that the grow has ended, so it stands inside the app's log. */
+const drawHarvest = (sheet: React.ReactNode) => drawAt(<LogProvider>{sheet}</LogProvider>);
+
 describe('the harvest sheet', () => {
   it('shares the total out over the plants named, before anything is sent', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Amnesia 2' }));
@@ -213,29 +471,110 @@ describe('the harvest sheet', () => {
     expect(screen.getByRole('button', { name: 'Harvest 2 plants' })).toBeInTheDocument();
   });
 
-  it('says the grow ends before the last plants come down, and on which day', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+  /** A weight that is no number, or below nothing, was sent as no weight at all: refused with a word, the harvest held back. */
+  it('refuses a weight it cannot read by the field´s name, and harvests nothing until it is put right', () => {
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    const [wet, dry] = screen.getAllByPlaceholderText('—');
 
-    expect(screen.getByText(/These are the last plants standing/)).toHaveTextContent('its day counter stops there');
+    fireEvent.change(wet, { target: { value: 'abc' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Wet: that is not a number.');
+    expect(wet).toHaveAttribute('aria-invalid', 'true');
+    expect(wet).toHaveAccessibleDescription('Wet: that is not a number.');
+    expect(screen.getByRole('button', { name: /^Harvest/ })).toBeDisabled();
+
+    fireEvent.change(wet, { target: { value: '420' } });
+    fireEvent.change(dry, { target: { value: '-5' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Dry: a weight is 0 g or more.');
+    expect(dry).toHaveAttribute('aria-invalid', 'true');
+    expect(wet).not.toHaveAttribute('aria-invalid');
+
+    fireEvent.change(dry, { target: { value: '' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Harvest/ })).toBeEnabled();
+  });
+
+  it('says the grow ends before the last plants come down, and on which day', () => {
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+
+    // One line that says what the tap ends, and the rest behind its help: nothing is explained above the button.
+    expect(screen.getByText(/^The grow ends on \d+ \w+ \d{4}\.$/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
   });
 
-  it('keeps a plant that has already come down on the list, dimmed and unpickable, with what it weighed', () => {
+  /**
+   * Every write answers: a plant cut while others still stand says which, and is taken back by its plants and its line.
+   * The sheet closes: left open it rearmed on what still stood, and its green button, under the finger that had just
+   * pressed it, read "Harvest the last plant and end the grow".
+   */
+  it('closes on a harvest that leaves the grow running, answers with a toast naming the plants, and takes it back on Undo', async () => {
+    const asked: { method: string; url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', url: String(input), body: init?.body ? JSON.parse(String(init.body)) : null });
+        if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+        return init?.method === 'POST'
+          ? json({
+              plants: [{ ...plants[1], status: 'harvested', harvest: { harvestedAt: at(0), wetWeightG: null, dryWeightG: null } }],
+              entryId: 'entry-9',
+            })
+          : json(plants[1]);
+      }),
+    );
+    const closed = vi.fn();
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} preselect={['plant-2']} onClose={closed} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Harvest 1 plant' }));
+    expect(await screen.findByText(reading('Amnesia 2 harvested'))).toBeInTheDocument();
+    expect(closed).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'DELETE' && call.url.endsWith('/entries/entry-9'))).toBe(true));
+    expect(asked.find(call => call.method === 'PATCH')).toMatchObject({
+      url: expect.stringMatching(/\/plants\/plant-2$/),
+      body: { status: 'active', harvest: null },
+    });
+    expect(await screen.findByText(reading('Undone · Amnesia 2 is standing again'))).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * What came down is said as the diary says it: the harvest's line with the amounts typed in. Gelato 1 was weighed
+   * with a plant deleted since, whose share the plant's own record lost - the line kept what the scale said, and
+   * "Bereits geerntet" read half of it while the diary and the Bericht read the whole.
+   */
+  it('keeps a plant that has already come down on the list, dimmed and unpickable, and says what its harvest weighed as typed', async () => {
+    const asked: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        asked.push(String(input));
+        return json({
+          items: [
+            {
+              id: 'harvest-1',
+              kind: 'harvest',
+              source: 'human',
+              occurredAt: at(1),
+              plantIds: ['plant-3'],
+              values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 },
+            },
+          ],
+          nextCursor: null,
+        });
+      }),
+    );
     const down = [
       plants[0],
       plants[1],
-      plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 90, dryWeightG: null } }),
+      plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 50, dryWeightG: 11 } }),
     ];
-    drawAt(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
-    expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
-  });
-
-  it('keeps the unit over the weights in the figure face', () => {
-    drawAt(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
-
-    expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
+    expect(await screen.findByText(/wet 100 g · dry 22 g/)).toBeInTheDocument();
+    expect(screen.queryByText(/wet 50 g/)).not.toBeInTheDocument();
+    expect(asked.some(url => url.includes('kinds=harvest') && url.includes('growId=grow-1'))).toBe(true);
+    vi.unstubAllGlobals();
   });
 });
 
@@ -252,7 +591,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
   });
 
   it('does not tell a running grow that every plant has already come down', () => {
-    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
 
     expect(screen.queryByText('Every plant of this grow has already come down.')).not.toBeInTheDocument();
     expect(screen.getByText(/No plants are recorded in this grow/)).toBeInTheDocument();
@@ -272,7 +611,7 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
       }),
     );
 
-    drawAt(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
 
     // The server refuses a harvest with nothing in it, so this goes to the grow
@@ -284,10 +623,51 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
     expect(wrote()[0].method).toBe('PATCH');
     expect(wrote()[0].path).toBe('/v1/grows/grow-1');
     expect(Object.keys(wrote()[0].body as object)).toEqual(['endedAt']);
+    // The grow is over: the toast says so, and that what is on screen now is its report.
+    expect(await screen.findByText(reading('Spring run has ended · this is its report'))).toBeInTheDocument();
   });
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
-    drawAt(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+    drawHarvest(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+
+    expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A running grow whose plants have all come down: one reopened after its last harvest. The harvest ended it once; now
+ * nothing is left to cut, so without an end of its own the reopening could never be undone after the toast was gone.
+ */
+describe('the harvest sheet over a running grow whose plants have all come down', () => {
+  const cut = plants.map(one => plant(one.id, one.label, { status: 'harvested', harvest: { harvestedAt: at(3), wetWeightG: 40, dryWeightG: null } }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('says every plant is down and offers the end of the grow, written on the grow', async () => {
+    const wrote: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') wrote.push({ method, path: new URL(String(input), 'http://localhost').pathname, body: JSON.parse(String(init?.body)) });
+        return method === 'GET' ? json({ items: [], nextCursor: null }) : json({ ...grow, endedAt: NOW.toISO() });
+      }),
+    );
+    drawHarvest(<HarvestSheet grow={grow} plants={cut} onClose={() => {}} />);
+
+    expect(screen.getByText('Every plant of this grow has already come down.')).toBeInTheDocument();
+    expect(screen.getByText('The day it ends')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
+
+    await waitFor(() => expect(wrote).toHaveLength(1));
+    expect(wrote[0]).toMatchObject({ method: 'PATCH', path: '/v1/grows/grow-1' });
+    expect(Object.keys(wrote[0].body as object)).toEqual(['endedAt']);
+    expect(await screen.findByText(reading('Spring run has ended · this is its report'))).toBeInTheDocument();
+  });
+
+  it('offers no end a second time once it is over', () => {
+    drawHarvest(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={cut} onClose={() => {}} />);
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
@@ -303,7 +683,11 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   const tent = spaceWhere('own', { name: 'Blue Dream tent' });
 
   it('says so and offers nothing, the way the harvest sheet does over the same record', () => {
-    drawAt(<SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText(/No plants are recorded in this grow, so there is nothing here to split off/)).toBeInTheDocument();
     // Not the picker, not the phase or place chips, and no button that leads to
@@ -314,10 +698,174 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   });
 
   it('is the whole sheet for a grow that does have plants', () => {
-    drawAt(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByRole('button', { name: /Split off/ })).toBeInTheDocument();
     expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A split names no climate unless a preset is chosen, so its first chip is the phase sheet's "Leave as they are"
+   * (Chris, 2026-11-13): it was called after the stage, "Flower", and wrote nothing.
+   */
+  it('offers the climates of the phase the plants go into behind "Leave as they are", and their places and none', () => {
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    const climates = screen.getByRole('group', { name: 'Climate preset' });
+    expect(
+      within(climates)
+        .getAllByRole('button')
+        .map(one => one.textContent),
+    ).toEqual(['Leave as they are', 'Late flower', 'Auto · Flower']);
+    expect(within(climates).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Climate preset', { selector: '.label' })).toBeInTheDocument();
+    // A stage nothing refines offers no choice at all: the lone chip would be no question.
+    fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
+    expect(screen.queryByRole('group', { name: 'Climate preset' })).not.toBeInTheDocument();
+
+    const places = screen.getByRole('group', { name: 'Their place' });
+    expect(
+      within(places)
+        .getAllByRole('button')
+        .map(one => one.textContent),
+    ).toEqual(['Keep the place', 'Blue Dream tent', 'No fixed place']);
+  });
+});
+
+/** A move and a split answer with what holds now; neither is one call to take back, so neither offers a way back. */
+describe('the answer of a move and a split', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+  const other = spaceWhere('own', { id: 'space-2', name: 'Second tent' });
+  const wire = () => {
+    const sent: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        sent.push({ method: init?.method ?? 'GET', path, body: init?.body ? JSON.parse(String(init.body)) : null });
+        return json({ id: 'answer' });
+      }),
+    );
+    return sent;
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('says where the grow stands after a move', async () => {
+    const sent = wire();
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move · Second tent' }));
+    expect(await screen.findByText(reading('Spring run · new place: Second tent'))).toBeInTheDocument();
+    expect(sent.find(one => one.method === 'POST')).toMatchObject({ path: '/grows/grow-1/placements', body: { spaceId: 'space-2' } });
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('says how many plants went their own way, and into what', async () => {
+    wire();
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Their place' })).getByRole('button', { name: 'Second tent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split off 1 plant' }));
+    expect(await screen.findByText(reading('1 plant goes its own way · Second tent'))).toBeInTheDocument();
+  });
+});
+
+/** Taking back a move puts the grow back where it stood, and the sheet says so before anything is sent. */
+describe('taking a move back', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+  const other = spaceWhere('own', { id: 'space-2', name: 'Second tent' });
+  const moved: GrowListItem = {
+    ...grow,
+    placements: [
+      { id: 'pl1', spaceId: 'space-1', startedAt: at(34), endedAt: at(1), plantIds: null },
+      { id: 'pl2', spaceId: 'space-2', startedAt: at(1), endedAt: null, plantIds: null },
+    ],
+    summary: { ...grow.summary, locations: [{ spaceId: 'space-2', plantIds: ['plant-1', 'plant-2', 'plant-3'] }] },
+  };
+  const sheet = (of: GrowListItem) =>
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={of} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+  it('says the grow stands where it stood before, once its newest stay is taken back', () => {
+    sheet(moved);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[0]);
+
+    expect(screen.getByText('The grow then stands where it stood before: Blue Dream tent.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Withdraw this move' })).toBeInTheDocument();
+  });
+
+  it('says only why the stay a grow first stood in cannot go, and offers the move it asks for instead', () => {
+    sheet(grow);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+    expect(screen.getByText(/This is where the grow first stood/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Put the grow at no fixed place first, then withdraw' })).toBeInTheDocument();
+    expect(screen.queryByText(/changed in the meantime/)).not.toBeInTheDocument();
+    // It was never a move, and no row or diary line is spoken of.
+    expect(screen.queryByText(/as if the move had never been recorded/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/The diary line that announced it/)).not.toBeInTheDocument();
+  });
+
+  it('offers no escape where the grow first stood at no fixed place, which the move would go to', () => {
+    sheet({
+      ...grow,
+      placements: [{ id: 'pl1', spaceId: null, startedAt: at(34), endedAt: null, plantIds: null }],
+      summary: { ...grow.summary, locations: [{ spaceId: null, plantIds: ['plant-1', 'plant-2', 'plant-3'] }] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+    expect(screen.getByText(/This is where the grow first stood/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /no fixed place first/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('names no move to where the grow stands once a move is taken back under it', () => {
+    const { rerender } = sheet(moved);
+    expect(screen.getByRole('button', { name: 'Move · Blue Dream tent' })).toBeInTheDocument();
+
+    // The newest stay taken back: the grow stands in the Blue Dream tent again, and the sheet stays open.
+    rerender(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'Move · Blue Dream tent' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move · Second tent' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Move to' })).getByRole('button', { name: 'Second tent' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('offers no move into the place the grow already stands in', () => {
+    sheet(moved);
+    const choices = within(screen.getByRole('group', { name: 'Move to' }))
+      .getAllByRole('button')
+      .map(button => button.textContent);
+
+    expect(choices).toEqual(['Blue Dream tent', 'No fixed place']);
   });
 });
 
@@ -335,37 +883,57 @@ describe('the move sheet of a grow that has ended', () => {
   };
 
   it('names the place it stood in, as the header behind it and its own history do', () => {
-    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
-    expect(screen.getByText('stood in Blue Dream tent')).toBeInTheDocument();
-    expect(screen.queryByText('Standing in No fixed place')).not.toBeInTheDocument();
+    expect(screen.getByText('last place: Blue Dream tent')).toBeInTheDocument();
+    expect(screen.queryByText('Place now: No fixed place')).not.toBeInTheDocument();
   });
 
   it('still says in the present where a running grow stands', () => {
-    drawAt(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
-    expect(screen.getByText('Standing in Blue Dream tent')).toBeInTheDocument();
+    expect(screen.getByText('Place now: Blue Dream tent')).toBeInTheDocument();
   });
 
   it('offers no move of its own, only the rows of where it stood', () => {
-    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.queryByRole('button', { name: /^Move · / })).not.toBeInTheDocument();
     expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
   });
 
-  it('is offered a phase, a move and a new name, but no split and no harvest', () => {
-    drawAt(<GrowLifecycle grow={finished} plants={plants} spaces={[tent]} />);
+  it('is offered a phase, a move, a new name and to be opened again, but no split, no harvest and no tips for a stage it is no longer in', () => {
+    drawAt(<GrowMenu grow={finished} plants={plants} spaces={[tent]} mayManage mayOwn={false} />);
+    const menu = screen.getByRole('button', { name: `More about ${finished.name}` });
+    fireEvent.click(menu);
 
-    const offered = screen.getAllByRole('button').map(button => button.textContent);
-    expect(offered).toEqual(['Phase', 'Move', 'Rename']);
+    const offered = within(document.getElementById(menu.getAttribute('aria-controls')!)!)
+      .getAllByRole('button')
+      .map(button => button.textContent);
+    expect(offered).toEqual(['Phase', 'Move', 'Name and type', 'Reopen the grow']);
   });
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
   it('says a running grow stands in no fixed place where that is what it does', () => {
-    drawAt(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
-    expect(screen.getByText('Standing in No fixed place')).toBeInTheDocument();
+    expect(screen.getByText('Place now: No fixed place')).toBeInTheDocument();
   });
 });
 
@@ -380,7 +948,11 @@ describe('the phase sheet over a grow that has ended', () => {
   const finished: GrowListItem = { ...grow, endedAt: at(0) };
 
   it('says what the grow finished as and when, rather than what it is doing now', () => {
-    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={finished} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Ended in Flower on day 35 of the grow · 18 Sep 2026')).toBeInTheDocument();
     expect(screen.queryByText(/^Now /)).not.toBeInTheDocument();
@@ -389,20 +961,57 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 
   it('keeps the phase list repairable, worded as a record rather than a move, dated to the day it ended', () => {
-    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={finished} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByRole('button', { name: 'Record Drying' })).toBeEnabled();
-    expect(screen.getByText(/This grow is over/)).toBeInTheDocument();
     // Not today: a phase filed a month after the plants came down would be a
     // stage the grow never stood in.
     expect(screen.getByLabelText('On')).toHaveValue('2026-09-18');
   });
 
+  /** A phase some plants were split into is theirs: listed as the grow's, it said the whole grow had gone back to Veg. */
+  it('names the plants a split phase is of among the phases so far', () => {
+    const client = testClient();
+    client.setQueryData(['grow', 'grow-1', 'plants'], { items: plants, nextCursor: null });
+    const split = { ...phase('p3', 'vegetative', 5), plantIds: ['plant-3'] };
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={{ ...grow, phases: [...grow.phases, split] }} onClose={() => {}} />
+      </LogProvider>,
+      { client },
+    );
+
+    expect(screen.getByText('Veg · for Gelato 1')).toBeInTheDocument();
+  });
+
   it('speaks in the present over a grow that is still running, which is what the ended wording is told against', () => {
-    drawAt(<PhaseSheet grow={grow} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={grow} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Now Flower · day 11 of the phase · day 35, week 5 of the grow')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enter Drying' })).toBeInTheDocument();
+  });
+
+  /** A grow counts its days from its start, phase or none: the sheet said the counter began with the first phase. */
+  it('promises no day counter to a grow without a phase, which counts its days already', () => {
+    const bare: GrowListItem = { ...grow, phases: [], summary: { ...grow.summary, stage: null, preset: null, phaseDay: null } };
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={bare} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    expect(screen.getByText('No phase yet')).toBeInTheDocument();
+    expect(screen.queryByText(/day counter/)).not.toBeInTheDocument();
+    // Nor takes one away from a grow whose last phase is withdrawn.
+    expect(i18next.t('grow.lifecycle.phase.effect.noPhaseLeft')).not.toMatch(/day counter/);
   });
 });
 
@@ -449,7 +1058,11 @@ describe('the climate beside a phase', () => {
 
   it('leaves the targets as they are unless a climate is chosen, and says what they stay at', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
@@ -458,7 +1071,20 @@ describe('the climate beside a phase', () => {
     expect(within(choices).getByRole('button', { name: 'Late flower' })).toBeInTheDocument();
     expect(within(choices).getByRole('button', { name: 'Auto · Flower' })).toBeInTheDocument();
     // Eighteen hours from six in the morning: said as the window it makes, which ends at midnight.
-    expect(screen.getByText(/Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 22 °C · 62 %/)).toBeInTheDocument();
+    expect(screen.getByText(reading('Stay: Light on 06:00–00:00 · 18 h · day 26 °C · 62 % · night 22 °C · 58 %'))).toBeInTheDocument();
+  });
+
+  /** "Bleiben" named the controller's window alone where a lamp module beside it burns 07:00 to 23:00. */
+  it('says, under the targets left as they are, the times every other lamp keeps', () => {
+    const lamp = { ...standing(), id: 'lamp-1', type: 'light', name: null, configuration: { day: 7 * 3600, night: 23 * 3600, limit: 100 } };
+    hardware.devices = [tent(), lamp as Device];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    expect(screen.getByText(/lamp module.*07:00.*23:00/i)).toBeInTheDocument();
   });
 
   it('puts the tent on the stage´s own climate with the phase when that is chosen, and says what it sets', async () => {
@@ -471,15 +1097,191 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
-    expect(screen.getByText(/New: Light on 06:00–18:00 · 12 h · day 25 °C · night 20 °C · 50 % – replaces the targets/)).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–18:00 · 12 h · day 25 °C · 50 % · night 20 °C · 50 %'))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
     expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'flowering', preset: null, climate: true });
+  });
+
+  /** Every write of the grow's menu answers: a phase begun says so, with the way back where taking it back is all it did. */
+  it('answers a phase entered as a record with the way back, and one that set the targets without one', async () => {
+    const asked: { method: string; url: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', url: String(input) });
+        return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : json(phase('p3', 'flowering', 0));
+      }),
+    );
+    hardware.devices = [tent()];
+    const { unmount } = drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Entered Flower · Spring run'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'DELETE' && call.url.endsWith('/grows/grow-1/phases/p3'))).toBe(true));
+    unmount();
+
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Entered Flower · Spring run · targets set'))).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The climate of the stage the grow already stands in begins no phase: the server answers with the phase it stands
+   * in. "Blüte · jetzt" with Blüte said "Blüte begonnen", and the stage only recorded again offered to take back the
+   * phase the grow had stood in for weeks.
+   */
+  /**
+   * Over the phase the grow stands in no phase begins: the targets alone are written, and taken back as a preset under
+   * Steuerung is - the figures, the name and the alarm thresholds from before. With "Lassen" there is nothing to save.
+   */
+  it('sets the targets where the grow already stands in the stage, takes them back, and saves nothing without a climate', async () => {
+    const asked: { method: string; url: string; body?: unknown }[] = [];
+    const device = tent({ control: { ...standing().control!, preset: null } as Device['control'] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        asked.push({ method: init?.method ?? 'GET', url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        if (url.includes('/alarm-rules')) return json({ items: [{ origin: 'preset', presetId: 'vegetative' }], nextCursor: null });
+        if (url.includes('/configuration')) return json({ configuration: device.configuration });
+        if (/\/devices\/[^/?]+(\?|$)/.test(url)) return json(device);
+        return json(phase('p2', 'flowering', 5));
+      }),
+    );
+    hardware.devices = [device];
+    const flowering: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'vegetative', 20), phase('p2', 'flowering', 5)],
+      summary: { ...grow.summary, stage: 'flowering' },
+    };
+    const { unmount } = drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
+    expect(screen.getByText('The grow is already in this phase: only the targets are written.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Set the targets' }));
+    expect(await screen.findByText(reading('Targets set · Flower · Spring run'))).toBeInTheDocument();
+    expect(screen.queryByText(/Entered Flower/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'PUT')).toBe(true));
+    expect(asked.find(call => call.method === 'PUT')).toMatchObject({
+      url: expect.stringContaining(`/devices/${device.id}/configuration`),
+      body: { configuration: { day: { temperature: 26, humidity: 62 } }, bands: { stage: 'vegetative', preset: null } },
+    });
+    expect(asked.some(call => call.method === 'DELETE')).toBe(false);
+    unmount();
+
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+    fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
+    expect(screen.getByText('The grow is already in this phase: nothing is written.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enter Flower' })).toBeDisabled();
+  });
+
+  /**
+   * Taking a phase back writes no device. A tent left drying under a grow that then read "Flower" was told nothing
+   * and showed "All on target": the question says what the device holds, and that it goes on drying, with the way to
+   * where drying is ended.
+   */
+  it('says, before a phase is taken back, what the device goes on holding, and leads to where drying is ended', () => {
+    const drying: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'flowering', 20), phase('p2', 'drying', 2)],
+      summary: { ...grow.summary, stage: 'drying' },
+    };
+    hardware.devices = [{ ...tent(), control: { running: true, drying: true, mode: 'standard', energySaving: false } }];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={drying} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[1]);
+    expect(screen.getByText('The grow then shows Flower instead of Drying.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        reading(
+          /^Nothing changes on the device – it goes on holding: light off · 22 °C · 58 %\. So it goes on drying until you end drying under Control\./,
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'End drying ›' })).toHaveAttribute('href', '/control?space=space-1');
+  });
+
+  it('says what a lit device goes on holding where a phase is taken back, and leads nowhere it need not', () => {
+    const flowering: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'vegetative', 20), phase('p2', 'flowering', 2)],
+      summary: { ...grow.summary, stage: 'flowering' },
+    };
+    hardware.devices = [tent()];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[1]);
+    expect(screen.getByText(reading(/^Nothing changes on the device – it goes on holding: Light on 06:00–00:00 · 18 h · /))).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^End / })).not.toBeInTheDocument();
+  });
+
+  /** The stage and the climate it was entered on can carry the same word: both rows are named. */
+  it('names both rows where a phase is corrected, and answers the correction with the phase as it stood', async () => {
+    const asked: { method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
+        return json(phase('p1', 'flowering', 20));
+      }),
+    );
+    const flowering: GrowListItem = { ...grow, phases: [phase('p1', 'flowering', 20)], summary: { ...grow.summary, stage: 'flowering' } };
+    hardware.devices = [tent()];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Correct' }));
+    expect(screen.getAllByText('Phase', { selector: '.label' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Climate preset', { selector: '.label' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Climate preset' })).getByRole('button', { name: 'Late flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save the correction' }));
+
+    expect(await screen.findByText(reading(/^Phase corrected · Flower · .+ from \d+ \w+ 2026$/))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.filter(call => call.method === 'PATCH')).toHaveLength(2));
+    expect(asked.filter(call => call.method === 'PATCH')[1].body).toMatchObject({ stage: 'flowering', preset: null });
   });
 
   /**
@@ -487,18 +1289,21 @@ describe('the climate beside a phase', () => {
    * night the device was about to stop having, and the day's humidity it would
    * not hold.
    */
-  it('says what drying holds where the targets are left, and nothing of a light or a day', () => {
+  it('keeps the light where drying is only recorded, and says what its climate holds: the dark, and nothing of a day', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
-    expect(
-      screen.getByText(/^Drying holds the night figures as they are, round the clock: 22 °C · 58 % – no light and no CO₂\./),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Light on 06:00/)).not.toBeInTheDocument();
+    // A phase without its climate is a record: the tent keeps its light, as the chip says.
+    expect(screen.getByText(reading(/^Stay: Light on 06:00/))).toBeInTheDocument();
+    expect(screen.queryByText(reading(/light off/))).not.toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Drying' }));
-    expect(screen.getByText(/^New: light off · 18 °C · 58 % – replaces the targets under Control\. The device starts drying/)).toBeInTheDocument();
+    expect(screen.getByText(reading('New: light off · 18 °C · 58 %'))).toBeInTheDocument();
   });
 
   /**
@@ -516,23 +1321,20 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     // The stage chip records the stage and is called by it; the one choice that darkens is the climate beside it.
     expect(screen.queryAllByRole('button', { name: 'Germination · dark' })).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
-    expect(
-      screen.getByText(
-        /^Stay: Light on 06:00–00:00 · 18 h · .* The light stays on: only “Germination · dark” makes it dark\. The alarms stay as they are: they belong to the climate the device goes on holding\.$/,
-      ),
-    ).toBeInTheDocument();
+    // Only recorded, the light stays as it is.
+    expect(screen.getByText(reading(/^Stay: Light on 06:00–00:00 · 18 h · /))).toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
-    expect(
-      screen.getByText(
-        /^New: Germination · dark – light off, no CO₂, 24 °C and 75 % humidity round the clock, the humidity held by a humidifier alone\..* The alarms Too hot and Too cold follow germination; Too humid is set to above 90 %: It rests until germination ends\.$/,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(reading('New: light off · 24 °C · 75 %'))).toBeInTheDocument();
     // What germination does about the humidity is asked beside its climate: the alarm, and no humidifier where none is paired.
     const choices = screen.getByRole('group', { name: 'During germination' });
     expect(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' })).toHaveAttribute('aria-checked', 'false');
@@ -565,7 +1367,11 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
@@ -577,7 +1383,6 @@ describe('the climate beside a phase', () => {
     fireEvent.click(humidifier);
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
     expect(within(choices).getByText('The humidifier rests until germination ends.')).toBeInTheDocument();
-    expect(screen.getByText(/Too humid is set to above 90 %: It warns during germination too\.$/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Germination' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
@@ -588,7 +1393,7 @@ describe('the climate beside a phase', () => {
     });
   });
 
-  it('offers the seedling´s climate first while the device germinates, and says the light comes back either way', () => {
+  it('offers the seedling´s climate first while the device germinates, and says the light comes back only with it', () => {
     const germinating: GrowListItem = {
       ...grow,
       phases: [phase('p1', 'germination', 3)],
@@ -605,31 +1410,96 @@ describe('the climate beside a phase', () => {
         },
       },
     ];
-    drawAt(<PhaseSheet grow={germinating} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={germinating} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByText(
-        /^New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 % – .* Germination ends: the device holds day and night again/,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 24 °C · 70 % · night 21 °C · 65 %'))).toBeInTheDocument();
 
-    // Left as they are, the night germination wrote over comes back with the light.
+    // Left as they are, nothing is written: the device goes on germinating in the dark, and the sheet says so.
     fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));
-    expect(screen.getByText(/^Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 19 °C · 62 %\. Germination ends/)).toBeInTheDocument();
+    expect(screen.getByText(reading(/^Stay: light off · /))).toBeInTheDocument();
+  });
+
+  /**
+   * A climate is the place's. "Keimung · dunkel" chosen for seeds sown beside flowering plants said "Licht aus" over
+   * them without naming them: every chip that writes a climate names the other grow and what it had, and the sheet
+   * starts on leaving the targets even where the device germinates.
+   */
+  describe('in a place where another grow stands', () => {
+    const blueDream: GrowListItem = { ...grow, id: 'grow-2', name: 'Blue Dream', summary: { ...grow.summary, stage: 'flowering' } };
+    const seeds: GrowListItem = {
+      ...grow,
+      id: 'grow-3',
+      name: 'Seeds',
+      phases: [phase('p1', 'germination', 3)],
+      summary: { ...grow.summary, stage: 'germination' },
+    };
+    beforeEach(() => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) =>
+          new URL(String(input), 'http://localhost').pathname.endsWith('/grows') ? json({ items: [seeds, blueDream], nextCursor: null }) : json({}),
+        ),
+      );
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('names the other grow and what it had on every climate chosen, and none while the targets are left', async () => {
+      hardware.devices = [tent()];
+      drawAt(
+        <LogProvider>
+          <PhaseSheet grow={seeds} onClose={() => {}} />
+        </LogProvider>,
+      );
+      const choices = screen.getByRole('group', { name: 'Targets' });
+      expect(screen.queryByText(/This applies to/)).not.toBeInTheDocument();
+
+      fireEvent.click(within(choices).getByRole('button', { name: 'Seedling · with light' }));
+      const said =
+        'This applies to Blue Dream in the Flower phase too – until now: Light on 06:00–00:00 · 18 h · day 26 °C · 62 % · night 22 °C · 58 %';
+      // Each figure bound to its unit: "night 22 / °C" broke at 390.
+      expect((await screen.findByText(said)).textContent).toContain('night 22\u00a0°C · 58\u00a0%');
+    });
+
+    it('starts on leaving the targets though the device germinates', async () => {
+      const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false };
+      hardware.devices = [{ ...tent(), type: 'fridge', control: dark }];
+      drawAt(
+        <LogProvider>
+          <PhaseSheet grow={seeds} onClose={() => {}} />
+        </LogProvider>,
+      );
+
+      const choices = screen.getByRole('group', { name: 'Targets' });
+      await waitFor(() => expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true'));
+      fireEvent.click(within(choices).getByRole('button', { name: 'Seedling · with light' }));
+      expect(await screen.findByText(/^This applies to Blue Dream in the Flower phase too – until now: light off · /)).toBeInTheDocument();
+    });
   });
 
   it('is not asked where nothing standing there states a climate', () => {
     hardware.devices = [];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();
   });
 
   it('says curing has no climate rather than offering one', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();

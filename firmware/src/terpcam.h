@@ -8,6 +8,45 @@ namespace fg {
   constexpr const char* TERP_CAM_PWD_NVS_KEY = "webcam_pwd";
   /** What the camera ships with, and what a factory reset puts back. */
   constexpr const char* TERP_CAM_DEFAULT_PASSWORD = "888888";
+  /** NVS slot set to "1" when the camera is read off its own RTSP stream on the LAN. */
+  constexpr const char* TERP_CAM_STREAM_NVS_KEY = "webcam_rtsp";
+  /** NVS slot holding the camera's MAC (uppercase hex), which is how its stream is told from another camera's. */
+  constexpr const char* TERP_CAM_MAC_NVS_KEY = "webcam_mac";
+  /** Where the camera's RTSP stream answers on the LAN, and its full-resolution main stream. */
+  constexpr uint16_t TERP_CAM_STREAM_PORT = 10554;
+  constexpr const char* TERP_CAM_STREAM_PATH = "/tcp/av0_0";
+
+  /** A fresh 12-character camera password, free of characters a CGI query would need escaped. */
+  std::string terpCamGeneratePassword();
+
+  /**
+   * Whether the paired camera is read off its own RTSP stream on the LAN - the
+   * cloud pulls it through the device's tunnel - rather than through the P2P
+   * relay below. Decided at pairing, by the stream answering once it is switched on.
+   */
+  bool terpCamStreams();
+
+  /** Whether `ip` serves the camera stream: an RTSP OPTIONS on the stream port answered with 200. */
+  bool terpCamStreamAnswers(const IPAddress& ip, uint32_t connect_ms = 300);
+
+  /** The MAC this device's ARP table holds for `ip`, uppercase hex, or "" when it has none. */
+  std::string terpCamMacOf(const IPAddress& ip);
+
+  /**
+   * Looks for the streaming camera on this device's /24 and remembers (and
+   * reports) where it answers. Only a stream whose MAC is the paired camera's
+   * counts; without a stored MAC only a sweep with exactly one stream on the
+   * network does. Blocking, watchdog-fed, for up to `budget_ms`.
+   */
+  bool terpCamFindStream(Fridgecloud* cloud, uint32_t budget_ms);
+
+  /**
+   * Idle-loop upkeep for a streaming camera: every few minutes checks that it
+   * still answers where it last did and, when it does not, sweeps the subnet a
+   * few addresses per call. Returns true while a sweep is under way, so the
+   * caller leaves its other searches for later.
+   */
+  bool terpCamTickStream(Fridgecloud* cloud);
 
 
   /**

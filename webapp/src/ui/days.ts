@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { instantOf } from './age';
-import { zonedAt } from './zone';
+import { CLOCK, zonedAt } from './zone';
 
 /**
  * The day a date field speaks, and the instant behind it, for every sheet that
@@ -19,6 +19,19 @@ const FIELD_DAY = 'yyyy-MM-dd';
 
 /** The day part of an instant, where the account is. */
 export const dayOf = (at: Date, zone: string | null): string => zonedAt(at.getTime(), zone).toFormat(FIELD_DAY);
+
+/** The time of day of an instant, where the account is, in the shape a time input speaks. */
+export const clockOf = (at: Date, zone: string | null): string => zonedAt(at.getTime(), zone).toFormat(CLOCK);
+
+/**
+ * A day and a time of day typed into their two fields, as the instant they name
+ * where the account is; null while either field holds no whole answer.
+ */
+export const momentAt = (day: string, time: string, zone: string | null): Date | null => {
+  const at = DateTime.fromISO(`${day}T${time}`, { zone: zone ?? undefined });
+
+  return day && time && at.isValid ? at.toJSDate() : null;
+};
 
 /**
  * That day, at the hour the instant already had: a watering remembered at nine in

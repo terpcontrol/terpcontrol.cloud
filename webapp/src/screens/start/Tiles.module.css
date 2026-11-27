@@ -1,0 +1,441 @@
+/* The tiles of a place's Start (Tiles.tsx). Two rules, each by a width that is not the window's: how many tiles stand
+   in a row by the width of the column they stand in, and how a tile lays itself out by its own. The page is drawn
+   for the usual place - four tiles, no leaf sensor - and for any other set by the same rules. */
+
+.frame {
+  container: tiles / inline-size;
+}
+
+/* One a row under 330 px, two from there, three from 630 px. Rows fill evenly, the fuller first, and every row
+   fills the width: a row the tiles do not fill is shared out among those in it, so no row has a hole. */
+.tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 900px) {
+  .tiles {
+    gap: var(--space-3);
+  }
+}
+
+@container tiles (min-width: 330px) and (max-width: 629px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tile:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@container tiles (min-width: 630px) {
+  .tiles {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .tile {
+    grid-column: span 2;
+  }
+
+  .tile:nth-child(3n + 1):last-child {
+    grid-column: 1 / -1;
+  }
+
+  .tile:nth-child(3n + 1):nth-last-child(2),
+  .tile:nth-child(3n + 2):last-child,
+  /* Four are two rows of two - master's cockpit - and not three and one. */
+  .tile:first-child:nth-last-child(4),
+  .tile:first-child:nth-last-child(4) ~ .tile {
+    grid-column: span 3;
+  }
+}
+
+/* --- a tile: the curve under the text where it is narrow, beside it from 300 px --- */
+
+.tile {
+  position: relative;
+  container: tile / inline-size;
+  min-width: 0;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 12px 10px;
+}
+
+@media (min-width: 900px) {
+  .inner {
+    padding: 14px 16px 12px;
+  }
+}
+
+.name {
+  display: flex;
+  grid-area: name;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  color: var(--label);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+}
+
+.name svg {
+  flex: none;
+}
+
+.chevron {
+  margin-left: -2px;
+  opacity: 0.7;
+}
+
+/* The name is the tile's one link, stretched over it; its ring goes round the tile. A word that explains itself
+   stands above the stretch. */
+.name::after {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  content: '';
+}
+
+.name:focus-visible {
+  outline: none;
+}
+
+.name:focus-visible::after {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.tile button {
+  position: relative;
+  z-index: 1;
+}
+
+.figure {
+  display: flex;
+  grid-area: figure;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.reading {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.value {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-figure);
+  letter-spacing: var(--tracking-figure);
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+/* Off its target the figure takes the warning's ink. */
+.tile[data-tone='off'] .value {
+  color: var(--warning);
+}
+
+.unit {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The lamp's level beside "An", and VPD beside the humidity it is worked out from. */
+.level,
+.secondValue {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.level {
+  margin-left: 4px;
+  color: var(--muted);
+}
+
+.second {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.secondValue {
+  color: var(--ink);
+}
+
+/* Each line one line, cut with an ellipsis sideways only, so a dotted word in it keeps the room above and below
+   that makes it a finger high. */
+.lines {
+  flex: 1;
+  grid-area: lines;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.line {
+  overflow-x: clip;
+  font-size: var(--text-xs);
+  line-height: var(--line-body);
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The target and its verdict: one line where they fit, else broken between the two. */
+.target {
+  font-size: var(--text-xs);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.ink {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.good {
+  font-weight: var(--weight-medium);
+  color: var(--green-ink);
+}
+
+.off {
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+/* "Ziel 25 °C" where "Tagesziel 25 °C · im Ziel" does not fit: a phone's two columns. */
+.short {
+  display: none;
+}
+
+@container tile (max-width: 199px) {
+  .long {
+    display: none;
+  }
+
+  .short {
+    display: inline;
+  }
+}
+
+/* The curve and the day bar let a press through to the tile's link under them: the curve is what one presses to see
+   the curve. Nothing in them takes a press of its own. */
+.side {
+  grid-area: side;
+  min-width: 0;
+  margin-top: 8px;
+  pointer-events: none;
+}
+
+.side:empty {
+  display: none;
+}
+
+/* The foot: what the hardware does, ruled off, the outputs and the curve's caption as one row that wraps between
+   them. Empty, it keeps its height where the tile stands narrow, so the curves of a row stand on one line. */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: foot;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 30px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: var(--rule-solid);
+  font-size: var(--text-xs);
+  line-height: var(--line-tight);
+  color: var(--muted);
+}
+
+.foot:empty {
+  border-top-color: transparent;
+}
+
+/* One tile a row has no neighbour to keep a line with. */
+@container tiles (max-width: 329px) {
+  .foot:empty {
+    display: none;
+  }
+}
+
+.outputs {
+  display: contents;
+}
+
+/* An output's words wrap inside a narrow tile ("Kompressor läuft seit 3 Min"), its dot staying with the first line. */
+.output {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.output::before {
+  flex: none;
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  margin-top: calc((1lh - 7px) / 2);
+  border: 1.5px solid var(--control-edge);
+  border-radius: 50%;
+  content: '';
+}
+
+.output[data-on] {
+  color: var(--ink);
+}
+
+.output[data-on='output']::before {
+  border-color: var(--output);
+  background: var(--output);
+}
+
+.output[data-on='lamp']::before {
+  border-color: var(--lamp);
+  background: var(--lamp);
+}
+
+.caption {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+@container tile (min-width: 300px) {
+  .inner {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      'name name'
+      'figure side'
+      'lines side'
+      'foot foot';
+    column-gap: var(--space-4);
+  }
+
+  .side {
+    align-self: center;
+    margin-top: 0;
+  }
+
+  .side .curve {
+    height: 48px;
+  }
+
+  .foot:empty {
+    display: none;
+  }
+
+  .second {
+    margin-left: 14px;
+  }
+}
+
+/* --- a day: the curve, and the lamp's bar --- */
+
+.curve {
+  position: relative;
+  height: 36px;
+}
+
+@media (min-width: 900px) {
+  .curve {
+    height: 44px;
+  }
+}
+
+.curve svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.night {
+  fill: var(--night);
+}
+
+.band {
+  fill: var(--band-small);
+}
+
+.path {
+  fill: none;
+  stroke: var(--tone, var(--temperature));
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The newest value, ringed in the card so it stands off the line it ends. */
+.dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--tone, var(--temperature));
+  box-shadow: 0 0 0 2px var(--card);
+}
+
+.curve[data-tone='humidity'] {
+  --tone: var(--humidity);
+}
+
+.curve[data-tone='co2'] {
+  --tone: var(--co2);
+}
+
+.curve[data-tone='leafTemperature'] {
+  --tone: var(--green);
+}
+
+.dayTrack {
+  position: relative;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 5px;
+  background: var(--day-track);
+}
+
+.dayLit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--lamp);
+}
+
+.dayNow {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+
+.dayTicks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-family: var(--font-figure);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--muted);
+}

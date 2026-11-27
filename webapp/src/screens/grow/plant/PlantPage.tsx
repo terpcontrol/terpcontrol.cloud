@@ -1,23 +1,28 @@
-import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
-import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries } from '@/api/grows';
+import { usePageOfGrow } from '@/app/places';
+import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries, useRemovePlant } from '@/api/grows';
+import { useHarvests } from '@/api/lifecycle';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
+import { useLog } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
-import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, NothingHere, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
+import { namesOf, weightsOf } from '../harvest';
 import { HarvestSheet } from '../HarvestSheet';
+import { HarvestWeights } from '../HarvestWeights';
 import { withUnit } from '../measurements/definitions';
 import { MoveSheet } from '../MoveSheet';
 import { SplitSheet } from '../SplitSheet';
@@ -43,8 +48,10 @@ export function PlantPage() {
   const { t } = useTranslation();
   const now = useNow();
   const grow = useGrow(growId);
+  usePageOfGrow(grow.data);
   const plants = useGrowPlants(growId);
-  const entries = usePlantEntries(plantId);
+  // Asked once the plant is known to be the grow's: a deleted plant's address leads to Pflanzen and asks nothing.
+  const entries = usePlantEntries(plantId, plants.data?.items.some(one => one.id === plantId) === true);
   const perPlant = (grow.data?.measurements ?? []).filter(definition => definition.perPlant);
   const series = useMeasurementSeries(
     growId,
@@ -54,10 +61,16 @@ export function PlantPage() {
   const spaces = useSpaces();
   const mayWith = useMayWith();
   const [sheet, setSheet] = useState<PlantSheet | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const remove = useRemovePlant();
+  // Asked of a plant that came down, which is what has a harvest's line to be weighed on.
+  const harvests = useHarvests(growId, plants.data?.items.some(one => one.id === plantId && one.harvest !== null) === true);
+  const navigate = useNavigate();
+  const { tell } = useLog();
 
   if (grow.isPending || plants.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Waiting lines={2} />
         <Waiting lines={3} />
       </section>
@@ -78,7 +91,9 @@ export function PlantPage() {
 
   const all = plants.data.items;
   const plant = all.find(one => one.id === plantId);
-  if (!plant) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.notHere')}</p>;
+  // A plant that is gone - deleted here, taken back with its toast's undo, or never of this grow - leaves its grow's
+  // Pflanzen open in its place, with that page's own title and way back, rather than a sentence with neither.
+  if (!plant) return <Navigate to={`/grows/${growId}/plants`} replace />;
 
   // Moving, splitting, harvesting and renaming a plant are the grow's own
   // moves, which are `manage` where the grow stands today.
@@ -86,16 +101,31 @@ export function PlantPage() {
   const mayManage = enough(youMay, 'manage');
   const lines = entries.data?.items ?? [];
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
+  // A plant harvested alone takes its harvest's line out of the diary with it; one cut with others leaves theirs as typed.
+  const cutWith = all
+    .filter(one => one.id !== plant.id && lines.some(entry => entry.values.kind === 'harvest' && entry.plantIds.includes(one.id)))
+    .map(one => one.label);
+  // The line of the harvest it came down in carries its weights, the yield every page states; a plant no line names its own.
+  const harvestLine = harvests.data?.items.find(entry => entry.plantIds.includes(plant.id)) ?? null;
+  const weighed = harvestLine
+    ? weightsOf(harvestLine)
+    : { wetWeightG: plant.harvest?.wetWeightG ?? null, dryWeightG: plant.harvest?.dryWeightG ?? null };
+  const removeAsk =
+    plant.harvest === null
+      ? t('grow.plant.removeAsk', { name: plant.label })
+      : cutWith.length > 0
+        ? t('grow.plant.removeAskShared', { name: plant.label, others: cutWith.join(', ') })
+        : t('grow.plant.removeAskHarvested', { name: plant.label });
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <header className={styles.head}>
         <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
           <h1>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>
         </div>
-        <span className={`mono ${styles.corner}`}>
+        <span className={styles.corner}>
           {grow.data.name}
           {' · '}
           {t('grow.plant.ofCount', { index: all.indexOf(plant) + 1, count: all.length })}
@@ -129,7 +159,6 @@ export function PlantPage() {
             plantId={plant.id}
             label={plant.label}
             others={all.filter(one => one.id !== plant.id)}
-            nights={series.data?.nights ?? []}
             from={new Date(series.data!.startsAt).getTime()}
             to={new Date(series.data!.endsAt).getTime()}
           />
@@ -141,26 +170,27 @@ export function PlantPage() {
       ) : null}
 
       <header className={styles.sectionHead}>
-        <span className="label">{t('grow.plant.ownEntries')}</span>
-        <span className={`mono ${styles.aside}`}>{t('grow.plant.growEntriesToo')}</span>
+        {/* The one heading of its own lines, with how many there are. */}
+        <span className="label">{lines.length > 0 ? t('grow.plant.ownEntriesCount', { count: lines.length }) : t('grow.plant.ownEntries')}</span>
+        <span className={styles.aside}>{t('grow.plant.growEntriesToo')}</span>
       </header>
 
       {entries.isPending ? (
         <Waiting lines={3} />
       ) : lines.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.noEntries')}</p>
+        <NothingHere>{t('grow.plant.noEntries')}</NothingHere>
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
-            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} />
+            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} plants={all} />
           ))}
         </ul>
       )}
 
+      {/* One form for the plant's actions: words alone, as a grow's own. */}
       {mayManage ? (
-        <div className={styles.actions} role="group" aria-label={t('grow.plant.actionsLabel')}>
+        <div className={ui.wrap} role="group" aria-label={t('grow.plant.actionsLabel')}>
           <button type="button" className={ui.button} onClick={() => setSheet('move')}>
-            <Move size={13} strokeWidth={1.75} aria-hidden />
             {t('grow.plant.move')}
           </button>
           {/* Splitting every plant out of a grow splits nothing, and a plant
@@ -168,20 +198,48 @@ export function PlantPage() {
               neither is offered. */}
           {all.length > 1 ? (
             <button type="button" className={ui.button} onClick={() => setSheet('split')}>
-              <Split size={13} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.split')}
             </button>
           ) : null}
           {standing(plant) ? (
             <button type="button" className={ui.button} onClick={() => setSheet('harvest')}>
-              <Scissors size={13} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.harvest')}
+            </button>
+          ) : null}
+          {/* A harvest's weights come later, the dry one days after the cut: added and corrected where the help says. */}
+          {plant.harvest !== null && harvests.isSuccess ? (
+            <button type="button" className={ui.button} onClick={() => setSheet('weigh')}>
+              {t(Object.values(weighed).includes(null) ? 'grow.plant.weigh' : 'grow.plant.reweigh')}
             </button>
           ) : null}
           <button type="button" className={ui.button} onClick={() => setSheet('rename')}>
             {t('grow.plant.rename')}
           </button>
+          <button type="button" className={ui.button} onClick={() => setRemoving(true)}>
+            {t('grow.plant.remove')}
+          </button>
         </div>
+      ) : null}
+      {/* A plant put in by mistake is taken out again. No one call brings it back - the phases and places that named
+          it forget it - so it is asked first and answered without a way back. */}
+      {removing ? (
+        <Asking
+          note={removeAsk}
+          yes={t('grow.plant.removeYes')}
+          danger
+          busy={remove.isPending}
+          onYes={() =>
+            remove.mutate(plant.id, {
+              onSuccess: () => {
+                tell({ label: t('grow.plant.told.removed', { name: plant.label }), undo: null });
+                void navigate(`/grows/${growId}/plants`, { replace: true });
+              },
+            })
+          }
+          onCancel={() => setRemoving(false)}
+        >
+          <Refused error={remove.error} />
+        </Asking>
       ) : null}
 
       {/* The grow's own sheets, opened on this plant. What they do and what
@@ -193,13 +251,16 @@ export function PlantPage() {
         <SplitSheet grow={grow.data} plants={all} spaces={spaces.data?.items ?? []} preselect={[plant.id]} onClose={() => setSheet(null)} />
       ) : null}
       {sheet === 'harvest' ? <HarvestSheet grow={grow.data} plants={all} preselect={[plant.id]} onClose={() => setSheet(null)} /> : null}
-      {sheet === 'rename' ? <RenameSheet growId={growId} plant={plant} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'weigh' ? <HarvestWeights about={harvestLine ? { line: harvestLine } : { plant }} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'rename' ? (
+        <RenameSheet growId={growId} plant={plant} others={all.filter(one => one.id !== plant.id)} onClose={() => setSheet(null)} />
+      ) : null}
     </section>
   );
 }
 
 /** What the plant's own actions row can open. */
-type PlantSheet = 'move' | 'split' | 'harvest' | 'rename';
+type PlantSheet = 'move' | 'split' | 'harvest' | 'weigh' | 'rename';
 
 /** Still in the ground, which is what the harvest sheet means by a plant it can cut. */
 const standing = (plant: Plant): boolean => plant.status === 'active' && plant.harvest === null;
@@ -220,12 +281,14 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
   const mediaId = newest?.mediaIds[0];
   const src = mediaId ? mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) : null;
 
-  if (!newest || !src) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.noPhotos')}</p>;
+  if (!newest || !src) return <NothingHere>{t('grow.plant.noPhotos')}</NothingHere>;
 
   return (
     <figure className={styles.hero}>
       <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: growDayOf(grow, newest.occurredAt) ?? '—' })} loading="lazy" />
-      <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
+      <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>
+        {t('grow.plant.photos', { count: photos.reduce((sum, line) => sum + line.mediaIds.length, 0) })}
+      </figcaption>
     </figure>
   );
 }
@@ -239,9 +302,9 @@ interface FiguresProps {
 }
 
 /**
- * The four figures the page opens on: where its first measurement stands and
- * how far it has moved, the last thing done to it, how much has been written
- * about it alone, and how far into the grow it is.
+ * The figures the page opens on: where its first measurement stands and how
+ * far it has moved, the last thing done to it, and how far into the grow it
+ * is. How much was written about it alone is said by the heading of its lines.
  */
 function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const { t } = useTranslation();
@@ -252,13 +315,15 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const training = entries.find(entry => entry.kind === 'training');
   const trainedOn = training ? growDayOf(grow, training.occurredAt) : null;
 
+  // A plant with nothing measured, never trained, of a grow without a day count has no figure: no empty strip either.
+  if (!(newest && definition) && trainedOn === null && grow.summary.dayNumber === null) return null;
+
   return (
     <dl className={ui.strip}>
       {newest && definition ? (
         <Figure value={looseFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
       {training && trainedOn !== null ? <Figure value={t('grow.dayShort', { day: trainedOn })} label={t('grow.plant.lastTraining')} /> : null}
-      <Figure value={String(entries.length)} label={t('grow.plant.entryCount')} />
       {grow.summary.dayNumber !== null ? (
         <Figure value={t('grow.plant.day', { day: grow.summary.dayNumber })} label={t('grow.plant.withTheGrow')} />
       ) : null}
@@ -279,6 +344,8 @@ interface LineProps {
   entry: Entry;
   grow: GrowListItem;
   plant: Plant;
+  /** The grow's plants, which name the others a harvest came down with. */
+  plants: Plant[];
 }
 
 /**
@@ -295,8 +362,11 @@ interface LineProps {
  * else's is `manage`, which is the rule the server writes down in one place and
  * this row has to agree with - otherwise a member taps somebody else's reading,
  * fills the sheet in and is refused on save.
+ *
+ * A harvest cut with other plants weighs them all together, as the scale did: its line names the others beside the
+ * total ("mit Haze 4"), which read alone on this page was this plant's yield.
  */
-function Line({ entry, grow, plant }: LineProps) {
+function Line({ entry, grow, plant, plants }: LineProps) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const { user } = useSession();
@@ -304,6 +374,7 @@ function Line({ entry, grow, plant }: LineProps) {
   const Icon = KIND_ICON[entry.kind];
   const day = growDayOf(grow, entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
+  const cutWith = entry.values.kind === 'harvest' ? namesOf({ plantIds: entry.plantIds.filter(id => id !== plant.id) }, plants) : '';
   // The plant's own label rather than the grow's: a line drawn here is about
   // this plant, and the toast that acknowledges the correction says so.
   const open = correcting(entry, { label: plant.label, dayNumber: day, ...growStanding(grow) });
@@ -318,11 +389,12 @@ function Line({ entry, grow, plant }: LineProps) {
       </span>
       <span className={styles.lineText}>
         {headlineOf(t, i18n, entry)}
+        {cutWith ? ` · ${t('grow.plant.cutWith', { others: cutWith })}` : null}
         {readings.map(reading => {
           const definition = grow.measurements.find(one => one.key === reading.key);
 
           return (
-            <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.lineReading}`}>
+            <span key={`${reading.key}-${reading.plantId ?? ''}`} className={styles.lineReading}>
               {' · '}
               {definition?.name ?? reading.key} {withUnit(reading.value, definition?.unit ?? '')}
             </span>

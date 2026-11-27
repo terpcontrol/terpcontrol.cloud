@@ -1,7 +1,10 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { SpaceLive, SpaceLiveDevice } from '@fg2/shared-types/v1';
+import type { SpaceLive, SpaceLiveDevice, TimelineDevice } from '@fg2/shared-types/v1';
+import { CALLED_FIELDS, devicesCalledIn } from '@common/v1/device-called';
+import { Stood, stoodIn } from '@common/v1/device-placements';
+import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -38,6 +41,20 @@ export class SpaceLiveService {
       .find({ spaceId: { $in: spaceIds } }, { id: 1, type: 1, spaceId: 1, configuration: 1, createdAt: 1, 'state.hardware': 1 })
       .sort({ createdAt: 1, id: 1 })
       .lean<StoredDevice[]>();
+  }
+
+  /**
+   * Every device that stood in a place inside a stretch of time, each with the
+   * part of the stretch it stood there: what a read about the past is made of,
+   * where `devicesIn` is what a read about now is made of.
+   */
+  public stoodIn(spaceIds: string[], span: Span): Promise<Stood[]> {
+    return stoodIn(this.devices, spaceIds, span, { ...CALLED_FIELDS, configuration: 1, 'state.hardware': 1 });
+  }
+
+  /** What the devices some lines of a place name are called there (`calledIn`). */
+  public calledIn(deviceIds: readonly (string | null)[], ownerId: string): Promise<TimelineDevice[]> {
+    return devicesCalledIn(this.devices, deviceIds, ownerId);
   }
 
   /**

@@ -97,6 +97,9 @@ services:
         DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:24-alpine}
         CUSTOM_LINKS_HTML: ${CUSTOM_LINKS_HTML:-}
         PRIVACY_URL: ${PRIVACY_URL:-}
+        TERMS_URL: ${TERMS_URL:-}
+        CUSTOM_SCRIPT_TAG: ${CUSTOM_SCRIPT_TAG:-}
+        APP_COMMIT: ${APP_COMMIT:-}
     restart: always
     ports:
       - ${WEBAPP_PORT_EXTERNAL}:80
@@ -163,6 +166,8 @@ services:
       ADMINUSER_USERNAME: ${ADMINUSER_USERNAME}
       ADMINUSER_PASSWORD: ${ADMINUSER_PASSWORD}
       REQUIRE_ACTIVATION: ${REQUIRE_ACTIVATION}
+      # Empty: no terms of use, and nobody is asked to accept any.
+      TERMS_URL: ${TERMS_URL:-}
       SMTP_SENDER: ${SMTP_SENDER}
       SMTP_SERVER: ${SMTP_SERVER}
       SMTP_PORT: ${SMTP_PORT}
@@ -185,6 +190,13 @@ services:
       # it has to be passed in here to reach the process at all.
       MIGRATION_ALLOW_REJECTS: ${MIGRATION_ALLOW_REJECTS:-}
       MIGRATION_LOCALE: ${MIGRATION_LOCALE:-en}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_PREFIX: ${S3_PREFIX-media/}
     # /readyz answers 200 only once the database is reachable and the admin
     # account has been seeded, which is what this stack means by ready to serve;
     # /healthz would answer while the server is still no use to anybody. node

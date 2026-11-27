@@ -88,7 +88,8 @@ describe('the keyframe transfer', () => {
     try {
       const started = Date.now();
       await expect(service().readKeyframe(cam.session)).resolves.toEqual(frame.subarray(32));
-      expect(Date.now() - started).toBeLessThan(2_000);
+      // Repaired before the gap would have been given up (`GAP_ABANDON_MS`); a busy machine took 2.3 s.
+      expect(Date.now() - started).toBeLessThan(3_000);
       // Every fragment was acked, so only the lost ones came twice.
       expect(cam.sent.length).toBeLessThan(Math.ceil(frame.length / FRAGMENT_BYTES) + 6);
     } finally {

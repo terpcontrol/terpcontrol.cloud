@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -8,16 +9,15 @@ import styles from './GerminationChoices.module.css';
 
 /**
  * The two choices germination makes about the humidity, wherever germination
- * is set: the targets, the operating mode, a phase with its climate and a plan
- * step. Each is a switch with what it does said under it, in the same words in
- * all four places, and a help bubble that says why the default is what it is.
+ * is set: each a switch with what it does said under it, in the same words
+ * everywhere, and a help bubble that says why the default is what it is.
  *
  * The humidifier's switch is offered only where a socket is paired as one: on
- * a device without, nothing reads the humidity in the dark and there is nothing
- * to choose. `humidity` is the night's, which a humidifier that holds goes by;
- * null where the screen cannot say it, and the note then names it in words.
- * Where it holds more than "Zu feucht" lets pass and the grower asked to be
- * warned, the two choices work against each other, and that is said.
+ * a device without, nothing reads the humidity in the dark. `humidity` is the
+ * night's, which a humidifier that holds goes by; null where the screen
+ * cannot say it, and the note then names it in words. Where it holds more
+ * than "Zu feucht" lets pass and the grower asked to be warned, the two
+ * choices work against each other, and that is said.
  */
 export function GerminationChoices({
   value,
@@ -25,22 +25,23 @@ export function GerminationChoices({
   humidifier,
   humidity,
   disabled = false,
+  ref,
 }: {
   value: Choices;
   onChange: (change: Partial<Choices>) => void;
   humidifier: boolean;
   humidity: number | null;
   disabled?: boolean;
+  ref?: Ref<HTMLDivElement>;
 }) {
   const { t } = useTranslation();
   const held = humidity === null ? null : targetWithUnit(humidity, 'humidity');
   const clashes = humidifier && value.humidifierHolds && value.warnTooHumid && humidity !== null && humidity > GERMINATION_TOO_HUMID;
 
   return (
-    <div className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
+    <div ref={ref} className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
       <span className="label">{t('germinationChoices.label')}</span>
       <SwitchRow
-        keep
         label={t('germinationChoices.alarm')}
         help="germinationAlarm"
         note={t(value.warnTooHumid ? 'germinationChoices.alarmOn' : 'germinationChoices.alarmOff', { line: GERMINATION_TOO_HUMID })}
@@ -50,7 +51,6 @@ export function GerminationChoices({
       />
       {humidifier ? (
         <SwitchRow
-          keep
           label={t('germinationChoices.humidifier')}
           help="germinationHumidifier"
           note={

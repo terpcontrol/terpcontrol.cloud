@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-10-08
-source: Chris's instructions in sessions and PR reviews 2025-10..2026-10 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
+updated: 2026-11-27
+source: no stacked PRs (Chris, 2026-11-27); graphical work on Fable (Chris, 2026-11-26); master merged beside an agent at work, in a worktree of its own (the redesign session, 2026-11-26); a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
 paths:
   - .claude/**
   - .worktreeinclude
@@ -24,18 +24,35 @@ Checks and test stacks in detail: [testing](testing.md); releases and deploys: [
   check that the PR branch on origin equals your state, check it out, delete the side branch.
 - **A problem Chris finds while testing an open PR is fixed on that PR's branch** (Chris, 2026-08-25), not in a new
   branch or PR. After the merge, a follow-up is a new PR from master (see [Review comments](#review-comments)).
+- **PRs are not stacked unless Chris asks for it** (Chris, 2026-11-27, on #188). A follow-up to an open PR - a fix a
+  review found, say - is either pushed to that PR's branch or opened from `origin/master` after it merged, never with
+  the open PR's branch as its base. A stacked PR cannot be retargeted to `master` while its base is open, and both
+  then have to be rebased before they can merge.
 - **Push after every round or finished step**, once the checks are green and read in their own command (Chris,
   2026-09-24; [AGENTS.md](../../AGENTS.md), Before committing): fetch first, push a fast-forward. Pushing the session's
   own branches is standing authorisation; never push master or anybody else's branch, and leave Chris's own checkouts
   alone - they hold his untracked files.
 - **Pushed history is not rewritten** - no rebase, squash or force-push - unless Chris allows it for the case. For
   bringing master into a long-running branch he left the method open; a merge of master needs no force-push.
-- **Agents never merge a PR.** Chris merges. Before he does, present the finished state: what was built and checked,
-  what was left out and why.
+- **Agents never merge a PR** - unless Chris calls `/pr-merge` on it ([skill](../../.claude/skills/pr-merge/SKILL.md)),
+  which is his word for that one merge. Otherwise Chris merges; before he does, present the finished state: what was
+  built and checked, what was left out and why.
+- **`/pr-merge` stands in for GitHub's auto-merge** (Chris, 2026-10-13). He is the only developer; `master` asks for
+  one approving review so that nobody else can merge, which also removes the auto-merge button. The skill addresses
+  the review comments, merges master in, watches CI and fixes it, and squash-merges with `--admin` - the bypass is
+  for the review rule only, never for a check that is not green.
 - **A long-running PR gets a final integration round** before it is handed over (Chris, 2026-10-03): everything master
   gained meanwhile comes in. Plan where each master commit lands, resolve conflicts commit by commit (a change to code
   the branch replaced is ported into its replacement), build and test on a stack, then let a fresh agent check commit
   by commit that every master change is really in.
+- **A conflict in a `package-lock.json` is not resolved by hand**: take master's lockfile (`git checkout --theirs`),
+  run `npm install --package-lock-only` against the merged `package.json`, then `npm audit --omit=dev
+  --audit-level=high` as CI's audit job does, and `npm ci` before the checks. Both sides' dependency changes then stand
+  in one tree that npm resolved (a merge of master into the redesign branch, 2026-11-25).
+- **Master comes in while an agent is editing the checkout**: merge in a temporary detached worktree made from `HEAD`
+  (link the checkout's `node_modules` in for the checks), push the merge to the branch from there, and bring it into
+  the checkout once the agent's work is committed (`git pull --no-rebase`). A merge in the checkout itself stops on
+  every file the agent has open, or mixes its half-done edits into the merge (the redesign branch, 2026-11-26).
 - **Replacing a whole file** (a `package.json`, a config): diff old against new for developer-facing scripts and
   settings. The rewrite dropped `start:public` from `webapp/package.json` that way, and no merge of master could bring
   it back, because the commit that added it predates the branch point.
@@ -71,6 +88,41 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **Converge, do not expand** (Chris, 2026-09-24, after one pass had used 132 agents): small rounds with a few fix
   agents and a light check; the fixer verifies its own fix on screen; a separate refuter only for a claim genuinely in
   doubt; a stated finish line. The goal is a consistent, bug-free, nicely designed and self-explanatory app.
+- **Few sub-agents, few variants** (Chris, 2026-11-11): sub-agents are fine, but the app is not that big, and too many
+  of them produce clutter. He puts the weight the rewrite left behind down to heavy orchestration and many design
+  rounds with many variants; the audit of that day found it as one idea built in three to nine places, not as dead
+  code ([the navigation redesign](../app-rewrite-handover.md#the-navigation-redesign)). One read-only fan-out to understand a
+  question is enough; designing, deciding and writing stay with the session.
+- **A redesign is built in rounds, each judged by a harsh critic** (Chris, 2026-11-12, for the navigation redesign):
+  after every round a critic who built nothing walks the running app and says whether it works without faults and
+  does what it should, and how design, styling and UX hold up. The run is over when a walk finds no major in any
+  part; the minors left then go to Chris's list and the pull request (Chris, 2026-11-15 - it had been "only
+  trifles").
+  The code ends lean - nothing built twice, one concern per module - with the tests changed along with it. Any
+  number of sub-agents is allowed for this, kept in proportion to the size of the app so that they do not cost more
+  than they help.
+- **One writer per checkout, the critic beside the next round** (how the navigation redesign ran, 2026-11-12): a
+  round that is committed is built into the stack's image, and the critic walks that image while the next round is
+  built in the working tree - so a critic never judges an app that moves under it. The session decides each
+  finding and writes the decisions down; the round's own builder, resumed so that it keeps what it knows, fixes
+  them once the next round has landed and before the one after it starts. No two agents edit the checkout at the
+  same time, and each critic is told which findings are already known and being fixed.
+- **The rounds stay one after another** (Chris, 2026-11-12: he asked for the rounds to run in parallel where
+  possible, and withdrew it within the hour - proceed as before). Building rounds side by side in worktrees and
+  stacks of their own was set up and taken down again unused; do not start it without his asking again.
+- **A simple task may go to a smaller model** (Chris, 2026-11-12: "feel free to choose Opus for simple tasks").
+  A sub-agent whose task is mechanical - restoring test data, a lookup, saving notes, a check that only runs
+  commands - can be started on Opus; a round's builder and its critic stay on the session's model.
+- **Graphical work goes to a designer sub-agent on Fable** (Chris, 2026-11-26: "Nutze für die grafischen Arbeiten
+  einen Fable Subagent"; the look's redraft the day before ran the same way): mock-ups, design drafts and the
+  screenshots a proposal is shown with are made by an agent started with `model: "fable"`, not by the session, and
+  shown to Chris before anything is built. Who builds what he picks he says each time (the look: Opus agents).
+- **A rule is sourced to the person who said it, and to nobody else** (2026-11-12: a builder wrote the session's
+  own decisions on a critic's findings into `docs/` as "Chris, 2026-11-12", because its brief said they had been
+  told to him). What a session decides for itself is sourced as that session and marked as waiting for Chris's
+  confirmation where it changes an ADR or takes a capability away; a brief to a sub-agent says which of its points
+  are Chris's own words. What needs his word is collected in the handover while the run lasts, not only told in
+  the conversation.
 - **Loops of critic agents are for the app's screens**, judged from the running app and its screenshots, not code.
   A backend or data-model design is written up directly, and a step that looks like paperwork is done directly
   rather than orchestrated (Chris, 2026-09-17/18).
@@ -103,7 +155,7 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   a round's report as in a PR's `Checked`.
 
 ## What needs Chris's word
-- Merging a PR; rewriting pushed history.
+- Merging a PR (`/pr-merge` is that word for one PR); rewriting pushed history.
 - A change to a recorded decision (an ADR), to the data model or to the agreed scope: agreed with him before it is
   built, and his answers go into the ADR (Chris, 2026-09-16).
 - **Production.** Releases reach it through the `Deploy` workflow; a hotfix by hand is the exception
@@ -155,9 +207,25 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   you are editing and match how it comments.
 - What goes into `README.md` and what into comments: [CLAUDE.md](../../CLAUDE.md), Documentation.
 - **Dead code:** `npx knip@5` in `server/`, `webapp/` and `shared-types/` lists leads, each checked by grep before it
-  goes. In use although it reports them: the webapp's `*.advanced.tsx` (found by `import.meta.glob`) and `src/sw.ts`
-  (built by vite-plugin-pwa), the server's `src/migrations/cli.ts` (run from `package.json`), NestJS providers, and
-  `@fg2/shared-types` (imported by subpath).
+  goes. In use although it reports them:
+  - webapp: `*.advanced.tsx` (found by `import.meta.glob`) and what only they import (`ChoiceSheet`, `SheetValues`);
+    `src/sw.ts` with the `workbox-*` packages (built by vite-plugin-pwa); `scripts/derive-logo.mjs` and
+    `scripts/tabular-digits.py` (run by hand);
+  - server: `src/migrations/cli.ts` (run from `package.json`) and what only it imports (`registerV1Models`,
+    `documentsCopied`, `migrationFailureText`, `MigrationRunReport`); NestJS providers; `scripts/install-fonts.mjs`
+    and `@fontsource/inter` (the server image unpacks the face for the film overlays); `ts-node` and
+    `tsconfig-paths` (`nodemon.json` and the integration harness);
+  - `@fg2/shared-types` everywhere (imported by subpath). knip cannot read `shared-types/` at all: an export there
+    is dead when no file of `server/`, `webapp/` or the package itself names it, which a script over the three
+    answers. A shape whose route was never built (`AdminLogPage`) is the contract's to keep until Chris says.
+- **Unused catalogue keys and dead CSS classes are found by script, not by a test**: `python3 scripts/unused.py`
+  in `webapp/` (`webapp/test/i18n.test.ts` checks date formats only). It also lists a class the source names and
+  no module defines, which renders as "undefined". A key counts as used when its full name stands in the source, and also when the
+  source builds it: from a prefix (`` t(`home.metric.${metric}`) ``), with a suffix (`` `${side}Often` ``, `…Was`,
+  `…Note`, `…Keeps`), as a plural (`_one`, `_other`) or through an i18next context (`_you`); every `message-*`
+  key is the firmware's and is looked up by the key a device sends. A class of a CSS module counts as used when
+  the binding the module is imported under names it, or indexes by an expression; a class inside `:global(...)`
+  belongs to no module.
 
 ## Worktrees and parallel agents
 - **Agent worktrees are created in the repository of the launching session's working directory.** Launch cloud work

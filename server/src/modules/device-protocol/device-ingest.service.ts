@@ -19,20 +19,23 @@ import {
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
+  DEVICE_SETTINGS_SINK,
   DEVICE_TUNNEL_SINK,
   DevicePresenceSink,
   DeviceSample,
   DeviceSampleSink,
+  DeviceSettingsSink,
   DeviceTunnelSink,
   MetricSampleSink,
 } from './device-sinks';
+import { DeviceConfigurationService } from './device-configuration.service';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
 import { heldTo, offTheWire, onTheWire } from './class-rules';
 import { withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leftAtDevice } from './germination-memory';
 import { sameClockTimes } from './schedule-clock';
-import { baseFromUpload, standardOf } from './work-modes';
+import { baseFromUpload, darkIn, standardOf } from './work-modes';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 /**
@@ -92,6 +95,8 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     @Optional() @Inject(DEVICE_METRIC_SINK) private readonly metrics: MetricSampleSink | null = null,
     @Optional() @Inject(DEVICE_TUNNEL_SINK) private readonly tunnel: DeviceTunnelSink | null = null,
     @Optional() @Inject(DEVICE_PRESENCE_SINK) private readonly presence: DevicePresenceSink | null = null,
+    @Optional() @Inject(DEVICE_SETTINGS_SINK) private readonly settings: DeviceSettingsSink | null = null,
+    @Optional() @Inject(DeviceConfigurationService) private readonly lamps: Pick<DeviceConfigurationService, 'lampsFollow'> | null = null,
   ) {}
 
   /**
@@ -336,12 +341,18 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     });
   }
 
-  /** The device says for how many minutes it is being worked on; the cloud silences its own alarms for as long. */
+  /**
+   * The device says for how many minutes it is being worked on; the cloud silences its own alarms for as long. A device
+   * saying back a window the cloud handed it counts whole minutes, rounded down, so an end up to a minute later than
+   * that is the window it was told and stands: taken from the device, "bis 09:46" became "bis 09:45" a moment later.
+   */
   private async maintenance(device: StoredDevice, minutes: string | undefined): Promise<void> {
     const forMinutes = Number(minutes);
     if (!Number.isFinite(forMinutes) || forMinutes <= 0) return;
 
     const until = new Date(Date.now() + forMinutes * 60 * 1000);
+    const told = (device.state.maintenanceUntil?.getTime() ?? 0) - until.getTime();
+    if (told >= 0 && told < 60_000) return;
     await this.devices.updateOne({ id: device.id }, { $set: { 'state.maintenanceUntil': until } });
   }
 
@@ -394,6 +405,14 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
+    // Germination or drying begun or ended at the device's own menu darkens the lamp modules of its place, or gives them
+    // their light back, as the cloud's own writes do (ADR 0007: "however it came to").
+    if (darkIn(device.type, device.configuration ?? null, device.baseWorkmode) !== darkIn(device.type, configuration, base ?? device.baseWorkmode)) {
+      await this.lamps?.lampsFollow(device.spaceId ?? null);
+    }
+    // The first settings it sends are what a climate chosen for its place before then can be written into - and what a
+    // lamp module is kept dark by where its place germinates or dries.
+    if (device.configuration === null && (device.awaitedClimate || device.type === 'light')) await this.settings?.settingsArrived(device.id);
   }
 }
 

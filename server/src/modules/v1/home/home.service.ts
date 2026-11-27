@@ -1,32 +1,34 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { AccountLayers, CardTrend, DueTask, FollowedGrowCard, HomeAnswer, HomeSpaceCard, LatestStill, SeriesPoint } from '@fg2/shared-types/v1';
+import type { AccountLayers, CardTrend, FollowedGrowCard, HomeAnswer, HomeSpaceCard, LatestStill, SeriesPoint } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
+import { clampRange } from '@common/v1/range';
+import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { FollowDocument } from '@database/schemas/v1/follows.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
-import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
-import { diaryMovedAt } from '../diary/diary-entries';
-import { completionsOf, dueTasksOf, remindersAbout } from '../diary/due-tasks';
+import { diaryTail, linesOfGrow } from '../diary/diary-entries';
+import { coveredBy, growsMoved } from '../grow/grow-moved';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
-import { mergeLive } from '../space/space-live';
+import { climateDevicesOf, mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { alertsRaisedIn, openAlertReader } from './open-alerts';
@@ -35,9 +37,8 @@ import { alertsRaisedIn, openAlertReader } from './open-alerts';
  * The home screen: one card per space, with everything the card shows already
  * on it. A space is a place and a card is a place with what stands in it, so
  * this is the one read that walks from the places a person can see to their
- * devices, their grows, the newest lines of the diary, the newest picture, what
- * is due and what is alarming - a handful of queries, and one Influx read per
- * device.
+ * devices, their grows, the newest lines of the diary, the newest picture and
+ * what is alarming - a handful of queries, and one Influx read per device.
  *
  * A grow standing in no place at all gets a card of its own, with the ids null
  * and the climate half empty. Without it the diary-only grower - the balcony,
@@ -47,11 +48,15 @@ import { alertsRaisedIn, openAlertReader } from './open-alerts';
  *
  * Every figure here is what a screen draws and nothing else: the day counter
  * and the phase come from the grow serialiser, the age of a value from the
- * shared constant, the tasks from the reminders. Nothing is decided twice.
+ * shared constant. What is due is the task list's (`GET /tasks`). Nothing is
+ * decided twice.
  */
 
 /** How many lines of the diary a card shows: the newest, and enough to see who has been in. */
 const ENTRIES_PER_CARD = 3;
+
+/** A card is only ever read by the people who keep the place, or by the demo tour in their stead: nothing of the diary is held back. */
+const KEEPER = { grantee: 'owner' } as const;
 
 /** The sparkline: a day of temperature in half-hour windows, which is coarse enough for a stamp and fine enough to see the night. */
 const TREND_METRIC = 'temperature';
@@ -75,10 +80,10 @@ export class HomeService {
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
-    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     @InjectModel(MODEL_V1.follow) private readonly follows: Model<FollowDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
@@ -132,7 +137,7 @@ export class HomeService {
     const growIds = cards.flatMap(card => (card.grow ? [card.grow.id] : []));
 
     const trendWindow = { startsAt: new Date(now.getTime() - TREND_HOURS * 3600 * 1000), endsAt: now, stepSeconds: TREND_STEP_SECONDS };
-    const [readings, trends, plants, cameras, alerts, reminders, hide] = await Promise.all([
+    const [readings, trends, plants, cameras, alerts, hide, zone] = await Promise.all([
       this.live.readingsOf(devices, now),
       this.data.trends(
         devices.map(device => device.id),
@@ -154,7 +159,6 @@ export class HomeService {
         })
         .sort({ startedAt: -1 })
         .lean<StoredAlert[]>(),
-      this.reminders.find(remindersAbout(spaceIds, growIds)).lean<ReminderDocument[]>(),
       // A card is only ever read by an owner, a member or the demo tour, so the
       // tour is the one reader anything is hidden from.
       ownerRedactions(
@@ -162,16 +166,29 @@ export class HomeService {
         ctx.isDemo,
         cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])),
       ),
+      zonesOfOwners(
+        this.users,
+        cards.flatMap(card => (card.grow ? [card.grow.ownerId] : [])),
+      ),
     ]);
-    const [completions, openAlertOf] = await Promise.all([completionsOf(this.entries, reminders), openAlertReader(this.rules, alerts)]);
-    const tasks = dueTasksOf(reminders, completions, now);
+    const openAlertOf = await openAlertReader(this.rules, alerts);
 
     const answers = await Promise.all(
       cards.map(async ({ space, grow }): Promise<HomeSpaceCard> => {
         const here = space ? devices.filter(device => device.spaceId === space.id).map(device => device.id) : [];
         const eyes = space ? cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id) : [];
-        const [entries, still] = await Promise.all([this.newestEntries(space?.id ?? null, grow?.id ?? null), this.latestStill(eyes)]);
+        const [tail, still] = await Promise.all([
+          // The grow's diary where there is a grow; the place's own lines - an alarm's, the plan's - where there is none.
+          diaryTail(this.entries, grow ? linesOfGrow(grow) : { spaceId: space!.id }, KEEPER, clampRange(undefined), ENTRIES_PER_CARD, now),
+          this.latestStill(eyes),
+        ]);
         const inSpace = readings.filter(reading => here.includes(reading.deviceId));
+        const climates = space
+          ? climateDevicesOf(
+              devices.filter(device => device.spaceId === space.id),
+              now,
+            )
+          : [];
 
         return {
           spaceId: space?.id ?? null,
@@ -181,19 +198,21 @@ export class HomeService {
           roomId: space?.roomId ?? null,
           deviceIds: here,
           ...mergeLive(inSpace),
+          climates: climates.flatMap(device => inSpace.filter(reading => reading.deviceId === device.id)),
           trend: trendOf(here, trends, trendWindow),
           grow: grow
             ? growCardOf(
                 grow,
                 plants.filter(plant => plant.growId === grow.id),
                 hide(grow.ownerId),
+                zone(grow.ownerId),
                 now,
               )
             : null,
           // The tour reads a stranger's tent, whose device lines quote URLs.
-          entries: entries.map(entry => (ctx.isDemo ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry))),
+          entries: tail.lines.map(entry => (ctx.isDemo ? demoEntry(serialiseEntry(entry)) : serialiseEntry(entry))),
+          events: tail.events,
           latestStill: still,
-          dueTasks: tasks.filter(task => isAbout(task, space?.id ?? null, grow?.id ?? null)),
           openAlerts: alerts
             .filter(alert => space !== null && (alert.spaceId === space.id || (alert.deviceId !== null && here.includes(alert.deviceId))))
             .map(openAlertOf),
@@ -203,10 +222,11 @@ export class HomeService {
 
     const [followedGrows, people, layers] = await Promise.all([
       ctx.userId && !ctx.isDemo ? this.followed(ctx.userId, now) : Promise.resolve([]),
-      peopleNamed(
-        this.users,
-        answers.flatMap(card => [...card.entries.map(entry => entry.authorId), ...card.dueTasks.map(task => task.assigneeId)]),
-      ),
+      peopleNamed(this.users, [
+        ...answers.flatMap(card => card.entries.map(entry => entry.authorId)),
+        // Whose a place is, where it is not the reader's own: a guest's card says "von @handle". The tour names nobody.
+        ...(ctx.isDemo ? [] : spaces.filter(space => space.ownerId !== ctx.userId).map(space => space.ownerId)),
+      ]),
       this.layersOf(ctx),
     ]);
 
@@ -224,15 +244,6 @@ export class HomeService {
       memberships: this.memberships,
       spaces: this.spaces,
     });
-  }
-
-  /** The grow's diary where there is a grow; the space's own lines - a device's, an alarm's - where there is none. */
-  private newestEntries(spaceId: string | null, growId: string | null): Promise<EntryDocument[]> {
-    return this.entries
-      .find(growId ? { growId } : { spaceId })
-      .sort({ occurredAt: -1, _id: -1 })
-      .limit(ENTRIES_PER_CARD)
-      .lean<EntryDocument[]>();
   }
 
   /**
@@ -272,11 +283,10 @@ export class HomeService {
     const grows = await this.grows.find({ id: { $in: follows.map(follow => follow.growId) }, visibility: 'public' }).lean<GrowDocument[]>();
     const [plants, owners, moved] = await Promise.all([
       this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
-      this.users.find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1 }).lean<StoredUser[]>(),
-      diaryMovedAt(
-        this.entries,
-        grows.map(grow => grow.id),
-      ),
+      this.users
+        .find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1, 'preferences.timezone': 1 })
+        .lean<StoredUser[]>(),
+      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices, media: this.media }),
     ]);
 
     return follows.flatMap(follow => {
@@ -286,11 +296,12 @@ export class HomeService {
 
       return [
         serialisePublicCard(
-          grow,
+          coveredBy(grow, moved.get(grow.id)!),
           plants.filter(plant => plant.growId === grow.id),
           owner.handle,
           redactionOf(true, owner.privacy),
-          moved.get(grow.id) ?? null,
+          moved.get(grow.id)!,
+          owner.preferences?.timezone || null,
           now,
         ),
       ];
@@ -313,6 +324,3 @@ const trendOf = (deviceIds: string[], trends: Map<string, SeriesPoint[]>, window
     ? { metric: TREND_METRIC, stepSeconds: window.stepSeconds, endsAt: window.endsAt.toISOString(), points: points.map(point => point.value) }
     : null;
 };
-
-const isAbout = (task: DueTask, spaceId: string | null, growId: string | null): boolean =>
-  task.subject.type === 'space' ? task.subject.id === spaceId : task.subject.id === growId;

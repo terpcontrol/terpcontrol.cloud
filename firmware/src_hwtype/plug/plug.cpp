@@ -124,6 +124,10 @@ namespace fg {
       }
     }
 
+    // The sensors read above 100 % in saturated air (the SHT21 up to 119 %);
+    // report what the fridge and the controller report.
+    state.humidity = state.humidity > 100.0 ? 100.0 : state.humidity;
+
     Wire.end();
     Wire.begin(PIN_SDA, PIN_SCL);
 

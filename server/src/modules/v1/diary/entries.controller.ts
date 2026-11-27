@@ -17,7 +17,7 @@ import { SHARED_READ_OPERATION } from '../../../openapi';
  * The timeline: read and written.
  *
  * One route each way, whatever screen is asking. Reading, because the grow
- * page's week cards, a tent's timeline, one device's log and one plant's history
+ * page's diary days, a tent's timeline, one device's log and one plant's history
  * are the same rows under a different scope. Writing, because the eight tiles of
  * the Log sheet are the same row under a different `kind`.
  *

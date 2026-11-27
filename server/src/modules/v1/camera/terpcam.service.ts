@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { CameraOrientation } from '@fg2/shared-types/v1';
 import { decodeSlot, runFfmpeg } from './ffmpeg';
+import { orientationArgs, UPRIGHT } from './orientation';
 
 /**
  * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
  *
- * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
- * proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are kept
- * internally). Neither the device it is paired at nor the camera hands over a
+ * The webcam read this way is a VStarcam OEM that, once on the home wifi, only
+ * speaks a proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are
+ * kept internally). One that serves its own RTSP stream is read off that instead
+ * (`CaptureService`). Neither the device it is paired at nor the camera hands over a
  * picture: the device has no decoder and little RAM, and the camera's own
  * `snapshot.cgi` is pinned far below what its video stream carries. So the
  * server takes a keyframe off that stream, over the device's relay, and it is
@@ -21,12 +24,13 @@ const FFMPEG_TIMEOUT_MS = 15_000;
 @Injectable()
 export class TerpCamService {
   /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer, in the decodes' own lane rather than behind the streams. */
-  public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
-    return decodeSlot(() => this.decode(h264));
+  public decodeKeyframeToJpeg(h264: Buffer, orientation: CameraOrientation = UPRIGHT): Promise<Buffer> {
+    return decodeSlot(() => this.decode(h264, orientation));
   }
 
-  private async decode(h264: Buffer): Promise<Buffer> {
-    const { error, stdout, stderr } = await runFfmpeg(['-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', '-q:v', '2', '-f', 'mjpeg', 'pipe:1'], {
+  private async decode(h264: Buffer, orientation: CameraOrientation): Promise<Buffer> {
+    const args = ['-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', ...orientationArgs(orientation), '-q:v', '2', '-f', 'mjpeg', 'pipe:1'];
+    const { error, stdout, stderr } = await runFfmpeg(args, {
       loglevel: 'warning',
       timeoutMs: FFMPEG_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,

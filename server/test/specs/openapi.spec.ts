@@ -336,10 +336,10 @@ describe('the document', () => {
   });
 
   it('states the page size of the weeks lists, which is not that of every other list', () => {
-    for (const path of ['/v1/grows/{id}/weeks', '/v1/shared/{token}/weeks', '/v1/public/grows/{slug}/weeks']) {
+    for (const path of ['/v1/grows/{id}/diary', '/v1/shared/{token}/weeks', '/v1/public/grows/{slug}/weeks']) {
       const said = declaredQuery(path).limit.description as string;
-      expect(said).toMatch(/\b8\b/);
-      expect(said).toMatch(/\b26\b/);
+      expect(said).toMatch(/\b3\b/);
+      expect(said).toMatch(/\b12\b/);
       expect(said).not.toMatch(/\b200\b/);
     }
   });
@@ -393,7 +393,7 @@ describe('the document', () => {
     expect(schemes.pictureToken).toMatchObject({ in: 'query', name: 'token' });
 
     const takes = (path: string) => (document.paths[path]?.get?.security ?? []).flatMap(requirement => Object.keys(requirement as object));
-    for (const path of ['/v1/grows/{id}/weeks', '/v1/grows/{id}/series', '/v1/entries', '/v1/spaces/{id}/timeline', '/v1/cameras/{id}/timelapses']) {
+    for (const path of ['/v1/grows/{id}/diary', '/v1/grows/{id}/series', '/v1/entries', '/v1/spaces/{id}/timeline', '/v1/cameras/{id}/timelapses']) {
       expect(takes(path)).toEqual(expect.arrayContaining(['bearerAuth', 'shareToken', 'shareQuery']));
       expect(takes(path)).not.toContain('pictureToken');
     }
@@ -559,6 +559,8 @@ describe('what the device routes answer', () => {
       })
       .expect(201);
     expectDocumented(enrolled, '/device/register', 'post');
+    // The test stack has a join password, so the display is told to ask for it.
+    await anonymous().head('/device/register').expect(401);
 
     const spare = await registerDevice();
     const code = await anonymous().post('/device/claimcode').send({ device_id: spare.deviceId }).expect(200);
@@ -790,6 +792,15 @@ const bodyCases = (): BodyCase[] => [
     client: anonymous,
     accepted: () => ({ email: `${unique('openapi-signup')}@test.invalid`, handle: unique('openapi'), password: 'Passw0rd!test' }),
     refused: () => ({ email: `${unique('openapi-signup')}@test.invalid`, handle: unique('openapi') }),
+  },
+  {
+    what: 'POST /v1/me/terms-acceptances',
+    path: '/v1/me/terms-acceptances',
+    url: () => '/v1/me/terms-acceptances',
+    client: () => owner.client,
+    // The suite's install has no terms, so a well-formed body is turned down for that and not for its shape.
+    accepted: () => ({ url: 'https://example.test/terms' }),
+    refused: () => ({ url: 42 }),
   },
   {
     what: 'POST /v1/sessions',

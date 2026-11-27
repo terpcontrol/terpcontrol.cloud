@@ -1,48 +1,25 @@
 /* The Tasks tab: a list in four groups, a card per task, and the sheet a
    rhythm is written in. Layout only - every colour is a token. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+/* Whose tasks, beside the title: two answers, each a finger high. */
+.scope button {
+  height: var(--control-height);
+  min-width: var(--control-height);
 }
 
 .group + .group {
   margin-top: var(--space-2);
 }
 
-.groupHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 .groupAside {
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+/* A group's name keeps its help mark beside it: on a narrow phone what stands at the head's other end wraps instead. */
+.group > header > :first-child {
+  flex: none;
+  white-space: nowrap;
 }
 
 /* A card is the one row, and under it the question a plan step's circle asks
@@ -52,12 +29,6 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 /* What was ticked off is turned down: still there, still dated, its title in
@@ -84,8 +55,16 @@
     background-color 120ms ease-out;
 }
 
+/* The tick is smaller than a finger; its row lends it the rest. */
 button.circle {
+  position: relative;
   cursor: pointer;
+}
+
+button.circle::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
 }
 
 /* The tick answers a finger with the colour of something done well. */
@@ -94,23 +73,18 @@ button.circle:hover {
   border-color: var(--green-ink);
 }
 
+/* Done, in the soft green of something gone well: the brand's green is the one action a screen has, and a column of
+   done tasks filled with it was the loudest thing on the page. */
 .circle[data-filled='true'] {
-  background: var(--green-fill);
-  border-color: var(--green-fill);
-}
-
-.text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  background: var(--green-wash);
+  border-color: var(--green);
+  color: var(--green-ink);
 }
 
 /* Both lines wrap rather than being cut: a task whose name does not fit is
    read on two lines, where one that is cut off is not read at all. */
 .cardTitle {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -122,6 +96,9 @@ button.circle:hover {
 }
 
 .edit {
+  height: var(--control-height);
+  min-width: var(--control-height);
+  justify-content: center;
   flex: none;
 }
 
@@ -140,7 +117,7 @@ button.circle:hover {
   background: var(--brand-wash);
   color: var(--brand);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
 }
 
 .assigned {
@@ -160,33 +137,11 @@ button.none {
   cursor: pointer;
 }
 
-/* The dashed row that opens the sheet: a button in the shape of the lesser card. */
-.add {
-  width: 100%;
-  font-size: var(--text-sm);
-  color: var(--muted);
-  text-align: center;
-  cursor: pointer;
-}
-
 /* Grows and places under ABOUT: each kind its own row, named in sentence case
    so the block's own heading stays the only label above them. */
-.subgroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .subLabel {
   font-size: var(--text-sm);
   color: var(--muted);
-}
-
-.rhythm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 /* A figure or a day with its name inside the field on the left: drawn as the
@@ -235,12 +190,6 @@ button.none {
 .fieldInput::-webkit-calendar-picker-indicator {
   opacity: 0.6;
   cursor: pointer;
-}
-
-.asking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* Where the circle would have led: one quiet line, indented to the text column

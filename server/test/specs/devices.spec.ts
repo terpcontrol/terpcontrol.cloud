@@ -1,5 +1,6 @@
 import { anonymous, createAccount, loginAsAdmin, Session, unique } from '../support/api';
-import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceSimulator, DeviceType, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
+import { setRow } from '../support/fixtures';
 
 /**
  * A device from the moment it enrols to the moment somebody gives it up: who it
@@ -30,11 +31,24 @@ describe('claiming a device', () => {
     expect(claimed.body.device.spaceId).toEqual(expect.any(String));
     expect(claimed.body.device.state.claimedAt).toEqual(expect.any(String));
 
-    // The place is not called after the hardware: a space named "fridge" is
-    // what a grower would read on their first home card, in every language.
+    // The place is not called after the hardware - neither its type nor a scrap
+    // of its id: without a name from the claim it is the server's word for it.
     const place = (await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body;
-    expect(place.name).not.toBe('fridge');
-    expect(place.name).toBe(device.deviceId.slice(-6).toUpperCase());
+    expect(place.name).toBe('Fridge');
+  });
+
+  it('calls the place it makes what the claim says, and counts on where the name is taken', async () => {
+    const names = [];
+    for (const type of ['fridge', 'fridge'] as const) {
+      const device = await registerDevice(type);
+      const claimed = await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(device.deviceId), spaceNames: { fridge: 'Kühlschrank', tent: 'Zelt' } })
+        .expect(201);
+      names.push((await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body.name);
+    }
+
+    expect(names).toEqual(['Kühlschrank', 'Kühlschrank 2']);
   });
 
   it('takes the name the claim gives the place instead of inventing one', async () => {
@@ -47,6 +61,183 @@ describe('claiming a device', () => {
 
     const place = (await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body;
     expect(place).toMatchObject({ name: 'Tent 1', kind: 'tent' });
+  });
+
+  it('never refuses a claim for a name: the place of a second device of one name counts on', async () => {
+    const twin = await registerDevice('controller');
+
+    const claimed = await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(twin.deviceId), name: 'Tent 1' })
+      .expect(201);
+
+    expect((await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body.name).toBe('Tent 2');
+  });
+
+  it('refuses a claim into a room, and leaves the device to be claimed', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent in a room', roomName: 'A room' }).expect(201)).body;
+    const device = await registerDevice('fan');
+    const code = await claimCodeOf(device.deviceId);
+
+    const refused = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.roomId }).expect(409);
+    expect(refused.body.code).toBe('room_by_itself');
+    await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id }).expect(201);
+  });
+
+  /**
+   * A member who may manage a host's place steers what stands in it. Hardware of their own does not stand there:
+   * the host would end, move and give away a device that is not theirs, and it would be on no Start of its owner.
+   */
+  it('refuses a device in a place of another account, by a claim and by a move, with a sentence', async () => {
+    const host = await createAccount('devices-host');
+    const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'The host´s tent' }).expect(201)).body;
+    const invite = (await host.client.post(`/v1/spaces/${tent.id}/invites`).send({ role: 'can_manage' }).expect(201)).body;
+    await owner.client.post(`/v1/invites/${invite.code}/acceptances`).expect(201);
+
+    const fan = await registerDevice('fan');
+    const code = await claimCodeOf(fan.deviceId);
+    const claimed = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id }).expect(409);
+    expect(claimed.body).toMatchObject({ code: 'place_of_another_account', detail: 'A device stands only in a place of the account it belongs to.' });
+
+    // The code is not spent by the refusal: the device is claimed into a place of its owner's, and stays there.
+    const own = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body.device;
+    expect((await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ spaceId: tent.id }).expect(409)).body.code).toBe(
+      'place_of_another_account',
+    );
+    expect((await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200)).body.spaceId).toBe(own.spaceId);
+    // Renaming it where it stands is still its owner's.
+    await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ name: 'My fan' }).expect(200);
+  });
+
+  /**
+   * The app asks where a device hangs before the code says what it is, so the claim carries the answer and the
+   * server decides by the type: no place is made for a fan only to be removed a step later.
+   */
+  it('puts a device without a climate of its own into the place the claim says it joins, and gives a controller its own', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent to join' }).expect(201)).body;
+    const places = async () => (await owner.client.get('/v1/spaces?limit=200').expect(200)).body.items.length;
+    const before = await places();
+
+    const fan = await registerDevice('fan');
+    const code = await claimCodeOf(fan.deviceId);
+    const both = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id, joinSpaceId: tent.id }).expect(422);
+    expect(both.body).toMatchObject({ code: 'two_places', detail: 'Name the place by `spaceId` or by `joinSpaceId`, not both.' });
+
+    const joined = (await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: tent.id }).expect(201)).body;
+    expect(joined).toMatchObject({ spaceCreated: false, device: { id: fan.deviceId, spaceId: tent.id } });
+    expect(await places()).toBe(before);
+
+    const controller = await registerDevice('controller');
+    const own = (
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(controller.deviceId), joinSpaceId: tent.id })
+        .expect(201)
+    ).body;
+    expect(own.spaceCreated).toBe(true);
+    expect(own.device.spaceId).not.toBe(tent.id);
+    expect(await places()).toBe(before + 1);
+  });
+
+  /**
+   * A place has one climate (Chris, 2026-11-14): a second controller in a tent was written to by nothing, paused by no
+   * maintenance and raised its own alarms under the first one's figures. A claim and a move are refused with a code
+   * of their own; a fan still joins; a place that holds two from before keeps both.
+   */
+  it('refuses a second controller or fridge module in one place, by a claim and by a move, and lets a fan join', async () => {
+    const first = await registerDevice('controller');
+    const tent = (
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(first.deviceId) })
+        .expect(201)
+    ).body.device.spaceId;
+
+    const second = await registerDevice('fridge');
+    const code = await claimCodeOf(second.deviceId);
+    const refused = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent }).expect(409);
+    expect(refused.body).toMatchObject({ code: 'place_holds_a_climate', errors: [{ field: 'spaceId', code: 'climate_held' }] });
+
+    // The code is not spent: the module is claimed into a place of its own, and cannot be moved in either.
+    const own = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body.device;
+    expect((await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ spaceId: tent }).expect(409)).body.code).toBe('place_holds_a_climate');
+    expect((await owner.client.get(`/v1/devices/${second.deviceId}`).expect(200)).body.spaceId).toBe(own.spaceId);
+
+    const fan = await registerDevice('fan');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(fan.deviceId), spaceId: tent })
+      .expect(201);
+
+    // Two that stand together from before: either is still renamed where it stands, and one moves out to a place of its own.
+    await setRow('devices', { id: second.deviceId }, { spaceId: tent });
+    await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ name: 'Second climate' }).expect(200);
+    await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ spaceId: own.spaceId }).expect(200);
+  });
+
+  it('refuses a place to join that is another account´s or has ended, and the code still claims afterwards', async () => {
+    const host = await createAccount('devices-join-host');
+    const theirs = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'A tent to manage' }).expect(201)).body;
+    const invite = (await host.client.post(`/v1/spaces/${theirs.id}/invites`).send({ role: 'can_manage' }).expect(201)).body;
+    await owner.client.post(`/v1/invites/${invite.code}/acceptances`).expect(201);
+    const ended = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'A tent that ended' }).expect(201)).body;
+    await owner.client.delete(`/v1/spaces/${ended.id}`).expect(204);
+
+    const plug = await registerDevice('plug');
+    const code = await claimCodeOf(plug.deviceId);
+    expect((await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: theirs.id }).expect(409)).body.code).toBe(
+      'place_of_another_account',
+    );
+    // An ended place takes nothing, whichever of the two fields names it - as a move into one is refused.
+    expect((await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+    expect((await owner.client.post('/v1/devices/claims').send({ code, spaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+
+    const claimed = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body;
+    expect(claimed.spaceCreated).toBe(true);
+    expect((await owner.client.patch(`/v1/devices/${plug.deviceId}`).send({ spaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+  });
+
+  /**
+   * Two devices standing in one place carry different names, as places do: a
+   * toast, an alarm and Steuerung name a device. A claim is never refused for
+   * one - it counts on -, a rename and a move are.
+   */
+  it('refuses a second device of one name in a place, by a rename and by a move, and counts a claim´s name on', async () => {
+    const tent = (
+      await owner.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('Tent of names') })
+        .expect(201)
+    ).body;
+    const claimInto = async (type: DeviceType, body: Record<string, unknown>) => {
+      const device = await registerDevice(type);
+      return (
+        await owner.client
+          .post('/v1/devices/claims')
+          .send({ code: await claimCodeOf(device.deviceId), ...body })
+          .expect(201)
+      ).body.device;
+    };
+
+    const fan = await claimInto('fan', { joinSpaceId: tent.id, name: 'Abluft' });
+    const plug = await claimInto('plug', { joinSpaceId: tent.id, name: 'Abluft' });
+    expect(plug.name).toBe('Abluft 2');
+
+    const renamed = await owner.client.patch(`/v1/devices/${plug.id}`).send({ name: ' ABLUFT ' }).expect(409);
+    expect(renamed.body).toMatchObject({ code: 'name_taken', detail: 'Another device here is already called "Abluft".' });
+    expect(renamed.body.errors).toEqual([{ field: 'name', code: 'taken', detail: 'Names are unique among the devices of one place.' }]);
+
+    const elsewhere = await claimInto('fan', { name: 'Abluft' });
+    const moved = await owner.client.patch(`/v1/devices/${elsewhere.id}`).send({ spaceId: tent.id }).expect(409);
+    expect(moved.body).toMatchObject({ code: 'name_taken', errors: [{ field: 'spaceId', code: 'taken' }] });
+    expect((await owner.client.get(`/v1/devices/${elsewhere.id}`).expect(200)).body.spaceId).not.toBe(tent.id);
+
+    // Moved and renamed in one write, it fits; a device named only by its type is told apart by the app, not refused.
+    await owner.client.patch(`/v1/devices/${elsewhere.id}`).send({ spaceId: tent.id, name: 'Umluft' }).expect(200);
+    const unnamed = await claimInto('fan', { joinSpaceId: tent.id });
+    await claimInto('fan', { joinSpaceId: tent.id });
+    expect(unnamed.name).toBe('fan');
+    expect(fan.name).toBe('Abluft');
   });
 
   it('tells the owner of a device that they already added it', async () => {
@@ -68,7 +259,8 @@ describe('claiming a device', () => {
       .send({ code: await claimCodeOf(first.deviceId) })
       .expect(201);
 
-    const second = await registerDevice('controller');
+    // A fan: a second controller or fridge module is refused a place that holds a climate.
+    const second = await registerDevice('fan');
     const joined = await owner.client
       .post('/v1/devices/claims')
       .send({ code: await claimCodeOf(second.deviceId), spaceId: made.body.device.spaceId })
@@ -125,6 +317,11 @@ describe('giving a device up', () => {
     // Gone from the owner's listing, and nobody's again.
     const listed = await owner.client.get('/v1/devices').expect(200);
     expect(listed.body.items.some((entry: { id: string }) => entry.id === device.deviceId)).toBe(false);
+    // Support reads it as given up, not as hardware nobody ever added.
+    const admin = await loginAsAdmin();
+    const read = (await admin.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body;
+    expect(read.ownerId).toBeNull();
+    expect(read.state.released).toEqual({ at: expect.any(String), by: 'given_up' });
 
     const next = await createAccount('devices-next-owner');
     const claimed = await next.client
@@ -132,6 +329,8 @@ describe('giving a device up', () => {
       .send({ code: await claimCodeOf(device.deviceId) })
       .expect(201);
     expect(claimed.body.device.ownerId).toBe(next.userId);
+    // The next owner is not told what became of the one before.
+    expect(claimed.body.device.state.released).toBeNull();
 
     // The rules the first owner wrote did not come with it.
     const rules = await next.client.get(`/v1/devices/${device.deviceId}/alarm-rules`).expect(200);
@@ -177,6 +376,45 @@ describe('what reaches the hardware', () => {
     expect(read.body.configuration).toEqual(configuration);
   });
 
+  /**
+   * Steuerung named a preset by figures that happened to match one - a plan's "Veg" step holding a flowering
+   * preset's figures read as that flowering preset. What names one is what the device was put on, until a figure
+   * is set by hand: the figures are then the grower's own (Chris, 2026-11-14).
+   */
+  it('keeps the climate preset a device was put on, by a save or by its place, until a target is set by hand', async () => {
+    const fridge = await provisionDevice(owner);
+    const presetOf = async () => (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.control.preset;
+    const configuration = { workmode: 'small', day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } };
+
+    await owner.client
+      .put(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ configuration, preset: { stage: 'vegetative', preset: null } })
+      .expect(200);
+    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+
+    // Regulation switched off and on moves no figure, and the name stands.
+    await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { control: false } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { control: true } })
+      .expect(200);
+    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+
+    // A target set by hand makes the figures the grower's own: no preset is named any more.
+    await owner.client
+      .put(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 26, humidity: 60 } } })
+      .expect(200);
+    expect(await presetOf()).toBeNull();
+
+    const spaceId = (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.spaceId;
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'flowering', preset: 'late_flowering' }).expect(201);
+    expect(await presetOf()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+  });
+
   it('refuses a figure the firmware would misread, or one outside its range, naming each, and sends the device nothing', async () => {
     const configuration = { day: { temperature: 24 }, night: { temperature: 20 } };
     await owner.client.put(`/v1/devices/${device.deviceId}/configuration`).send({ configuration }).expect(200);
@@ -220,6 +458,52 @@ describe('what reaches the hardware', () => {
     expect(template.body.errors.map((error: { field: string }) => error.field)).toEqual(['steps.0.settings.night.temperature']);
   });
 
+  /**
+   * A target typed outside the range a person may set it in is refused, never
+   * moved into it: 99 °C was written as 35 °C. A figure the device already holds
+   * outside it - its own menu's, an older app's - is kept while it is not changed.
+   */
+  it('refuses a target outside the range it is set in, by hand and in a plan step, and writes nothing', async () => {
+    const configuration = { day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 95 }, co2: { target: 0 } };
+    await setRow('devices', { id: device.deviceId }, { configuration });
+    simulator.clear();
+
+    const refused = await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 99, humidity: 60 }, night: { temperature: 3, humidity: 95 } } })
+      .expect(400);
+    expect(refused.body.errors).toEqual([
+      { field: 'configuration.day.temperature', code: 'too_big', detail: 'This target is set from 15 to 35.' },
+      { field: 'configuration.night.temperature', code: 'too_small', detail: 'This target is set from 15 to 35.' },
+    ]);
+    await settle();
+    expect(simulator.messagesOn('configuration')).toEqual([]);
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200)).body.configuration).toEqual(configuration);
+
+    // The night's 95 % and the CO2 target of 0 were there before and are not the save's to answer for.
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 35, humidity: 60 } } })
+      .expect(200);
+
+    const step = {
+      name: 'Too warm',
+      stage: 'vegetative',
+      duration: { value: 1, unit: 'weeks' },
+      settings: { day: { temperature: 36 }, co2: { target: 1600 } },
+      waitForConfirmation: false,
+      confirmationMessage: null,
+    };
+    const plan = await owner.client
+      .put(`/v1/devices/${device.deviceId}/plan`)
+      .send({ templateId: null, name: 'Ranges', loop: false, notify: { mode: 'off', email: null, writeEntries: false }, steps: [step] })
+      .expect(400);
+    expect(plan.body.errors).toEqual([
+      { field: 'steps.0.settings.co2.target', code: 'too_big', detail: 'This target is set from 400 to 1500.' },
+      { field: 'steps.0.settings.day.temperature', code: 'too_big', detail: 'This target is set from 15 to 35.' },
+    ]);
+  });
+
   it('changes a setting by name, decides the work mode from it, and holds a fridge to what the server tunes itself', async () => {
     const fridge = await provisionDevice(owner);
     const listening = await startSimulator(fridge);
@@ -237,6 +521,7 @@ describe('what reaches the hardware', () => {
         running: false,
         drying: false,
         mode: 'standard',
+        preset: null,
         energySaving: false,
         // Nothing chosen about germination: what holds where nobody said.
         germinationChoices: { warnTooHumid: false, humidifierHolds: true },
@@ -371,6 +656,8 @@ describe('what reaches the hardware', () => {
 
     expect(live.body.metrics.temperature).toMatchObject({ value: 21.5, state: 'live' });
     expect(live.body.metrics.humidity).toMatchObject({ value: 55 });
+    // A device that is heard holds whatever is stored.
+    expect(live.body.pending).toBeNull();
   });
 
   /**
@@ -395,6 +682,37 @@ describe('what reaches the hardware', () => {
     expect(series.body.outputs[0].points.filter((point: { value: number | null }) => point.value !== null)).toContainEqual(
       expect.objectContaining({ value: 40 }),
     );
+  });
+});
+
+describe('a device that changes hands', () => {
+  it('shows the next owner nothing the last one measured', async () => {
+    const device = await provisionDevice(owner, 'plug');
+    const simulator = await startSimulator(device);
+    try {
+      await simulator.reportStatus({ temperature: 23.5 });
+      await settle(1000);
+      await owner.client.delete(`/v1/devices/${device.deviceId}/claim`).expect(204);
+
+      const next = await createAccount('devices-next-owner');
+      await next.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(device.deviceId) })
+        .expect(201);
+
+      const asked = new Date(Date.now() - 3_600_000);
+      const series = await next.client
+        .get(`/v1/devices/${device.deviceId}/series`)
+        .query({ startsAt: asked.toISOString(), endsAt: new Date().toISOString(), metrics: 'temperature' })
+        .expect(200);
+
+      const points = series.body.metrics.flatMap((metric: { points: { value: number | null }[] }) => metric.points);
+      expect(points.filter((point: { value: number | null }) => point.value !== null)).toEqual([]);
+      // The window is answered from the claim, which is where this owner's readings begin.
+      expect(new Date(series.body.startsAt).getTime()).toBeGreaterThan(asked.getTime());
+    } finally {
+      await simulator.close();
+    }
   });
 });
 

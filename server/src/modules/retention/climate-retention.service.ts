@@ -81,7 +81,7 @@ const DAYS_PER_PASS = 90;
 export const DEVICES_PER_PASS = 500;
 
 /** What a pass did, which is what it logs, what a test reads and what the fleet's health card is drawn from. */
-export interface RetentionRun {
+interface RetentionRun {
   reached: number;
   devices: number;
   days: number;
@@ -89,7 +89,7 @@ export interface RetentionRun {
 }
 
 /** The same, with the instant it finished, which is the half a screen needs and a test does not. */
-export type LastRetentionRun = RetentionRun & { ranAt: Date };
+type LastRetentionRun = RetentionRun & { ranAt: Date };
 
 @Injectable()
 export class ClimateRetentionService implements OnModuleInit, OnApplicationShutdown {

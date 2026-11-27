@@ -1,46 +1,52 @@
 import type { Translate } from '@/i18n/i18n';
 import { type DateTime } from 'luxon';
-import type { Camera, GrowListItem, Me, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
+import type { GrowListItem, Me, MyGrowCard, Scheme, ShareLink } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
-import { calendarDay } from '@/ui/zone';
 import type { ThemeChoice } from '@/theme/theme-context';
 import { isConfigured } from '@/screens/notifications/reach';
 import { CHANNELS, timeOf } from '@/screens/notifications/settings';
-import { retentionLabel } from './privacy/climate';
 import { isDead } from './sharing/links';
 
 /**
- * The line under each door on Me, worked out from what the server answered
- * and from nothing else.
+ * The line under a row of Ich and of "Alle Grows", worked out from what the
+ * server answered and from nothing else.
  *
- * A door's line is a sentence about the account as it stands - how many grows
+ * A row's line is a sentence about the account as it stands - how many grows
  * are public, which channels are on, what the shelf holds - and it is the one
- * place on Me a person reads a figure. So every figure here is read off a
+ * place there a person reads a figure. So every figure here is read off a
  * resource the app already has, and what is genuinely empty is said as empty
  * rather than as nought: "no links yet" is an answer, "0 active · 0 expired"
  * is a table with nothing in it. The helpers are pure so that each line can be
  * checked against the shapes it reads without drawing the page.
  */
 
+export type Read = { data: unknown; isPending: boolean };
+
+/**
+ * A door's line once every read it is worked out from has answered. The reads
+ * land in any order, so each is named: a line worked out from one still
+ * missing would throw and take the page with it. One outstanding says it is
+ * loading and one that failed says so, under its own door.
+ */
+export const lineOnce = (t: Translate, reads: Read[], text: () => string): string =>
+  reads.every(read => read.data !== undefined) ? text() : reads.some(read => read.isPending) ? t('home.waiting') : t('shell.loadFailed');
+
 /** The parts of a line, in the board's spelling: a middle dot between each. */
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
 
-/** "1 public · 2 private · terpcontrol.cloud/@chrisgrows", or that there is nothing to count yet. */
-export const publicLine = (t: Translate, grows: GrowListItem[], me: Me, host: string): string => {
-  const own = grows.filter(grow => grow.ownerId === me.id && !grow.isDemo);
-  if (own.length === 0) return joined([t('me.door.public.none'), profilePart(t, me, host)]);
-  const isPublic = own.filter(grow => grow.visibility === 'public').length;
+/** "2 laufend · 3 beendet", leaving out a half that holds nothing; or that there are none yet. */
+export const growsLine = (t: Translate, grows: MyGrowCard[]): string => {
+  const running = grows.filter(grow => grow.endedAt === null).length;
+  const finished = grows.length - running;
 
-  return joined([
-    t('me.door.public.public', { count: isPublic }),
-    t('me.door.public.private', { count: own.length - isPublic }),
-    profilePart(t, me, host),
-  ]);
+  return (
+    joined([
+      running > 0 ? t('me.door.grows.running', { count: running }) : null,
+      finished > 0 ? t('me.door.grows.finished', { count: finished }) : null,
+    ]) || t('me.door.grows.none')
+  );
 };
-
-/** Where the profile is, or that it is off: the address is only worth reading when something answers at it. */
-const profilePart = (t: Translate, me: Me, host: string): string => (me.publicProfile ? `${host}/@${me.handle}` : t('me.door.public.profileOff'));
 
 export const followingLine = (t: Translate, count: number): string =>
   count === 0 ? t('me.door.following.none') : t('me.door.following.grows', { count });
@@ -64,85 +70,35 @@ export const shareLinksLine = (t: Translate, links: ShareLink[], now: DateTime):
   ]);
 };
 
-/**
- * The cameras and their entitlement, with the state word the board sets at
- * the right edge. One camera is named with its own date; several are counted,
- * and the state word then speaks for all of them or says that it cannot.
- *
- * An install that gates nothing is said in those words rather than as "active".
- * Every camera does read as entitled there, but calling that Premium would
- * promise a self-hosted grower something they have not got and could not lose.
- */
-export const premiumLine = (
-  t: Translate,
-  cameras: Camera[],
-  now: DateTime,
-  enforced: boolean,
-  zone: string | null,
-): { text: string; aside: string | null } => {
-  const owned = cameras.filter(camera => camera.removedAt === null && !camera.isDemo);
-  if (owned.length === 0) return { text: t('me.door.premium.none'), aside: null };
-  if (!enforced) return { text: t('me.door.premium.ungated', { count: owned.length }), aside: null };
-
-  const premium = owned.filter(camera => camera.entitlement.tier === 'premium').length;
-  if (owned.length === 1) {
-    const [camera] = owned;
-    const { validUntil, grant } = camera.entitlement;
-    const until =
-      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: calendarDay(validUntil, zone) }) : t('me.door.premium.noEntitlement');
-
-    return { text: joined([camera.name, until]), aside: stateWord(t, camera, now) };
-  }
-
-  return {
-    text: joined([t('me.door.premium.cameras', { count: owned.length }), t('me.door.premium.premium', { count: premium })]),
-    aside:
-      premium === owned.length
-        ? t('me.door.premium.state.active')
-        : premium === 0
-          ? t('me.door.premium.state.free')
-          : t('me.door.premium.state.partly'),
-  };
-};
-
-/** Premium is "active"; a camera whose year has run out is "expired", and one that never had one is "free". */
-const stateWord = (t: Translate, camera: Camera, now: DateTime): string => {
-  if (camera.entitlement.tier === 'premium') return t('me.door.premium.state.active');
-  const { validUntil } = camera.entitlement;
-
-  return validUntil !== null && !isAhead(validUntil, now) ? t('me.door.premium.state.expired') : t('me.door.premium.state.free');
-};
-
-/** The channels that are on, in the order of the cards on the page they lead to, then the quiet hours. */
-export const notificationsLine = (t: Translate, me: Me, now: DateTime): string => {
+/** "Push und E-Mail · Ruhezeit 23:00–07:00": the channels that are on, in the order of the cards on the page they lead to, then the quiet hours. */
+export const notificationsLine = (t: Translate, me: Me, now: DateTime, language: string): string => {
   const { quietHours, mutedUntil } = me.notifications;
   const on = CHANNELS.filter(channel => isConfigured(me, channel)).map(channel => t(`notifications.channel.${channel}`));
 
   return joined([
     isAhead(mutedUntil, now) ? t('me.door.notifications.muted') : null,
-    on.length === 0 ? t('me.door.notifications.none') : on.join(' · '),
+    on.length === 0 ? t('me.door.notifications.none') : new Intl.ListFormat(language, { type: 'conjunction' }).format(on),
     quietHours ? t('me.door.notifications.quiet', { from: timeOf(quietHours.fromMinute), to: timeOf(quietHours.toMinute) }) : null,
   ]);
 };
 
-export const privacyLine = (t: Translate, me: Me): string => {
-  const { hideWeights, hideCounts } = me.privacy;
-  const hidden = hideWeights && hideCounts ? 'both' : hideWeights ? 'weights' : hideCounts ? 'counts' : 'nothing';
+/** "Deutsch · hell": the language and the theme. */
+export const appearanceLine = (t: Translate, theme: ThemeChoice, language: string): string =>
+  joined([languageName(t, language), t(`me.door.theme.${theme}`)]);
 
-  return joined([t(`me.door.privacy.${hidden}`), t('me.door.privacy.retention', { keep: retentionLabel(t, me.retention.climateDays) })]);
-};
+/** Whether the diary is kept, and where the account left that to its own use, that it did. */
+export const diaryLine = (t: Translate, me: Me): string =>
+  joined([me.preferences.diary == null ? t('me.diary.choice.auto') : null, t(me.layers?.diary === false ? 'me.door.diary.off' : 'me.door.diary.on')]);
 
-/** "°C, g, l": the three unit choices as their symbols, in the order the page asks them. */
-const unitsLabel = (t: Translate, units: UnitPreference): string =>
-  [units.temperature, units.weight, units.volume].map(unit => t(`me.appearance.unit.${unit}`)).join(', ');
+/** "Profil privat · kein Grow öffentlich": whether a stranger finds the profile, and how many of the account's own grows one can open. */
+export const profileLine = (t: Translate, grows: GrowListItem[], me: Me): string => {
+  const open = grows.filter(grow => grow.ownerId === me.id && !grow.isDemo && grow.visibility === 'public').length;
 
-/** The theme, the units where an account states them, and the language; the demo has no units to state. */
-export const appearanceLine = (t: Translate, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
-  joined([
-    t('me.door.appearance.theme', { theme: t(`me.theme.${theme}`) }),
-    units ? t('me.door.appearance.units', { units: unitsLabel(t, units) }) : null,
-    t('me.door.appearance.language', { language: languageName(t, language) }),
+  return joined([
+    t(me.publicProfile ? 'me.door.profile.on' : 'me.door.profile.off'),
+    open === 0 ? t('me.door.profile.noGrows') : t('me.door.profile.grows', { count: open }),
   ]);
+};
 
 /** A language in its own name, which is the one spelling every reader recognises. */
 export const languageName = (t: Translate, language: string): string => {
@@ -174,9 +130,13 @@ export const schemesLine = (t: Translate, grows: GrowListItem[], shipped: Scheme
   return joined([inUse, own.length === 0 ? t('me.door.schemes.noOwn') : t('me.door.schemes.own', { count: own.length })]);
 };
 
-/** "v0.0.1 · production build": what the bundle knows about itself, which is also the About page's first line. */
-export const versionLine = (t: Translate, version: string, mode: string): string => {
+/**
+ * "v0.0.1 · a1b2c3d · production build": what the bundle knows about itself, which is also the About page's first
+ * line. A build that knew no commit states the rest as before, without a gap where the commit would be.
+ */
+export const versionLine = (t: Translate, version: string, commit: string, mode: string): string => {
   const key = `me.about.build.${mode}`;
+  const build = t(key) === key ? mode : t(key);
 
-  return t('me.door.about', { version, build: t(key) === key ? mode : t(key) });
+  return commit ? t('me.door.aboutCommit', { version, commit, build }) : t('me.door.about', { version, build });
 };

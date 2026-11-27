@@ -1,0 +1,6 @@
+/* As wide as a step's name needs, never wider than the phone. */
+.select {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 100%;
+}

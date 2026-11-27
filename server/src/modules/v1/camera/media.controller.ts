@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { Model } from 'mongoose';
 import { z } from 'zod';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
 import { media as mediaShape, mediaUpload, uploadMediaKind } from '@fg2/shared-types/v1-schemas';
@@ -11,9 +13,12 @@ import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.se
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange, pictureOutsideRange } from '@common/v1/range';
+import { refuseEndedId } from '@common/v1/rooms';
 import { V1Query } from '@common/v1/validation';
 import { problemErrorsOf } from '@common/zod-validation.pipe';
+import { MODEL_V1 } from '@database/models';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService, pictureSizeQuery, renderSizeOf } from './media-presentation.service';
 import { MediaService } from './media.service';
@@ -37,6 +42,7 @@ export class MediaController {
     private readonly presentation: MediaPresentationService,
     private readonly delivery: MediaDeliveryService,
     private readonly access: AccessService,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
   /**
@@ -63,6 +69,7 @@ export class MediaController {
         growId: { type: 'string' },
         spaceId: { type: 'string' },
         capturedAt: { type: 'string', format: 'date-time', description: 'When it was taken. Defaults to now.' },
+        rotate: { type: 'string', enum: ['0', '90', '180', '270'], description: 'Degrees to turn it clockwise after its EXIF orientation.' },
       },
     },
   })
@@ -81,10 +88,14 @@ export class MediaController {
         ]);
       }
       if (upload.growId) await this.access.require(ctx, subjectRef('grow', upload.growId), 'log');
-      if (upload.spaceId) await this.access.require(ctx, subjectRef('space', upload.spaceId), 'log');
+      if (upload.spaceId) {
+        await this.access.require(ctx, subjectRef('space', upload.spaceId), 'log');
+        // The line that would carry it is refused on an ended place, and so is the picture.
+        await refuseEndedId(this.spaces, upload.spaceId);
+      }
     }
 
-    const stored = await this.presentation.asStoredJpeg(bytes).catch(() => {
+    const stored = await this.presentation.asStoredJpeg(bytes, Number(upload.rotate ?? 0)).catch(() => {
       throw unprocessable('not_a_picture', 'That file could not be read as a picture.');
     });
 

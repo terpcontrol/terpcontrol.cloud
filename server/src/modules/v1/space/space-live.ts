@@ -56,6 +56,23 @@ export const liveOfDevice = ({ device, reading }: DeviceReading, at: Date = new 
 /** A target with the band around it, so the figure beside a value and the verdict's "in band" are one judgement. */
 export const setpointOf = (name: Metric, value: number | null): CardSetpoint => ({ metric: name, value, band: TARGET_BAND[name] ?? null });
 
+/**
+ * Which of the devices holding targets in a place are climates of their own:
+ * each of them, a tent controller and a fridge module stood in one place being
+ * two climates rather than one figure - except an AIR fan, which states a
+ * temperature and a humidity too but follows the tent's controller, and stands
+ * for the climate only where nothing else here holds targets. The order is the
+ * one the place lists its devices in, so the first is the place's own.
+ */
+export const climatesOf = <T extends { type: string }>(holding: readonly T[]): T[] => {
+  const own = holding.filter(device => device.type !== 'fan');
+  return own.length > 0 ? own : holding.slice(0, 1);
+};
+
+/** The devices of one place that are climates of their own, judged from their configuration alone. */
+export const climateDevicesOf = (devices: readonly StoredDevice[], at: Date = new Date()): StoredDevice[] =>
+  climatesOf(devices.filter(device => setpointsOf(device.configuration, true, device.state?.hardware, device.type, at) !== null));
+
 export const mergeLive = (devices: SpaceLiveDevice[]): { values: CardValue[]; setpoints: CardSetpoint[] } => {
   const values = new Map<Metric, CardValue>();
   const setpoints = new Map<Metric, CardSetpoint>();

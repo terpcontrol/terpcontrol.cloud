@@ -1,11 +1,11 @@
 import { Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { Me } from '@fg2/shared-types/v1';
 import { useAccountMe, useUpdatingMe } from '@/api/account';
-import { exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
+import { EXPORT_FRESH_MS, exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
 import { isBuilding, useMedia } from '@/api/media';
+import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
@@ -15,44 +15,32 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { BackLink } from '@/ui/BackLink';
+import { ALL_GROWS } from '@/app/places';
+import { PageHead } from '@/ui/PageHead';
 import styles from './parts.module.css';
 
 /**
- * What every page below Me is built from: the page with its title and the way
+ * What every page below Ich is built from: the page with its head and the way
  * back, the setting row, the menu in a chip, and the row that exports the
- * account.
- *
- * Every page under Me shares this one, so that a row on Appearance and a row
- * on Account are the same row and not two that drifted, and so that the way
- * back is fixed once. They are deliberately the same shapes, to the pixel: a
- * person walking from one page to the next should not be able to tell where
- * one slice of the work ended and another began.
+ * account; how a save is answered is `useSaveAccount` (`save.ts`). One set of parts, so that a row on
+ * Darstellung and a row on Konto are the same row.
  */
 
 /**
- * The page: its title, the chevron back to Me, and on a width that has room
- * for it the trail as well. The chevron is there at every width because the
- * phone's top bar carries no way back - the wordmark, the bell and the avatar
- * - and a leaf route with no exit but the browser's own gesture is a dead end
- * in an installed app.
- *
- * A page with something to keep that the demo has none of says so in `demo`,
- * and the demo is shown that line in place of the page.
+ * The page: the arrow back and its title. A page with something to keep that
+ * the demo has none of says so in `demo`, and the demo is shown that line in
+ * place of the page. `grows` is a page that belongs to growing rather than to
+ * the account - the feeding schemes, the share links, the grows somebody
+ * follows - and is reached from "Alle Grows", so that is where it leads back.
  */
-export function MePage({ title, demo, children }: { title: string; demo?: string; children: ReactNode }) {
+export function MePage({ title, demo, grows = false, children }: { title: string; demo?: string; grows?: boolean; children: ReactNode }) {
   const { t } = useTranslation();
   const { user } = useSession();
+  const back = grows ? { to: ALL_GROWS, label: t('grow.all.back') } : { to: '/me', label: t('me.backHere') };
 
   return (
-    <section className={styles.page}>
-      <header className={styles.head}>
-        <BackLink to="/me" label={t('me.title')} className={styles.back} />
-        <h1 className={styles.title}>{title}</h1>
-        <span className={`mono ${styles.crumb}`}>
-          <Link to="/me">{t('me.title')}</Link> › {title}
-        </span>
-      </header>
+    <section className={`${ui.stack3} ${styles.page}`}>
+      <PageHead back={back} title={title} />
       {demo !== undefined && user?.isDemo === true ? <p className={`${ui.cardDashed} ${ui.note}`}>{demo}</p> : children}
     </section>
   );
@@ -72,7 +60,7 @@ export function AccountRead({ lines, children }: { lines: number; children: (me:
   const updating = useUpdatingMe();
 
   if (me.isPending) return <Waiting lines={lines} />;
-  if (!me.data) return <LoadFailed retry={() => void me.refetch()} />;
+  if (!me.data) return <LoadFailed read={me} />;
 
   return (
     <>
@@ -116,8 +104,8 @@ export function Row({
   below?: ReactNode;
 }) {
   return (
-    <div className={`${ui.card} ${ui.joined} ${styles.row}`} data-danger={danger ? '' : undefined}>
-      <div className={styles.rowHead}>
+    <div className={`${ui.card} ${ui.joined} ${ui.stack3} ${styles.row}`} data-danger={danger ? '' : undefined}>
+      <div className={`${ui.wrapRow} ${styles.rowHead}`}>
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>
             {title}
@@ -135,7 +123,7 @@ export function Row({
 /**
  * A chip that is a menu: the native select, keeping its keyboard and the
  * platform's own picker, giving up only its arrow and its padding. The options
- * are the caller's, because a menu of units and a menu of languages have
+ * are the caller's, because a menu of languages and a menu of days have
  * nothing in common but the shape.
  */
 export function Menu({
@@ -156,7 +144,7 @@ export function Menu({
 }) {
   return (
     <select
-      className={`mono ${ui.chip} ${styles.menu} ${className ?? ''}`}
+      className={`${ui.chip} ${ui.menu} ${className ?? ''}`}
       value={value}
       aria-label={name}
       disabled={disabled}
@@ -169,22 +157,18 @@ export function Menu({
 
 /**
  * Everything the account has, as a file. The zip is built in the background,
- * so this is a button and then a job: the row it is asked for is polled until
- * it is ready or has failed, and a failure says what went wrong rather than
- * sitting at "building" for ever - the same shape, and the same polling, as
- * the export at the end of a grow's report. Two pages promise this export, the
- * account and the privacy screen, so it is one row with two sets of words
- * rather than two rows that could be told apart. The control is a chip like
- * every other control in the column, and turns green once there is a file.
+ * so this is a button and then a job: its row is polled until it is ready or
+ * has failed, and a failure says what went wrong - the same shape as the
+ * export at the end of a grow's report. What the file holds is behind the
+ * help button.
  *
- * Which job it is drawing comes from the cache rather than from this
- * component, so that walking away and back finds the file instead of a button
- * offering to build one the server has already built; and the chip carries the
- * file's age, because the route answers a standing export unchanged while it is
- * under an hour old and a zip from before this morning's entry must not be
- * handed over as the thing that was just asked for.
+ * Which job it draws comes from the cache and from what this browser kept
+ * (`useAskedExport`). The chip carries the file's age, and a new one is
+ * offered beside a file older than the hour the route answers it unchanged
+ * for: a zip from before this morning's entry must not be the only thing to
+ * take. A kept file that is no longer there is no file, and not a refusal.
  */
-export function ExportRow({ title, line, ask }: { title: string; line: ReactNode; ask: string }) {
+export function ExportRow() {
   const { t } = useTranslation();
   const now = useNow();
   const request = useAskAccountExport();
@@ -195,16 +179,18 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
-  const built = ready?.exportJob?.endedAt ?? null;
+  const built = ready ? (ready.exportJob?.endedAt ?? ready.createdAt) : null;
+  const fresh = built !== null && now.toMillis() - Date.parse(built) < EXPORT_FRESH_MS;
 
   return (
     <Row
-      title={title}
-      line={line}
+      title={t('me.account.export.title')}
+      line={t('me.account.export.line')}
+      help="accountExport"
       below={
         <>
           {status === 'queued' || status === 'rendering' ? (
-            <p className={`mono ${styles.exportStatus}`} role="status">
+            <p className={styles.exportStatus} role="status">
               {t(`me.account.export.${status}`)}
             </p>
           ) : null}
@@ -215,7 +201,7 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
           ) : null}
           <Refused error={request.error} />
           {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
-          <Refused error={job.error} />
+          <Refused error={noLongerThere(job.error) ? null : job.error} />
           <Refused error={download.error} />
         </>
       }
@@ -228,13 +214,12 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
           onClick={() => download.mutate({ mediaId: ready.id, filename: exportFilename(ready) })}
         >
           <Download size={14} strokeWidth={1.75} aria-hidden />
-          {built
-            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
-            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
+          {t('me.account.export.download', { size: fileSize(ready.bytes), age: ageLabel(built!, now) })}
         </button>
-      ) : (
+      ) : null}
+      {fresh ? null : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
-          {status === 'failed' ? t('me.account.export.again') : ask}
+          {status === 'failed' ? t('home.retry') : t('me.account.export.ask')}
         </button>
       )}
     </Row>

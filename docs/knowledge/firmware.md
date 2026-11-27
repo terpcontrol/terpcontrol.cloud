@@ -1,7 +1,7 @@
 ---
-summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, connection-loss reboots, safety stops, known gaps
-updated: 2026-10-08
-source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, reconnecting and the daily recovery reboot, safety stops, known gaps
+updated: 2026-11-27
+source: Chris (decisions 2026-07..11, security hardening 2026-11-27); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -25,8 +25,10 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `src/` is shared by every type: `main.cpp` (loop, watchdogs), `fridgecloud.cpp` (MQTT and HTTP client), `wifi.cpp`
   (WiFi, portal, smart sockets, camera pairing), `terpcam.cpp` (camera relay), `settings.cpp` (NVS),
   `rebootwatchdog.cpp`. `src_hwtype/<type>/` holds a type's regulation, menu and settings.
-- `lib/EspMQTTClient` is vendored with a local fix - `subscribe()` with a topic callback finds its slot by topic
-  instead of overwriting the last one, which after a reconnect sent messages to the wrong handler. Keep it.
+- `lib/EspMQTTClient` is vendored with local fixes - `subscribe()` with a topic callback finds its slot by topic
+  instead of overwriting the last one, which after a reconnect sent messages to the wrong handler; TLS; connection
+  attempts in a task of their own with backoff ([Connection and recovery](#connection-and-recovery)). So is
+  `lib/PubSubClient`, whose wait for CONNACK sleeps between polls instead of spinning. Keep them.
 - Released types: `controller`, `fridge`, `plug`, `fan` (AIR), `light`. `light` and `fan` stay in every build and
   release, because devices in the field keep getting updates (Chris, 2026-08-23). `cam` (board `esp32cam`) and `dummy`
   are built only when named; the `<type>-test` environments (`src_hwtype/<type>_test`) are manufacturing test firmwares.
@@ -59,7 +61,8 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   fleet offline (`unknown_ca`) with no remote fix, since updates travel over MQTT. A new CA needs a rollout first.
 - `platformio.ini` uses `build_src_filter` (`src_filter` is deprecated). `-fno-rtti` stays out of `build_flags`: the
   framework passes it to every C++ file, and `build_flags` also reach the C compiler, which warned once per file.
-- Flash headroom, October 2026: `fridge` ~1.42 MB, 67 % of the OTA slot; `fan` 65 %, `plug` 66 %. Compare sizes only
+- Flash headroom, November 2026 (with the root-CA bundle): `fridge` ~1.48 MB, 70 % of the OTA slot;
+  `controller` 70 %, `plug` 69 %, `fan` and `light` 68 %. Compare sizes only
   between builds made back to back with the same toolchain install.
 - The device's web page (AP portal and phone server form) is `html/index.html`; after editing it run
   `python3 firmware/scripts/html-compress.py` and commit the regenerated `src/html_compressed/index.html.h`.
@@ -75,7 +78,7 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `./log-device.sh` streams the serial log at 115200 baud (`pio device monitor` defaults to 9600 and garbles it). It
   does not decode backtraces: that takes `pio device monitor -f esp32_exception_decoder` in `firmware/` with the ELF
   of the very build the device runs.
-- The boot log prints the device's MQTT username and password, and an NVS dump (`esptool.py read_flash 0x9000
+- The boot log prints the device's MQTT username (not the password, since 2026-11-27), and an NVS dump (`esptool.py read_flash 0x9000
   0x4000`) holds the WiFi password and other secrets: keep both out of issues, pull requests and the repository.
 - A crash without a serial line: every boot writes `message-device-booted:<reason>` to the diary. `TASK_WDT` -
   something blocked for 60 s; `PANIC` - a real crash, get a backtrace; `BROWNOUT` - the supply sags, which fits a
@@ -110,8 +113,7 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `RTC_DATA_ATTR` does **not** survive a reboot here: the bootloader reloads it on every reset except a wake from
   deep sleep, and these devices never sleep. State that has to outlive a panic, a watchdog or `ESP.restart()` uses
   `RTC_NOINIT_ATTR` behind a magic word, because that memory is garbage after power-on: `g_remote_reboot` in
-  `fridgecloud.cpp`, `g_connection_reboot` in `main.cpp`, and the sensor-fault stamps in `fridge.cpp`, which also
-  start afresh on power-on and brownout. The framework's `esp_attr.h` says the same: `.rtc.data` keeps its value
+  `fridgecloud.cpp` and the sensor-fault stamps in `fridge.cpp`, which also start afresh on power-on and brownout. The framework's `esp_attr.h` says the same: `.rtc.data` keeps its value
   "during a deep sleep / wake cycle", `.rtc_noinit` (a `NOLOAD` section) "after restart" as well.
 
 ## Time
@@ -132,16 +134,35 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   restarts the station after 120 s; `EspMQTTClient`'s own recovery never runs here (it is built without WiFi details).
 - `connect()` sets the MQTT packet size on every (re)connect; while it set 1024 there, every tunnel message over
   1 KB was dropped without a word.
-- Connection-loss reboots are set on the device only - menu `Conn. Loss Reboot` under the WiFi settings of every type
-  (`rebootwatchdog.cpp`, NVS keys `rbt_*`) - and kept out of the cloud-synced settings at Chris's request (2026-07).
-  Unset, they reboot once after 15 min without the cloud whatever the light, and once per 24 h while the outage lasts
-  but only while the light is off. `g_connection_reboot` keeps the first to one per outage: set before its
-  `ESP.restart()`, cleared when MQTT connects or by any reset but `ESP_RST_SW`. Until #145 it was `RTC_DATA_ATTR`,
-  so a lasting outage rebooted the device every delay period. The daily one exists because a broker port that is open
-  but never answers can exhaust LWIP's sockets (errno 11) until only a reboot helps; it waits for darkness so a
+- A broker connection attempt - DNS, TCP, TLS handshake, CONNECT/CONNACK - runs in a task of its own
+  (`mqttconnect`, `EspMQTTClient::startMqttConnectionAttempt()`), never on the loop task; while it runs nothing else
+  may touch the socket, and `forceDisconnect()` discards its outcome instead. On the loop task, a broker port that
+  accepted connections but never answered held each TLS handshake for the framework's 120 s default, past the 60 s
+  task watchdog: every device rebooted with `TASK_WDT` about every 75 s while it lasted, and the loop stood still
+  for 60 s each time (reproduced 2026-10-12 by pausing the broker container). Each step is bounded now: DNS 15 s
+  (framework), TCP 5 s, handshake 30 s (`MQTT_TLS_HANDSHAKE_TIMEOUT_S`), CONNACK 5 s. The attempt needs about 5 KB
+  of its 8 KB stack with TLS. It is not pinned to a core: a task pinned to the loop's core is freed only by that
+  core's idle task, which the never-blocking loop task rarely lets run.
+- Retries follow 15 s after a loss, doubling with every failed attempt up to 60 s (`MQTT_RECONNECT_MAX_DELAY_MS`),
+  each with up to a quarter more at random so a fleet that lost the cloud together does not return in one burst.
+  The count resets only once the loop has seen the connection, so a broker that drops every connection right after
+  accepting it keeps the backoff growing. Every disconnected state leads to a next attempt: before, a connection gone
+  again before the loop saw it left `_nextMqttConnectionAttemptMillis` at 0, the value for "none planned", and the
+  device never tried again (code reading).
+- `setWriteTimeout()` sets each client by its own type. Through the `Client*` it reached `Stream::setTimeout()`, a
+  read timeout in milliseconds, and left the TLS client at 30 s for the TCP connect and for a write that makes no
+  progress.
+- The reading buffer is drained once the cloud is back, also when it is full. Until 2026-10-12 a full buffer - ten
+  minutes offline - returned before the upload, so the device stayed connected but sent no reading again until it
+  rebooted, and the cloud showed it offline. The 15-minute reboot after a connection loss hid that.
+- Connection-loss reboot: since 2026-10-12 only the daily one (Chris: the 15-minute reboot goes, reconnecting has to
+  work without it; the daily one stays as a safety net). Menu `Conn. Loss Reboot` under the WiFi settings of every
+  type (`rebootwatchdog.cpp`, NVS keys `rbt_daily_dis`, `rbt_daily_nlt`), kept out of the cloud-synced settings at
+  Chris's request (2026-07). Unset, it reboots once per 24 h without the cloud, only while the light is off so a
   photoperiod is never cut (`isLightOn()`: the light output, a plug's relay; never on fan or cam - a 24 h light means
-  no daily reboot). Neither runs on a device without WiFi credentials, where a reboot recovers nothing; before #145
-  the first one did, every 15 min.
+  no daily reboot). Each reboot restarts the 24 h, so a lasting outage never becomes a reboot loop. Not on a device
+  without WiFi credentials, where a reboot recovers nothing. The keys `rbt_init_min` and `rbt_init_lt` of the
+  removed 15-minute reboot may still be in a device's NVS; nothing reads them.
 - The tunnel (RTSP cameras and alarm webhooks on the grower's network) moves data only while the display is idle,
   30 s after the last knob input, and the server closes a connection after 30 s without traffic: using the knob can
   cost an open stream ([device-protocol.md 9.2](../device-protocol.md#92-the-tunnel)).
@@ -150,8 +171,13 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - Heavy I/O runs in a task of its own, never on the loop task: the old camera capture there stalled regulation for
   30 s and more. Inbound UDP, power-save and the relay task: [terp-cam.md](terp-cam.md).
 - Not reported to the cloud at all: WiFi signal strength (the device's own dashboard draws it as bars, the WiFi
-  menu's `Show Wifi Status` as a figure, the serial `[health]` line logs it), an "update available" state, and that
-  an override holds the light output (socket rows do report theirs).
+  menu's `Show Wifi Status` as a figure, the serial `[health]` line logs it) and an "update available" state.
+- The override holding the light output is reported since 2026-11 (Chris, 2026-11-13: the firmware reports it, not
+  the server remembering the last command): `hardware-info:light_hold` with every socket table, announced as
+  `light_hold` in `caps` ([device-protocol.md 6.3](../device-protocol.md#63-the-socket-table-chunked-and-reassembled)).
+  Every accepted `socket_override`, of a socket or the light, sends the table on the next pass regardless of the
+  30 s spacing (`socket_report_due`): a hold sent again with another length changes nothing the change detection
+  sees, because the seconds left are left out of it on purpose.
 
 ## Settings documents
 
@@ -210,6 +236,37 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   controller's failsafe writes no diary line (`sensor_fail_logged` in `controller.h` is never used) and keeps
   sending its last temperature and humidity; only `sensor_type` 0 tells the cloud.
 
+## Security hardening (RED, EN 18031)
+
+Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
+- **Updates only over the air.** Nothing may need a person at the device to enter a key or similar (a public key
+  via the knob is ruled out), and a USB re-flash is no regular path for devices in the field.
+- **The update itself is neither signed nor encrypted.** It travels over HTTPS, with the server's certificate
+  verified. Signing would also break moving a device to another server: registering ends in an OTA of that
+  server's own build ([device-protocol.md 3.1](../device-protocol.md#31-post-deviceregister)).
+- **HTTPS against public roots, plain HTTP still allowed.** Every HTTP call of the device (OTA, `register` with its `HEAD`,
+  `claimcode`) checks an `https://` server against the public root CAs in `src/ca_bundle.gen.h`, which
+  `dev-build.sh` generates from the build container's certifi (Mozilla's list) with ESP-IDF's `gen_crt_bundle.py`.
+  So a device can be moved to any server with a publicly trusted certificate; a self-signed one fails. `http://`
+  stays for local stacks and self-hosted servers without TLS. The Arduino core's mbedtls is built without
+  `MBEDTLS_HAVE_TIME_DATE`: chain and host name are checked, certificate dates are not, so the clock does not matter.
+  The handshake is limited to 30 s (`beginHttp`): the framework's 120 s default outlasts the 60 s loop watchdog.
+  The Arduino core's bundle check looks only at the issuer of the topmost certificate the server sends: a chain
+  that ends in a cross-sign by a root no longer in Mozilla's list fails even when the root below it is in the
+  bundle (`www.google.com`, GTS Root R4 cross-signed by GlobalSign Root CA, November 2026). Let's Encrypt chains
+  work (checked on the fridge: a valid name answered, a wrong name, a self-signed and an expired certificate were
+  refused).
+- **The OTA takes only a 200.** Before, any status was written into the update partition.
+- **`fwupdate` is gone** from the firmware: it took a download from any URL, and the server never published it.
+  The topic stays reserved ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
+- **MQTTS stays as it is:** dev and production builds carry the CA; plaintext MQTT remains for local setups and for
+  devices on older firmware.
+- **The setup access point stays open** (no passphrase): it opens only after a menu action at the device and is
+  rarely used.
+- **No secrets in the serial log:** the boot log no longer prints the MQTT password.
+- **No flash encryption:** irreversible eFuses and a bootloader the prebuilt Arduino core does not have are too
+  much risk, and the device holds no real user data - its credential is per device and revocable on the server.
+
 ## OTA and update channels
 
 - The OTA path is [device-protocol.md 10](../device-protocol.md#10-the-ota-path). `message-device-firmware-update` is
@@ -230,6 +287,19 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   newest of those, and the running and targeted builds (`GET /v1/devices/{id}/firmwares`, `PATCH /v1/devices/{id}`;
   Chris, 2026-10-06); an administrator any build. Migration `005-devices` mapped the old fields
   (`cloudSettings.firmwareChannel`, else auto-update on to `stable`, else `manual`).
+- In the app `manual` is the firmware card's switch "Automatisch aktualisieren" off
+  (`webapp/src/screens/devices/Firmware.tsx`; the redesign session of 2026-11-12). The pick and "Installieren …"
+  write `PATCH /v1/devices/{id}` with `firmware: { channel: 'manual', targetId }`, and switching the channel sends
+  the `targetId` the device has along, since `firmware` is written whole. "Jetzt aktualisieren" / "Update vom …"
+  is that same pin onto the stable channel's current build, offered only to a `manual` device whose running build
+  is known to the list and older (`firmware-builds.ts`).
+- **Checking the card on a stack without real firmware** (the redesign session of 2026-11-12): a fresh stack has
+  no build, so the card says "Version nicht bekannt" and the pick "Keine Builds für diese Geräteklasse". Register
+  a build on the administrator's screen `/admin/firmware` ("Build anlegen", then "Datei hochladen" - any file does
+  for a simulated device, which reports the id it is told) and point a channel at it with "Übernehmen". A class is
+  all devices of one type on the stack: pointing `stable` at a build tells every device of that type that follows
+  `stable`, so use a type whose devices are yours to update. A simulated device reports the new id a few seconds
+  after being told; the card shows it at the next read of the device list (the 30 s beat).
 - A build is not deleted while a channel of a class points at it (409 `firmware_in_use`).
 - The firmware id is a uuid, not an orderable version: gate a new feature on a capability the device announces, never
   on its version ([device-protocol.md 12](../device-protocol.md#12-extending-it-safely)).

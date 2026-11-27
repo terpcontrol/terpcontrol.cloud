@@ -43,7 +43,7 @@ const CODES: Readonly<Record<number, string>> = {
 /**
  * How loud a refusal is in the log. Only a 5xx is the server failing; a 4xx is
  * the answer it meant to give, and a 404 is often the expected one - "this
- * device is not running a plan" is asked several times on every cockpit - so
+ * device is not running a plan" is asked several times on every Start - so
  * it is left to the request line, which already carries the status.
  */
 const levelOf = (status: number): 'error' | 'warn' | 'debug' =>

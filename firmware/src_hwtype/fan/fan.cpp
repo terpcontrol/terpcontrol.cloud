@@ -38,6 +38,7 @@ namespace fg {
       if (sht.readSample()) {
         temperature = sht.getTemperature();
         humidity = sht.getHumidity();
+        humidity = humidity > 100.0 ? 100.0 : humidity;
         break;
       }
     }

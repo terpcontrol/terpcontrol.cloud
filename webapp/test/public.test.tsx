@@ -1,12 +1,11 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowWeekCard, PublicGrowPage, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, PublicGrowPage, SpaceOverview } from '@fg2/shared-types/v1';
 import { publicPicture } from '@/api/public';
 import { session } from '@/api/session';
 import { Diary } from '@/screens/public/Diary';
-import { DiaryWeek } from '@/screens/public/DiaryWeek';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -63,38 +62,32 @@ const entry = (over: Partial<Entry>): Entry => ({
   ...over,
 });
 
-const week: GrowWeekCard = {
+/** A day as a reader from outside is answered it: how it was and what was done, nothing the devices did, no share. */
+const day = (back: number, over: Partial<GrowDiaryDay> = {}): GrowDiaryDay => ({
+  date: NOW.minus({ days: back }).toISODate()!,
+  dayNumber: 35 - back,
+  startsAt: at(back, 0),
+  endsAt: back === 0 ? at(0, 12) : at(back - 1, 0),
+  still: null,
+  climate: { temperature: 23.6, humidity: 60.2, inBandFraction: null },
+  events: [],
+  entries: [],
+  ...over,
+});
+
+const week: GrowDiaryWeek = {
   weekNumber: 5,
   dayFrom: 29,
   dayTo: 35,
-  startsAt: at(6),
-  endsAt: at(0),
   stage: 'flowering',
   preset: 'late_flowering',
   stageWeek: 1,
-  // A reader is not told what hardware stands in the tent; the averages are the diary.
-  deviceIds: null,
-  climate: [
-    { metric: 'temperature', minValue: 20, maxValue: 27, averageValue: 23.6, dayAverage: 26.4, nightAverage: 20.8 },
-    { metric: 'humidity', minValue: 55, maxValue: 66, averageValue: 60.2, dayAverage: 62, nightAverage: 58 },
+  film: null,
+  days: [
+    day(0, { still: { mediaId: 'media-1', cameraId: 'cam-1', capturedAt: at(0) } }),
+    day(1, { entries: [entry({ authorId: null })] }),
+    day(2, { entries: [entry({ id: 'e2', kind: 'training', authorId: null, text: 'Defoliated', occurredAt: at(2), values: { kind: 'training' } })] }),
   ],
-  lightHours: 12.2,
-  days: Array.from({ length: 7 }, (_, index) => ({
-    dayNumber: 29 + index,
-    startsAt: at(6 - index, 0),
-    // The grow flipped to flower on the third day of this week.
-    stage: index === 2 ? ('flowering' as const) : null,
-    mediaId: index === 6 ? 'media-1' : null,
-    cameraId: index === 6 ? 'cam-1' : null,
-    capturedAt: index === 6 ? at(0) : null,
-  })),
-  feeding: { amounts: [{ productKey: 'bloom', name: 'Bio·Bloom', value: 2, unit: 'ml/l' }], plannedCount: 3 },
-  readings: [],
-  waterCount: 1,
-  feedCount: 2,
-  entries: [entry({}), entry({ id: 'e2', kind: 'training', text: 'Defoliated', occurredAt: at(2), values: { kind: 'training' } })],
-  entryCount: 2,
-  timelapseMediaId: null,
 };
 
 const page: PublicGrowPage = {
@@ -115,8 +108,11 @@ const page: PublicGrowPage = {
   strains: ['Amnesia', 'Gelato'],
   coverMediaId: 'cover-1',
   filmMediaId: null,
-  range: { startsAt: at(34), endsAt: at(0, 12) },
+  // The window of a public diary still running reaches now.
+  range: { startsAt: at(34), endsAt: NOW.toISO()! },
   includeCameras: true,
+  readingNames: [{ key: 'runoff_ec', name: 'Runoff EC', unit: 'mS/cm' }],
+  plants: [],
   weeks: [week],
   weeksCursor: null,
   harvest: null,
@@ -150,14 +146,42 @@ const sharedTimeline = {
   ],
   lastReadingAt: null,
   nights: [],
+  silences: [],
   alarms: [],
   outputs: [],
   events: [],
+  stretches: [],
+  deviceChanges: [],
+  devices: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],
   cameras: [],
   people: [],
+};
+
+/** The window the last read of a Timeline asked for. */
+const askedWindow = () => {
+  const asked = vi
+    .mocked(fetchStub)
+    .mock.calls.map(call => new URL(String(call[0]), 'http://localhost'))
+    .filter(url => url.pathname.endsWith('/timeline'))
+    .at(-1);
+  return [asked?.searchParams.get('from'), asked?.searchParams.get('to')];
+};
+
+/**
+ * A link made for a stretch shows that stretch and nothing else (`SharedTimeline`'s bounds): its label names it, its
+ * axis ends at its end, "now" is never said, and no chip or arrow offers a stretch the link does not hold - only the
+ * zoom stays, and it goes no wider than the window.
+ */
+const expectWindowOnly = async (section: HTMLElement, label: string) => {
+  await waitFor(() => expect(within(section).getByRole('group', { name: 'Move and zoom the window' })).toHaveTextContent(label));
+  expect(within(section).queryByRole('group', { name: 'Range' })).not.toBeInTheDocument();
+  for (const name of [/earlier/, /later/, /before/i, /after/i, /^Now$/])
+    expect(within(section).queryByRole('button', { name })).not.toBeInTheDocument();
+  expect(section).not.toHaveTextContent(/\bnow\b/i);
+  expect(within(section).getByRole('button', { name: 'Zoom out' })).toBeDisabled();
 };
 
 /** Every read made through a link, with the token it carried. */
@@ -168,7 +192,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = url.pathname.replace(/^\/v1/, '');
   reads.push({ path, share: url.searchParams.get('share') });
 
-  if (path === '/spaces/space-1/timeline') return json({ ...sharedTimeline, range: url.searchParams.get('range') });
+  if (path === '/spaces/space-1/timeline') {
+    const [from, to] = [url.searchParams.get('from'), url.searchParams.get('to')];
+    return json({ ...sharedTimeline, range: url.searchParams.get('range'), ...(from && to ? { startsAt: from, endsAt: to } : {}) });
+  }
 
   if (path === `/public/grows/${page.slug}`) return json(page);
   if (path === '/shared/a-token') {
@@ -177,7 +204,29 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       range: page.range,
       includeCameras: true,
       expiresAt: null,
-      subject: { type: 'grow', grow: page },
+      subject: { type: 'grow', grow: page, curves: [] },
+    });
+  }
+  // A link onto the whole of a grow that has ended.
+  if (path === '/shared/ended-token') {
+    const range = { startsAt: null, endsAt: null };
+    return json({
+      kind: 'view',
+      range,
+      includeCameras: true,
+      expiresAt: null,
+      subject: { type: 'grow', grow: { ...page, range, endedAt: at(1) }, curves: [] },
+    });
+  }
+  // A link made from Verlauf for a stretch of two days: the grow stood in one place through it.
+  if (path === '/shared/stretch-token') {
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    return json({
+      kind: 'view',
+      range,
+      includeCameras: true,
+      expiresAt: null,
+      subject: { type: 'grow', grow: { ...page, range }, curves: [{ spaceId: 'space-1', name: 'Tent 1', range }] },
     });
   }
   if (path === '/follows') return json({ items: [], nextCursor: null });
@@ -195,6 +244,19 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
           endedAt: '2026-08-24T15:31:56.000Z',
           coverMediaId: null,
           updatedAt: at(83),
+          updatedBy: 'entry',
+        },
+        {
+          growId: 'grow-3',
+          slug: 'critic-kush',
+          name: 'Critic Kush',
+          handle: 'mia',
+          dayNumber: 22,
+          stage: 'vegetative',
+          endedAt: null,
+          coverMediaId: null,
+          updatedAt: DateTime.now().minus({ minutes: 5 }).toISO()!,
+          updatedBy: 'picture',
         },
       ],
     });
@@ -236,7 +298,23 @@ describe('a public diary', () => {
     // The same five figures the owner's own Report counts.
     expect(screen.getByText('37')).toBeInTheDocument();
     expect(screen.getAllByText('9')).toHaveLength(2);
-    expect(screen.getByText('26.4 / 20.8')).toBeInTheDocument();
+    // And the diary by the day, as the grower's own page draws it: how each day was.
+    expect(screen.getByRole('article', { name: 'Today · Day 35' })).toHaveTextContent('Ø 23.6 °C · 60 %');
+  });
+
+  it('opens on the newest picture where the grow has no cover, and on no picture box where it has no picture', () => {
+    const { unmount } = drawAt(<Diary page={{ ...page, coverMediaId: null }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByRole('img', { name: 'Spring run, cover picture' })).toHaveAttribute(
+      'src',
+      expect.stringContaining('/v1/public/grows/spring-run/media/media-1'),
+    );
+    unmount();
+
+    const bare = { ...week, days: week.days.map(one => ({ ...one, still: null })) };
+    const { container } = drawAt(<Diary page={{ ...page, coverMediaId: null, weeks: [bare] }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.queryByRole('img', { name: 'Spring run, cover picture' })).not.toBeInTheDocument();
+    // Not an empty frame with a leaf either: the avatar is the only frame the page draws.
+    expect(container.querySelectorAll('[data-empty="true"]')).toHaveLength(0);
   });
 
   it('addresses every picture by the diary’s own public route, which carries no token of any kind', () => {
@@ -258,16 +336,45 @@ describe('a public diary', () => {
 
   it('leaves out a harvest weight its owner keeps rather than dashing it out', () => {
     drawAt(
-      <Diary page={{ ...page, harvest: { harvestedAt: at(1), wetWeightG: null, dryWeightG: 412 } }} picture={publicPicture(page.slug)} now={NOW} />,
+      <Diary
+        page={{ ...page, harvest: { harvestedAt: at(1), wetWeightG: null, dryWeightG: 412, plantIds: [] } }}
+        picture={publicPicture(page.slug)}
+        now={NOW}
+      />,
     );
 
     expect(screen.getByText(/dry 412 g/)).toBeInTheDocument();
     expect(screen.queryByText(/wet/)).not.toBeInTheDocument();
   });
 
+  /** One plant of three cut is that plant's harvest, not the grow's: the grow is harvested when its last plant is. */
+  it('names the plants a harvest is of while others still grow, and says only that it is a part where it may not name them', () => {
+    const cut = { harvestedAt: at(1), wetWeightG: 60, dryWeightG: null, plantIds: ['plant-2'] };
+    const plants = [1, 2, 3].map(n => ({ id: `plant-${n}`, growId: 'grow-1', label: `B${n}` }));
+    const { unmount } = drawAt(<Diary page={{ ...page, plants, harvest: cut }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText(/^B2 harvested · /)).toBeInTheDocument();
+    unmount();
+
+    drawAt(<Diary page={{ ...page, plants: [], harvest: cut }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText(/^Partly harvested · /)).toBeInTheDocument();
+    expect(screen.queryByText(/^Harvested/)).not.toBeInTheDocument();
+  });
+
+  it('says its day as it is read, the word before the figure', () => {
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+
+    expect(screen.getAllByText('35')[0].previousElementSibling).toHaveTextContent(/^day$/);
+  });
+
   it('offers the weeks from before the ones it was given, and nothing where the diary fits on its page', () => {
     const asked = vi.fn();
-    const older: GrowWeekCard = { ...week, weekNumber: 4, dayFrom: 22, dayTo: 28, entries: [], entryCount: 0 };
+    const older: GrowDiaryWeek = {
+      ...week,
+      weekNumber: 4,
+      dayFrom: 22,
+      dayTo: 28,
+      days: [day(8, { entries: [entry({ id: 'e8', authorId: null })] })],
+    };
 
     const { rerender } = drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
@@ -276,8 +383,12 @@ describe('a public diary', () => {
 
     // The weeks the page carried and the ones asked for afterwards read as one
     // diary, newest first, and the control is still there because there is more.
-    const cards = screen.getAllByRole('article', { name: /^Day/ }).map(card => card.getAttribute('aria-label'));
-    expect(cards).toEqual(['Day 29–35', 'Day 22–28']);
+    expect(screen.getAllByRole('article', { name: /Day/ }).map(card => card.getAttribute('aria-label'))).toEqual([
+      'Today · Day 35',
+      'Yesterday · Day 34',
+      'Thursday · Day 33',
+    ]);
+    expect(screen.getByRole('button', { name: /^Day 27/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Earlier weeks' }));
     expect(asked).toHaveBeenCalledTimes(1);
   });
@@ -313,93 +424,46 @@ describe('a public diary', () => {
     expect(screen.getByText(/^No phase yet · Amnesia, Gelato/)).toBeInTheDocument();
   });
 
-  it('says how many lines of a week it is not drawing, because a card carries only the first of them', () => {
-    // Twenty-five lines and ten on the card is what a busy week of a real grow
-    // comes to; a card that said nothing would read as a quiet week.
-    drawAt(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-    expect(screen.getByText('+ 23 more')).toBeInTheDocument();
-  });
-
-  it('stamps its lines with the grow-day, exactly as the owner´s own card does', () => {
-    // A public week is the same seven of the grow's days, so it holds the same
-    // weekday twice and owes its reader the same way of telling them apart.
-    const twice = {
-      ...week,
-      entries: [entry({ id: 'last', occurredAt: at(-1, 9) }), entry({ id: 'first', occurredAt: at(6, 11) })],
-      entryCount: 2,
-    };
-
-    drawAt(<DiaryWeek week={twice} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-
-    // The date comes with it, because one of the grow's days holds the end of
-    // one date and the start of the next, and two lines either side of that
-    // boundary would otherwise read as out of order under one day.
-    expect(screen.getByText('D 35 · 20 Sep 09:00')).toBeInTheDocument();
-    expect(screen.getByText('D 29 · 13 Sep 11:00')).toBeInTheDocument();
-  });
-
-  it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
-    // The same rule the owner's card follows: a week of a public diary is seven
-    // of the grow's own days, and a weekday on a window that straddles two
-    // dates disagrees with the stage marker beside it.
-    const evening = { ...week, days: week.days.map((day, index) => ({ ...day, startsAt: at(6 - index, 22) })) };
-
-    drawAt(<DiaryWeek week={evening} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-
-    const tiles = screen
-      .getAllByRole('listitem')
-      .slice(0, 7)
-      .map(tile => tile.textContent ?? '');
-    expect(tiles.map(text => text.replace('Flower', ''))).toEqual(['D 29', 'D 30', 'D 31', 'D 32', 'D 33', 'D 34', 'D 35']);
-  });
-
-  it('marks on the day strip the stage the grow entered inside the week', () => {
-    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-
-    // The pill names the stage the week ended in, so a week that held two of
-    // them says the earlier one here or nowhere.
-    const tiles = screen.getAllByRole('listitem').map(tile => tile.textContent);
-    expect(tiles[2]).toContain('Flower');
-    expect(tiles.filter(text => text?.includes('Flower'))).toHaveLength(1);
-  });
-
-  it('leaves its lines inert, because a stranger corrects nothing and has no sheet to be offered one in', () => {
-    const line = entry({ id: 'e2', kind: 'training', text: 'Defoliated', values: { kind: 'training' }, mediaIds: ['media-2'] });
-    const { container } = drawAt(
-      <DiaryWeek
-        week={{ ...week, entries: [line], entryCount: 1 }}
-        picture={publicPicture('spring-run')}
+  it('says how long a grow ran that ended without a phase, rather than that none has come yet', () => {
+    drawAt(
+      <Diary
+        page={{ ...page, stage: null, preset: null, dayNumber: 19, stageWeek: null, endedAt: NOW.toISO() }}
+        picture={publicPicture(page.slug)}
         now={NOW}
-        current
-        ended={false}
-        asOf={null}
       />,
     );
 
-    // The only button a public row ever carries is a picture's, which opens the
-    // viewer; what was written is words, because the way into a line is the log
-    // sheet and this page lives nowhere near one.
+    expect(screen.getByText(/^19 days · Amnesia, Gelato/)).toBeInTheDocument();
+    expect(screen.queryByText(/No phase yet/)).not.toBeInTheDocument();
+  });
+
+  it('names a reading by what the grow calls it, not by its key', () => {
+    const measured = entry({ authorId: null, values: { kind: 'water', litres: 2, readings: [{ key: 'runoff_ec', value: 1.8, plantId: null }] } });
+    drawAt(<Diary page={{ ...page, weeks: [{ ...week, days: [day(0, { entries: [measured] })] }] }} picture={publicPicture(page.slug)} now={NOW} />);
+
+    expect(screen.getByRole('article', { name: 'Today · Day 35' })).toHaveTextContent(/Runoff EC 1\.8 mS\/cm/);
+    expect(screen.queryByText(/runoff_ec/)).not.toBeInTheDocument();
+  });
+
+  it('leaves its lines inert, because a stranger corrects nothing and has no sheet to be offered one in', () => {
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Defoliated/ })).not.toBeInTheDocument();
-    expect(container.querySelectorAll('li button')).toHaveLength(1);
+    // Nor does a picture lead into the account: it opens where it stands.
+    expect(screen.queryByRole('link', { name: /Camera picture/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Camera picture of day 35/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('says of an empty week of a diary that is over that nothing was logged, not that nothing has been yet', () => {
-    const empty = { ...week, entries: [], entryCount: 0 };
-
-    const { unmount } = drawAt(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended asOf={null} />);
-    expect(screen.getByText('Nothing was logged this week')).toBeInTheDocument();
+  it('has no today in a diary that is over, or that a link stopped short of: its days are dates', () => {
+    const { unmount } = drawAt(<Diary page={{ ...page, endedAt: at(0) }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.queryByRole('article', { name: /^Today/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Sat 19 Sep · Day 35' })).toBeInTheDocument();
     unmount();
 
-    // A past week of a running grow can still be written in - a line is filed
-    // against the day it is dated to - so there the promise is kept.
-    drawAt(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-    expect(screen.getByText('Nothing logged this week yet')).toBeInTheDocument();
-  });
-
-  it('says nothing where the card carries the whole week', () => {
-    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
-    expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+    drawAt(<Diary page={{ ...page, range: { startsAt: at(34), endsAt: at(1, 12) } }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.queryByRole('article', { name: /^Today/ })).not.toBeInTheDocument();
   });
 
   it('links to the author only where they published a profile, because a handle with none leads nowhere', () => {
@@ -418,7 +482,25 @@ describe('a public profile', () => {
     // The final day and the day it finished on, beside the age of its last
     // line - three different figures, and the card used to draw the first and
     // the third as if the grow were still running.
-    expect(await screen.findByText(/Day 218 · Curing · ended 24 Aug 2026 · \d+ d ago/)).toBeInTheDocument();
+    expect(await screen.findByText(/Day 218 · Curing · ended 24 Aug 2026 · entry \d+ d ago/)).toBeInTheDocument();
+  });
+
+  /** "vor 20 T" stood under a grow whose camera had taken a picture that morning: the age is of the newest sign of life, named. */
+  it('dates a running grow by its newest picture or reading and says which', async () => {
+    drawRoute('/@mia', '/:handle', <PublicProfileRoute />);
+
+    expect(await screen.findByText(/^Day 22 · Veg · picture [45] min ago$/)).toBeInTheDocument();
+  });
+});
+
+describe('an address nothing is at, signed out', () => {
+  /** It was headed "Terp Control" and offered "Home" beside the frame's own "Open the app": two ways to one place. */
+  it('names itself in the tab and offers the frame´s one way back', () => {
+    drawRoute('/nothing-here', '/:handle', <PublicProfileRoute />);
+
+    expect(screen.getByRole('heading', { name: 'Nothing at this address' })).toBeInTheDocument();
+    expect(document.title).toBe('Nothing at this address · Terp Control');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 });
 
@@ -428,33 +510,13 @@ describe('how old a page says it is', () => {
     expect(windowIsCurrent(NOW.minus({ minutes: 1 }).toISO()!, NOW)).toBe(true);
     expect(windowIsCurrent(NOW.minus({ days: 7 }).toISO()!, NOW)).toBe(false);
   });
-
-  it('dates and dims the newest card of a diary a link stopped short of', () => {
-    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={at(7, 12)} />);
-
-    expect(screen.getByText('Day 29–35')).toBeInTheDocument();
-    const age = screen.getByText(/as of 7 d ago/);
-    expect(age).toHaveAttribute('data-age', 'stale');
-  });
-
-  it('says nothing about age on an earlier week, because dating those would be dating the past', () => {
-    drawAt(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
-
-    expect(screen.getByText('Day 29–35')).toBeInTheDocument();
-    expect(screen.queryByText(/as of/)).not.toBeInTheDocument();
-  });
 });
 
-/**
- * A tent behind a link is the page most likely to be left open in a tab: it
- * signs nobody in, refreshes nothing on its own and outlives the answer it was
- * drawn from, so what it says about the age of a reading has to be judged each
- * time it is drawn rather than taken from the answer once.
- */
 describe('a tent behind a link', () => {
   const sharedSpace = (measuredAt: string): SpaceOverview => ({
     spaceId: 'space-1',
     name: 'Tent 1',
+    climates: [],
     kind: 'tent',
     roomId: null,
     deviceIds: null,
@@ -478,8 +540,10 @@ describe('a tent behind a link', () => {
     grows: [],
     cameras: [],
     entries: [],
+    events: [],
     readingNames: [],
-    dueTasks: [],
+    devices: [],
+    plants: [],
     openAlerts: [],
     people: [],
   });
@@ -494,8 +558,24 @@ describe('a tent behind a link', () => {
 
     drawAt(<SharedSpace space={sharedSpace(at(4))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
-    // The pill above the tiles already aged it; the tiles under it kept saying live.
-    expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
+    // The pill above the tiles already aged it; the tiles under it kept saying live - and said no age of their own.
+    const tile = screen.getByText('25.1').closest('[data-age]');
+    expect(tile).toHaveAttribute('data-age', 'offline');
+    expect(tile).toHaveTextContent(/last value \d\d:\d\d$|last value \d+ \w+ \d\d:\d\d$/);
+  });
+
+  /** A tent called "Zelt" read "Zelt" again under its name: the kind is said where the name does not say it. */
+  it('says the kind of a place only where its name does not', () => {
+    const { unmount } = drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), grows: [] }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+    expect(screen.queryByText('Tent', { exact: true })).not.toBeInTheDocument();
+    unmount();
+
+    drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), name: 'Mothers', grows: [] }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+    expect(screen.getByText('Tent', { exact: true })).toBeInTheDocument();
   });
 
   /**
@@ -555,6 +635,76 @@ describe('a tent behind a link', () => {
     vi.unstubAllGlobals();
   });
 
+  it('holds its Timeline inside the window of a link made for a stretch, and a zoom inside it', async () => {
+    vi.stubGlobal('fetch', fetchStub);
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    drawAt(<SharedSpace space={sharedSpace(at(1, 0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} range={range} />);
+
+    const section = (await screen.findByRole('heading', { name: 'Timeline' })).closest('section')!;
+    await waitFor(() => expect(askedWindow()).toEqual([range.startsAt, range.endsAt].map(one => new Date(one).toISOString())));
+    await expectWindowOnly(section, '16 Sep to 17 Sep');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Zoom in' }));
+    await waitFor(() => expect(askedWindow()).not.toEqual([range.startsAt, range.endsAt].map(one => new Date(one).toISOString())));
+    const [from, to] = askedWindow().map(one => new Date(one!).getTime());
+    expect(from).toBeGreaterThanOrEqual(new Date(range.startsAt).getTime());
+    expect(to).toBeLessThanOrEqual(new Date(range.endsAt).getTime());
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * "Licht 80 % · Licht 2 80 %" on a link onto a place whose controller lit at 80 % and its lamp module at 100 %: a
+   * link is told neither lamp's device, and both strips, keyed alike, read the reading's level.
+   */
+  it('reads each lamp of the place at its own level on a link, numbered, the reading onto its own lamp', async () => {
+    const light = (level: number) => ({
+      output: 'light',
+      deviceId: null,
+      spans: [{ startsAt: sharedTimeline.startsAt, endsAt: sharedTimeline.endsAt }],
+      heardUntil: sharedTimeline.endsAt,
+      points: [12, 6, 0].map(hours => ({ measuredAt: NOW.minus({ hours }).toISO()!, heard: 12, on: 12, level })),
+    });
+    const measuredAt = NOW.minus({ seconds: 20 }).toISO()!;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      if (new URL(String(input), 'http://localhost').pathname.endsWith('/timeline'))
+        return json({
+          ...sharedTimeline,
+          outputs: [light(100), { ...light(80), reading: true }],
+          reading: {
+            measuredAt,
+            values: [{ metric: 'temperature', value: 24.5, measuredAt, state: 'live' }],
+            outputs: [{ output: 'light', on: true, level: 80 }],
+          },
+        });
+      return fetchStub(input);
+    });
+    drawAt(<SharedSpace space={sharedSpace(measuredAt)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    const card = await screen.findByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent('Light 1 100 %'));
+    expect(card).toHaveTextContent('Light 2 80 %');
+    vi.unstubAllGlobals();
+  });
+
+  /** "−", "+" and "Anpassen" stood beside "Nothing measures here": a link's whole window with no curve has nothing to zoom into or tick. */
+  it('offers no zoom and no Adjust in a link`s window where nothing was ever measured', async () => {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname.endsWith('/timeline')) {
+        const [from, to] = [url.searchParams.get('from'), url.searchParams.get('to')];
+        return json({ ...sharedTimeline, panels: [], outputs: [], lastReadingAt: null, startsAt: from, endsAt: to });
+      }
+      return fetchStub(input);
+    });
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    drawAt(<SharedSpace space={sharedSpace(at(1, 0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} range={range} />);
+
+    const section = (await screen.findByRole('heading', { name: 'Timeline' })).closest('section')!;
+    await waitFor(() => expect(within(section).getByText(/No device measures here/)).toBeInTheDocument());
+    for (const name of ['Zoom in', 'Zoom out', 'Adjust']) expect(within(section).queryByRole('button', { name })).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('explains the day’s in-band share where it states it', () => {
     const shown = sharedSpace(NOW.minus({ minutes: 1 }).toISO()!);
     const space: SpaceOverview = { ...shown, verdict: { ...shown.verdict, rating: 'good', inBandFraction: 0.93 } };
@@ -562,6 +712,101 @@ describe('a tent behind a link', () => {
     drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.getByRole('button', { name: '93 % in band' })).toHaveAccessibleDescription(/^The share of the last 24 hours/);
+  });
+
+  /**
+   * "Zuletzt" is the diary's own line, as Start draws it: no name on it, the day it was written, and its
+   * pictures counted in the line, which is the way to them at the link's own addresses.
+   */
+  /** The diary is what a link shows off: a line's pictures stand in it as thumbnails, each the way to itself. */
+  it('says its latest lines as the diary does, draws a line´s pictures in it and opens them through the link', () => {
+    const space: SpaceOverview = {
+      ...sharedSpace(at(0)),
+      entries: [entry({ id: 'e-photo', kind: 'photo', values: { kind: 'photo' }, text: 'The canopy from above', mediaIds: ['one', 'two'] })],
+    };
+
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    const latest = within(screen.getByRole('region', { name: 'Latest' }));
+    const line = latest.getByRole('listitem');
+    expect(line).toHaveTextContent(/^yesterdayPhoto: The canopy from above$/);
+    expect(line.textContent).not.toMatch(/anna/);
+    expect(within(line).getByRole('img', { name: 'Picture 1 of 2' })).toHaveAttribute('src', publicPicture('spring-run')('one', 200));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(within(line).getByRole('img', { name: 'Picture 2 of 2' }));
+    const viewer = screen.getByRole('dialog');
+    expect(viewer).toHaveAccessibleName('Picture 2 of 2');
+    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('two', 1200));
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Previous picture' }));
+    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('one', 1200));
+  });
+
+  /** A line about one plant of several said nothing of which; the link names it as the diary does, by the names the answer carries. */
+  it('names the plants a line is about where the answer names the grow´s plants, and none where it does not', () => {
+    const plants = [
+      { id: 'p1', growId: 'grow-1', label: 'A1' },
+      { id: 'p2', growId: 'grow-1', label: 'B2' },
+      { id: 'p3', growId: 'grow-1', label: 'C3' },
+    ];
+    const watered = entry({ id: 'e-b2', plantIds: ['p2'] });
+    const drawn = drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), entries: [watered], plants }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).toHaveTextContent(/B2/);
+    drawn.unmount();
+
+    // The counts hidden, the answer names no plants and the line names none.
+    drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: [{ ...watered, plantIds: [] }], plants: [] }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/B2/);
+  });
+
+  /** A place's link with two grows: the owner's lines said whose they were, the reader's said nothing. */
+  it('names the grow of each line where two grow in the place, and none beside one', () => {
+    const grow = (growId: string, name: string) => ({ growId, name, dayNumber: 4, stage: null, strains: [], plantCount: 0 });
+    const lines = [
+      entry({ id: 'e-first', growId: 'grow-1', text: 'In the first', occurredAt: at(0, 2) }),
+      entry({ id: 'e-second', growId: 'grow-2', text: 'In the second', occurredAt: at(0, 1) }),
+    ];
+    const drawn = drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: lines, grows: [grow('grow-1', 'Erstgrow'), grow('grow-2', 'Zweitgrow')] as never }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+
+    const said = within(screen.getByRole('region', { name: 'Latest' })).getAllByRole('listitem');
+    expect(said.find(line => /In the first/.test(line.textContent ?? ''))).toHaveTextContent(/Erstgrow/);
+    expect(said.find(line => /In the second/.test(line.textContent ?? ''))).toHaveTextContent(/Zweitgrow/);
+    drawn.unmount();
+
+    // One grow there: nothing to tell apart.
+    drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: lines.slice(0, 1), grows: [grow('grow-1', 'Erstgrow')] as never }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/Erstgrow/);
+  });
+
+  it('says an empty diary once: the curves´ own diary card says it, and no empty "Latest" follows', () => {
+    drawAt(<SharedSpace space={sharedSpace(at(0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.queryByRole('region', { name: 'Latest' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in the diary yet')).not.toBeInTheDocument();
   });
 
   it('still says nothing has been reported of a tent whose window is open', () => {
@@ -621,6 +866,47 @@ describe('following a diary', () => {
 
     restore.mockRestore();
     state.session = SIGNED_OUT;
+  });
+
+  it('draws the curves of where the grow stood on a link for a stretch of days, opened on that stretch and read through the link', async () => {
+    reads.length = 0;
+    drawRoute('/shared/stretch-token', '/shared/:token', <SharedRoute />);
+
+    expect(await screen.findByRole('heading', { name: 'Timeline · Tent 1' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    await waitFor(() => expect(reads).toContainEqual({ path: '/spaces/space-1/timeline', share: 'stretch-token' }));
+    const asked = new URL(
+      String(
+        vi
+          .mocked(fetchStub)
+          .mock.calls.map(call => call[0])
+          .find(url => String(url).includes('/timeline')),
+      ),
+      'http://localhost',
+    );
+    expect([asked.searchParams.get('from'), asked.searchParams.get('to')]).toEqual([at(3, 0), at(1, 0)].map(one => new Date(one).toISOString()));
+    await expectWindowOnly(screen.getByRole('heading', { name: 'Timeline · Tent 1' }).closest('section')!, '16 Sep to 17 Sep');
+  });
+
+  /** A link onto an ended grow said "Du liest alles bis jetzt", as if more were to come. */
+  it('says a link onto a grow that has ended reads the whole grow, and one onto a running grow everything up to now', async () => {
+    const { unmount } = drawRoute('/shared/ended-token', '/shared/:token', <SharedRoute />);
+    expect(await screen.findByText('You are reading the whole grow')).toBeInTheDocument();
+    expect(screen.queryByText(/up to now/)).not.toBeInTheDocument();
+    unmount();
+
+    drawRoute('/shared/a-token', '/shared/:token', <SharedRoute />);
+    expect(await screen.findByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    expect(screen.queryByText('You are reading the whole grow')).not.toBeInTheDocument();
+  });
+
+  it('draws no curves on a link onto a running grow, which is its diary', async () => {
+    reads.length = 0;
+    drawRoute('/shared/a-token', '/shared/:token', <SharedRoute />);
+
+    expect(await screen.findByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^Timeline/ })).not.toBeInTheDocument();
+    expect(reads.some(read => read.path.endsWith('/timeline'))).toBe(false);
   });
 
   it('is on no diary a link leads to, even a public one: a window onto somebody´s grow is not a subscription', async () => {

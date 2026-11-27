@@ -36,6 +36,7 @@ export const planOf = (plan: StoredPlan, mayManage: boolean): Plan => ({
   createdAt: plan.createdAt.toISOString(),
   deviceId: plan.deviceId,
   templateId: plan.templateId,
+  growId: plan.growId ?? null,
   name: plan.name,
   steps: plan.steps.map(answeredStep),
   loop: plan.loop,
