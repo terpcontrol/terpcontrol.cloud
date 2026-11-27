@@ -1,7 +1,7 @@
 ---
 summary: Backing up and restoring a stack beyond the README's commands - what a backup holds and misses, one-database backups, deploy hosts, restoring into a migrated database or from another install
-updated: 2026-11-26
-source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26
+updated: 2026-11-27
+source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26; the full disk the nightly backup caused on 2026-11-27
 paths:
   - backup.sh
   - restore.sh
@@ -33,13 +33,23 @@ needs beyond them.
 | --- | --- |
 | `./backup.sh mongo`, `./backup.sh influx` | one database only. `mongodb` has to be running in any case, `influxdb` unless the argument is `mongo` |
 | `BACKUP_FILENAME=<dir>/<name> ./backup.sh` | where the files go: a path prefix without extension, default the current directory |
+| `BACKUP_RESERVE_GB=<n> ./backup.sh` | free space that has to remain beside the backup, default 5 |
 | `./restore.sh <name>` | both files |
 | `./restore.sh <name>.mongodump` (or `.influxdump`) | that one only |
 
-The dumps are written inside the containers first and then copied out, so a backup briefly needs about twice the
-Mongo dump (archive in the container, `docker cp`) plus three times the InfluxDB backup (backup directory, its tar,
-`docker cp`) free on the Docker host - about 63 GB for a 17.9 GB Mongo and a 15 GB Influx backup (2026-11-26). A
-scheduled backup that keeps yesterday's files until today's are written needs that on top of them.
+The Mongo dump is streamed straight to the host. The InfluxDB backup has to be a directory in the container first;
+its tar is streamed out and the directory removed before the Mongo dump starts. So the peak is about twice the
+InfluxDB backup, or the InfluxDB file plus the Mongo dump, whichever is larger - about 33 GB for a 17.7 GB Mongo and a
+15 GB Influx backup (2026-11-27; the version before streamed nothing and peaked at about 63 GB). A scheduled backup
+that keeps earlier files until the new ones are written needs that on top of them, and a cleanup by age
+(`find -mtime +0`) keeps a manual backup from the day before as well.
+
+Before each step `backup.sh` estimates the size from the database (the data size of all MongoDB databases, the size
+of InfluxDB's engine directory - both a little above the real files) and stops with `not enough disk space` when the
+free space minus `BACKUP_RESERVE_GB` (default 5) would not hold it: a backup that runs the disk full takes down the
+databases of every stack on it ([data-operations.md](../knowledge/data-operations.md#disk-space)). On any failure it
+removes what it left in the containers and its unfinished `*.partial` file, and ends with `BACKUP FAILED` on stderr;
+only complete files carry the backup's name.
 
 ## On a deploy host
 
@@ -53,7 +63,11 @@ scheduled backup that keeps yesterday's files until today's are written needs th
   refreshed by a deploy: copy both again from master when they change. Such a copy from before PR #183 stopped at
   its first line once the env file carried `CUSTOM_SCRIPT_TAG` - `load-env.sh` exports the file through `xargs`, a
   value with spaces or quotes breaks that, `backup.sh` runs under `set -e`, and cron's output went nowhere, so the
-  backup failed silently (2026-11-26). Check that the newest backup carries today's date.
+  backup failed silently (2026-11-26). Check that the newest backup carries today's date: a backup the space check
+  refuses is just as silent there.
+- Production's scheduled copy got the `backup.sh` of PR #198 before it was merged (Chris, 2026-11-27: the old
+  script would have run the disk full again the next night); the replaced one is kept beside it with a `.bak-<date>`
+  suffix. After the merge, compare the copy with master's `backup.sh` and copy again if review changed it.
 - A tree from before 2026-09-18 (a hotfix on an old base) has a `backup.sh` that ignores `COMPOSE_OPTIONS`. Where the
   project name comes from a `-p` flag there, run `mongodump` in the container directly.
 
