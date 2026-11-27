@@ -16,10 +16,12 @@
     "test:integration": "jest --config jest.integration.config.js",
     "migrate": "node dist/migrations/cli.js",
     "migrate:check": "node dist/migrations/cli.js --check",
+    "media:to-s3": "node dist/database/move-media-to-s3.js",
     "lint": "eslint src/ test/",
     "lint:fix": "npm run lint -- --fix"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1178.0",
     "@fastify/compress": "^9.2.0",
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",

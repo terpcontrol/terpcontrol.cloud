@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-11-26
-source: the bucket retention read on an install, 2026-11-26; a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+updated: 2026-11-27
+source: S3 storage for pictures (Chris, 2026-11-27), tried against SeaweedFS; the bucket retention read on an install, 2026-11-26; a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -24,7 +24,7 @@ The model was decided in [ADR 0001](../adr/0001-app-rewrite-data-model.md); what
   `server/src/database/schemas/v1/` - 29 since `targetChanges`, the record of what each device aimed at, joined the
   ADR's 28 (2026-10-01); where the ADR's tables lag, the schemas are the truth. Beside them `migrations`,
   `migrationLock`, the `legacy_*` collections of a migrated install, and the GridFS bucket `imagedata.files`/`.chunks`
-  with every picture, film and export. Firmware binaries are the one payload inside documents (`firmwareBinaries.data`).
+  with every picture, film and export - unless `S3_BUCKET` puts them into an S3 bucket (below). Firmware binaries are the one payload inside documents (`firmwareBinaries.data`).
 - **InfluxDB 2** (volume `influxdata`, bucket `INFLUXDB_BUCKET`): measurement `status` (raw samples) and `status_daily`
   (what climate retention keeps of older days). No setpoints.
 - **Volumes** are named after the compose project (`DOCKER_COMPOSE_NAME`, `.env.sample`), or pre-created ones are named
@@ -90,7 +90,7 @@ Pitfalls, each met at least once:
   against it. `011-entries` asks `buildInfo` and does without `$topN` (5.2+); a spec compares both paths on a modern
   server, neither has run on a real 4.4 (2026-10-04).
 
-## GridFS: pictures, films and exports
+## GridFS or S3: pictures, films and exports
 
 - **Why:** a BSON document holds 16 MiB, and the driver overruns its serialisation buffer before that with a bare
   `RangeError: offset is out of bounds`; a day's full-resolution timelapse (~60 MiB) crash-looped the server that way.
@@ -110,6 +110,16 @@ Pitfalls, each met at least once:
   [terp-cam.md](terp-cam.md), Stills): up to ~48,000 stills, some 6 GB a camera at ~130 KB per 2304x1296 still
   (2026-09). Films are made per day, week and month; the open period's film is replaced as it grows, closed ones are
   kept. Every Mongo backup carries all of it.
+- **S3 instead (`S3_*`, `.env.sample`):** Chris wanted the bytes storable in an S3 bucket, GridFS staying the
+  default (2026-11-27). Objects are keyed `S3_PREFIX` (default `media/`) + the media `id`, so nothing else changes.
+  With a bucket, `ImageStore` writes to S3 only, but reads fall back to GridFS on a missing key and listing and
+  deleting cover both - an install switches without a step in between, and `./move-media-to-s3.sh`
+  (`database/media-to-s3.ts`: copy, compare the size by HEAD, then drop the GridFS file) can run before or after the
+  restart and again after a stop. The delete hook and the account deletion read the setting themselves
+  (`deleteStoredImages`), having nothing to inject. The orphan sweep deletes every object under the prefix that no
+  row names, so a bucket and prefix belong to one install. The SDK's default checksums are off
+  (`WHEN_REQUIRED`): many S3-compatible services refuse them. An unreachable bucket is logged at boot, not fatal -
+  readings and alarms need none. `./backup.sh` does not cover the bucket.
 - **Photos** are stored as a rotated JPEG without metadata; those from before the rewrite keep their EXIF, GPS
   included, in the bucket ([server.md](server.md) has how they are served). A turn the grower asks for in the photo
   entry travels as `rotate` with the upload and is applied by the server on top of the EXIF orientation, rather than
