@@ -839,6 +839,33 @@ describe('enrolling and claiming', () => {
     }
   });
 
+  it('tells the display whether to ask for the join password', () => {
+    const gate = (config: object) => new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, config as never).gate();
+
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: 'join-me' })).toBe('password');
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: '' })).toBe('open');
+    expect(gate({ enableSelfRegistration: true, selfRegistrationPassword: undefined })).toBe('open');
+    expect(gate({ enableSelfRegistration: false, selfRegistrationPassword: '' })).toBe('closed');
+  });
+
+  it('refuses a wrong join password', async () => {
+    expect(
+      await registration.register({ registration_password: 'guess', device_id: 'sim-fridge-9', device_type: 'fridge', username: 'u', password: 'p' }),
+    ).toBeNull();
+  });
+
+  it('enrols without a password where none is configured, whatever an older build sends', async () => {
+    const open = new DeviceRegistrationService(db.devices, db.deviceClasses, db.claimCodes, {
+      enableSelfRegistration: true,
+      selfRegistrationPassword: '',
+    } as never);
+    const enrolAs = (id: string, registration_password: string) =>
+      open.register({ registration_password, device_id: id, device_type: 'fridge', username: `u-${id}`, password: 'p' });
+
+    expect(await enrolAs('sim-fridge-a', '')).toEqual({ fw: 'build-7' });
+    expect(await enrolAs('sim-fridge-b', 'typed anyway')).toEqual({ fw: 'build-7' });
+  });
+
   it('refuses a device whose type this cloud has no class for', async () => {
     expect(
       await registration.register({

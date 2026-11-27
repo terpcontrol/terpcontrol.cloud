@@ -4,7 +4,7 @@ import { readContext } from './context';
 
 export const context = readContext();
 
-export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
+export type Method = 'get' | 'head' | 'post' | 'put' | 'patch' | 'delete' | 'options';
 
 /**
  * The API rate-limits per client IP and trusts one proxy hop, so every client
@@ -27,6 +27,7 @@ export class ApiClient {
   }
 
   public get = (path: string) => this.request('get', path);
+  public head = (path: string) => this.request('head', path);
   public post = (path: string) => this.request('post', path);
   public put = (path: string) => this.request('put', path);
   public patch = (path: string) => this.request('patch', path);
