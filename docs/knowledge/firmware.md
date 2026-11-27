@@ -1,7 +1,7 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, reconnecting and the daily recovery reboot, safety stops, known gaps
-updated: 2026-11-27
-source: Chris (decisions 2026-07..11, security hardening 2026-11-27); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
+updated: 2026-11-14
+source: Chris (decisions 2026-07..11); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -61,9 +61,10 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   fleet offline (`unknown_ca`) with no remote fix, since updates travel over MQTT. A new CA needs a rollout first.
 - `platformio.ini` uses `build_src_filter` (`src_filter` is deprecated). `-fno-rtti` stays out of `build_flags`: the
   framework passes it to every C++ file, and `build_flags` also reach the C compiler, which warned once per file.
-- Flash headroom, November 2026 (with the root-CA bundle): `fridge` ~1.48 MB, 70 % of the OTA slot;
-  `controller` 70 %, `plug` 69 %, `fan` and `light` 68 %. Compare sizes only
-  between builds made back to back with the same toolchain install.
+- Flash headroom, November 2026 (with the root-CA bundle and the German display texts): `fridge` ~1.48 MB, 70 % of
+  the OTA slot; `controller` and `plug` 70 %, `fan` and `light` 68 %. The second language cost 7-8 KB per type (every
+  firmware links the whole text catalog). Compare sizes only between builds made back to back with the same toolchain
+  install.
 - The device's web page (AP portal and phone server form) is `html/index.html`; after editing it run
   `python3 firmware/scripts/html-compress.py` and commit the regenerated `src/html_compressed/index.html.h`.
 
@@ -78,7 +79,7 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `./log-device.sh` streams the serial log at 115200 baud (`pio device monitor` defaults to 9600 and garbles it). It
   does not decode backtraces: that takes `pio device monitor -f esp32_exception_decoder` in `firmware/` with the ELF
   of the very build the device runs.
-- The boot log prints the device's MQTT username (not the password, since 2026-11-27), and an NVS dump (`esptool.py read_flash 0x9000
+- The boot log prints the device's MQTT username and password, and an NVS dump (`esptool.py read_flash 0x9000
   0x4000`) holds the WiFi password and other secrets: keep both out of issues, pull requests and the repository.
 - A crash without a serial line: every boot writes `message-device-booted:<reason>` to the diary. `TASK_WDT` -
   something blocked for 60 s; `PANIC` - a real crash, get a backtrace; `BROWNOUT` - the supply sags, which fits a
@@ -106,7 +107,7 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 ## NVS and RTC memory
 
 - `nvs` (namespace `settings`) holds the WiFi credentials, the custom-MQTT login, one key per smart socket (`sk<n>`),
-  the camera keys, the reboot-watchdog values and the settings document (`config`).
+  the camera keys, the reboot-watchdog values, the display language (`ui_lang`) and the settings document (`config`).
 - Never fill it. `SettingsManager::setStr()` logs a failed write instead of aborting; the abort was a panic loop that
   ended with `nvs_flash_init()` finding no free page and `SettingsManager` erasing the partition, WiFi credentials and
   sockets included. Code that adds entries checks `fg::settings().freeEntries()` first (a new socket leaves 24 free).
@@ -236,37 +237,6 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   controller's failsafe writes no diary line (`sensor_fail_logged` in `controller.h` is never used) and keeps
   sending its last temperature and humidity; only `sensor_type` 0 tells the cloud.
 
-## Security hardening (RED, EN 18031)
-
-Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
-- **Updates only over the air.** Nothing may need a person at the device to enter a key or similar (a public key
-  via the knob is ruled out), and a USB re-flash is no regular path for devices in the field.
-- **The update itself is neither signed nor encrypted.** It travels over HTTPS, with the server's certificate
-  verified. Signing would also break moving a device to another server: registering ends in an OTA of that
-  server's own build ([device-protocol.md 3.1](../device-protocol.md#31-post-deviceregister)).
-- **HTTPS against public roots, plain HTTP still allowed.** Every HTTP call of the device (OTA, `register` with its `HEAD`,
-  `claimcode`) checks an `https://` server against the public root CAs in `src/ca_bundle.gen.h`, which
-  `dev-build.sh` generates from the build container's certifi (Mozilla's list) with ESP-IDF's `gen_crt_bundle.py`.
-  So a device can be moved to any server with a publicly trusted certificate; a self-signed one fails. `http://`
-  stays for local stacks and self-hosted servers without TLS. The Arduino core's mbedtls is built without
-  `MBEDTLS_HAVE_TIME_DATE`: chain and host name are checked, certificate dates are not, so the clock does not matter.
-  The handshake is limited to 30 s (`beginHttp`): the framework's 120 s default outlasts the 60 s loop watchdog.
-  The Arduino core's bundle check looks only at the issuer of the topmost certificate the server sends: a chain
-  that ends in a cross-sign by a root no longer in Mozilla's list fails even when the root below it is in the
-  bundle (`www.google.com`, GTS Root R4 cross-signed by GlobalSign Root CA, November 2026). Let's Encrypt chains
-  work (checked on the fridge: a valid name answered, a wrong name, a self-signed and an expired certificate were
-  refused).
-- **The OTA takes only a 200.** Before, any status was written into the update partition.
-- **`fwupdate` is gone** from the firmware: it took a download from any URL, and the server never published it.
-  The topic stays reserved ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
-- **MQTTS stays as it is:** dev and production builds carry the CA; plaintext MQTT remains for local setups and for
-  devices on older firmware.
-- **The setup access point stays open** (no passphrase): it opens only after a menu action at the device and is
-  rarely used.
-- **No secrets in the serial log:** the boot log no longer prints the MQTT password.
-- **No flash encryption:** irreversible eFuses and a bootloader the prebuilt Arduino core does not have are too
-  much risk, and the device holds no real user data - its credential is per device and revocable on the server.
-
 ## OTA and update channels
 
 - The OTA path is [device-protocol.md 10](../device-protocol.md#10-the-ota-path). `message-device-firmware-update` is
@@ -309,6 +279,19 @@ Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
 - OLED 128x64, 6x8 font, 21 columns; select-menu labels start at x = 20, so they get 18 characters. A screen sets its
   own idle blank-out with `MenuItem::idleTicks()` (default 30 s); screens that send somebody off with a phone stay lit
   for 3 min.
+- The display speaks English or German. Every on-screen text is a row `TEXT(KEY, "english", "deutsch")` in
+  `lib/fghmi/texts.def`, shown with `fg::tr(Text::KEY)`; a row needs a column for every `fg::Lang`, so a new language
+  makes each row that misses it a compile error. Keys are enum names and break on a macro of the same name - build
+  flags such as `MQTT_PORT` and framework macros such as `LIMIT` - so such a key gets a suffix (`MQTT_PORT_LABEL`).
+  Serial output, cloud log keys, socket role ids and units stay English. The language is a
+  device setting in NVS (`ui_lang`), not part of the cloud settings document. A device asks for it at boot only when
+  neither a language nor WiFi is stored, so a device that updates keeps English without being asked; `Settings` -
+  `Language` changes it later and rebuilds the main menu, because menus copy their labels when they are built.
+- The display runs the GFX font in CP437 mode (`cp437(true)`). German letters are the byte macros `L_ae`, `L_oe`,
+  `L_ue`, `L_AE`, `L_OE`, `L_UE` and `L_ss` spliced between literals (`"zur" L_ue "ck"`): a hex escape inside a literal
+  would swallow the hex letters after it, and UTF-8 in the source would print as two wrong glyphs. Limits for German
+  text: 18 characters in a select menu, 17 for a `SelectInput` option (it is drawn as `< option >`), 21 per line
+  elsewhere, at most 4 lines in a `TextDisplay`; format strings keep the English placeholders in the same order.
 - The phone form behind `change server` - `use mobile phone` is unauthenticated (whoever reaches it can point the
   device at any server, and so any firmware), so it listens only while that screen is up, at most 10 min, and refuses
   the POST otherwise. The new server outlives a reboot without being stored: registering ends in an OTA of that

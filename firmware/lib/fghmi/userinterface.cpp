@@ -37,6 +37,7 @@ namespace fg {
     }
 
 
+    UserInterface::display.cp437(true);
     UserInterface::display.clearDisplay();
     UserInterface::display.display();
   }

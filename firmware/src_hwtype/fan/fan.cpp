@@ -1,6 +1,7 @@
 #include "fan.h"
 #include "dashboard.h"
 #include "wifi.h"
+#include "language.h"
 #include "time.h"
 #include "esp_sntp.h"
 
@@ -271,8 +272,8 @@ std::string FanController::serializeSettings() {
 
     menu->addOption("Dashboard", ICON_DASHBOARD, [ui, this](){ ui->pop(); });
 
-    menu->addOption("Control Mode", ICON_SETTINGS, [ui, this](){
-      ui->push<SelectInput>("Control Mode", settings.mode, std::vector<std::string>{"Fixed", "T", "RH", "T&RH"}, [ui, this](uint32_t mode) {
+    menu->addOption(tr(Text::CONTROL_MODE), ICON_SETTINGS, [ui, this](){
+      ui->push<SelectInput>(tr(Text::CONTROL_MODE), settings.mode, std::vector<std::string>{tr(Text::FIXED), tr(Text::FAN_MODE_T), tr(Text::FAN_MODE_RH), tr(Text::FAN_MODE_T_RH)}, [ui, this](uint32_t mode) {
         settings.mode = mode;
         Serial.print("MODE:");
         Serial.println(mode);
@@ -284,15 +285,15 @@ std::string FanController::serializeSettings() {
     });
 
     if(settings.mode == 0) {
-      menu->addOption("Day Speed", ICON_DAY, [ui, this](){
-        ui->push<FloatInput>("Day Speed", settings.day.fixed_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::DAY_SPEED), ICON_DAY, [ui, this](){
+        ui->push<FloatInput>(tr(Text::DAY_SPEED), settings.day.fixed_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.day.fixed_speed = value;
           saveAnduploadSettings();
           ui->pop();
         });
       });
-      menu->addOption("Night Speed", ICON_NIGHT, [ui, this](){
-        ui->push<FloatInput>("Night Speed", settings.night.fixed_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::NIGHT_SPEED), ICON_NIGHT, [ui, this](){
+        ui->push<FloatInput>(tr(Text::NIGHT_SPEED), settings.night.fixed_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.night.fixed_speed = value;
           saveAnduploadSettings();
           ui->pop();
@@ -300,15 +301,15 @@ std::string FanController::serializeSettings() {
       });
     }
     if(settings.mode == 1 || settings.mode == 3) {
-      menu->addOption("Day Temperature", ICON_TEMPERATURE, [ui, this](){
-        ui->push<FloatInput>("Day Temperature", settings.day.temperature, "C", 0, 50, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::DAY_TEMPERATURE), ICON_TEMPERATURE, [ui, this](){
+        ui->push<FloatInput>(tr(Text::DAY_TEMPERATURE), settings.day.temperature, "C", 0, 50, 1, 0, [ui, this](float value) {
           settings.day.temperature = value;
           saveAnduploadSettings();
           ui->pop();
         });
       });
-      menu->addOption("Night Temperature", ICON_TEMPERATURE, [ui, this](){
-        ui->push<FloatInput>("Night Temperature", settings.night.temperature, "C", 0, 50, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::NIGHT_TEMPERATURE), ICON_TEMPERATURE, [ui, this](){
+        ui->push<FloatInput>(tr(Text::NIGHT_TEMPERATURE), settings.night.temperature, "C", 0, 50, 1, 0, [ui, this](float value) {
           settings.night.temperature = value;
           saveAnduploadSettings();
           ui->pop();
@@ -316,15 +317,15 @@ std::string FanController::serializeSettings() {
       });
     }
     if(settings.mode == 2 || settings.mode == 3) {
-      menu->addOption("Day Humidity", ICON_HUMIDITY, [ui, this](){
-        ui->push<FloatInput>("Day Humidity", settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::DAY_HUMIDITY), ICON_HUMIDITY, [ui, this](){
+        ui->push<FloatInput>(tr(Text::DAY_HUMIDITY), settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.day.humidity = value;
           saveAnduploadSettings();
           ui->pop();
         });
       });
-      menu->addOption("Night Humidity", ICON_HUMIDITY, [ui, this](){
-        ui->push<FloatInput>("Night Humidity", settings.night.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::NIGHT_HUMIDITY), ICON_HUMIDITY, [ui, this](){
+        ui->push<FloatInput>(tr(Text::NIGHT_HUMIDITY), settings.night.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.night.humidity = value;
           saveAnduploadSettings();
           ui->pop();
@@ -332,22 +333,22 @@ std::string FanController::serializeSettings() {
       });
     }
     if(settings.mode != 0) {
-      menu->addOption("Min. Speed", ICON_FAN, [ui, this](){
-        ui->push<FloatInput>("Min. Speed", settings.min_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::MIN_SPEED), ICON_FAN, [ui, this](){
+        ui->push<FloatInput>(tr(Text::MIN_SPEED), settings.min_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.min_speed = value;
           saveAnduploadSettings();
           ui->pop();
         });
       });
-      menu->addOption("Max. Speed Day", ICON_DAY, [ui, this](){
-        ui->push<FloatInput>("Max. Speed Day", settings.day.max_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::MAX_SPEED_DAY), ICON_DAY, [ui, this](){
+        ui->push<FloatInput>(tr(Text::MAX_SPEED_DAY), settings.day.max_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.day.max_speed = value;
           saveAnduploadSettings();
           ui->pop();
         });
       });
-      menu->addOption("Max. Speed Night", ICON_NIGHT, [ui, this](){
-        ui->push<FloatInput>("Max. Speed Night", settings.night.max_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::MAX_SPEED_NIGHT), ICON_NIGHT, [ui, this](){
+        ui->push<FloatInput>(tr(Text::MAX_SPEED_NIGHT), settings.night.max_speed, "%", 0, 100, 1, 0, [ui, this](float value) {
           settings.night.max_speed = value;
           saveAnduploadSettings();
           ui->pop();
@@ -358,8 +359,12 @@ std::string FanController::serializeSettings() {
       showTerpCamUi(ui, &cloud);
     });
 
-    menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
+    menu->addOption(tr(Text::WIFI_CONNECTION), ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
+    });
+
+    menu->addOption(tr(Text::SETTINGS), ICON_SETTINGS, [ui, this](){
+      showSettingsUi(ui, [ui, this](){ initSettingsMenu(ui); });
     });
   }
 

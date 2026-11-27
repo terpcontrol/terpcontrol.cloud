@@ -25,6 +25,9 @@
 
 #include "html_compressed/index.html.h"
 
+using fg::tr;
+using fg::Text;
+
 #define WIFI_SCAN_TIMEOUT 30000
 
 static constexpr TickType_t SMART_SOCKET_RESEND_PERIOD = configTICK_RATE_HZ * 60;
@@ -109,11 +112,11 @@ namespace fg {
     uint8_t y = ssid.empty() ? 24 : 12;
 
     if(!ssid.empty()) {
-      y = printWrapped("connect to wifi:", y);
+      y = printWrapped(tr(Text::CONNECT_TO_WIFI), y);
       y = printWrapped(ssid, y) + 4;
     }
 
-    y = printWrapped("open in browser:", y);
+    y = printWrapped(tr(Text::OPEN_IN_BROWSER), y);
 
     // An address of full length does not fit on one line behind the scheme.
     // Breaking between the two keeps it whole and typeable; letting the line
@@ -144,7 +147,7 @@ namespace fg {
     UserInterface::display.setTextSize(1);
 
     std::stringstream value_print;
-    value_print << "current connection:";
+    value_print << tr(Text::CURRENT_CONNECTION);
     UserInterface::display.setCursor(1, 1);
     UserInterface::display.write(value_print.str().c_str());
 
@@ -964,16 +967,32 @@ static void noteSocketCommandSent(SmartSocket& socket) {
   socket.disabled_until_tick = 0;
 }
 
+// The German names the app uses; English keeps showing the role ids.
+static std::string socketRoleLabel(const std::string& role) {
+  if(fg::language() == fg::Lang::EN) return role;
+  static const std::array<std::pair<const char*, const char*>, 12> names = {{
+    {"dehumidifier", "Entfeuchter"}, {"heater", "Heizung"}, {"light", "Licht"},
+    {"secondary_light", "Zweites Licht"}, {"co2", "CO2"}, {"humidifier", "Befeuchter"},
+    {"exhaust", "Abluft"}, {"circulation", "Umluft"}, {"fan", "L" L_ue "fter"},
+    {"pump", "Pumpe"}, {"custom_timer", "Eigener Timer"}, {"manual", "Manuell"},
+  }};
+  for(const auto& name : names) {
+    if(role == name.first) return name.second;
+  }
+  return role;
+}
+
 // "3 slight 34CD": position, short role and the tail of the hardware id — two
 // sockets sharing a role have to stay apart on a 21-character display.
 static std::string smartSocketLabel(size_t index) {
   const SmartSocket& socket = smart_sockets[index];
   std::string label = std::to_string(index + 1) + " ";
 
-  if(socket.role == "dehumidifier") label += "dehum";
-  else if(socket.role == "secondary_light") label += "slight";
-  else if(socket.role == "heater") label += "heat";
-  else label += socket.role;
+  if(socket.role == "dehumidifier") label += tr(Text::ROLE_SHORT_DEHUMIDIFIER);
+  else if(socket.role == "secondary_light") label += tr(Text::ROLE_SHORT_SEC_LIGHT);
+  else if(socket.role == "heater") label += tr(Text::ROLE_SHORT_HEATER);
+  else if(socket.role == "custom_timer") label += tr(Text::ROLE_SHORT_CUSTOM_TIMER);
+  else label += socketRoleLabel(socket.role);
 
   if(socket.id.size() >= 4) {
     label += " " + socket.id.substr(socket.id.size() - 4);
@@ -983,14 +1002,14 @@ static std::string smartSocketLabel(size_t index) {
 
 static void showSmartSocketTestSelection(unsigned preselected_index) {
   if(smart_sockets.empty()) {
-    ui_handle->push<fg::TextDisplay>("no socket paired", 1, []() {
+    ui_handle->push<fg::TextDisplay>(tr(Text::NO_SOCKET_PAIRED), 1, []() {
       ui_handle->pop();
     });
     return;
   }
 
   std::vector<std::string> options;
-  options.push_back("back");
+  options.push_back(tr(Text::BACK));
   for(size_t i = 0; i < smart_sockets.size(); ++i) {
     options.push_back(smartSocketLabel(i));
   }
@@ -999,7 +1018,7 @@ static void showSmartSocketTestSelection(unsigned preselected_index) {
     preselected_index = 0;
   }
 
-  ui_handle->push<fg::SelectInput>("test socket", preselected_index, options, [](unsigned selected) {
+  ui_handle->push<fg::SelectInput>(tr(Text::TEST_SOCKET), preselected_index, options, [](unsigned selected) {
     ui_handle->pop();
 
     if(selected == 0 || selected > smart_sockets.size()) {
@@ -1009,7 +1028,7 @@ static void showSmartSocketTestSelection(unsigned preselected_index) {
     const size_t socket_index = selected - 1;
     const unsigned index_for_return = selected;
 
-    std::vector<std::string> actions = {"back", "turn on", "turn off"};
+    std::vector<std::string> actions = {tr(Text::BACK), tr(Text::TURN_ON), tr(Text::TURN_OFF)};
     ui_handle->push<fg::SelectInput>(smartSocketLabel(socket_index), 0, actions, [socket_index, index_for_return](unsigned action_selected) {
       ui_handle->pop();
 
@@ -1026,7 +1045,7 @@ static void showSmartSocketTestSelection(unsigned preselected_index) {
         }
       }
 
-      ui_handle->push<fg::TextDisplay>(ok ? "command sent" : "command failed", 1, [index_for_return]() {
+      ui_handle->push<fg::TextDisplay>(ok ? tr(Text::COMMAND_SENT) : tr(Text::COMMAND_FAILED), 1, [index_for_return]() {
         ui_handle->pop();
         showSmartSocketTestSelection(index_for_return);
       });
@@ -1040,21 +1059,21 @@ static void showSmartSocketTestSelection(unsigned preselected_index) {
 // and the pairing flow above already blocks for longer than this.
 static void runSocketSearchNow() {
   if(!wifiIsConnected()) {
-    ui_handle->push<fg::TextDisplay>("no wifi", 1, []() { ui_handle->pop(); });
+    ui_handle->push<fg::TextDisplay>(tr(Text::NO_WIFI), 1, []() { ui_handle->pop(); });
     return;
   }
   if(smart_sockets.empty()) {
-    ui_handle->push<fg::TextDisplay>("no socket paired", 1, []() { ui_handle->pop(); });
+    ui_handle->push<fg::TextDisplay>(tr(Text::NO_SOCKET_PAIRED), 1, []() { ui_handle->pop(); });
     return;
   }
 
   socket_search.stop();
   if(!socket_search.start(socketAuthQueries())) {
-    ui_handle->push<fg::TextDisplay>("search failed", 1, []() { ui_handle->pop(); });
+    ui_handle->push<fg::TextDisplay>(tr(Text::SEARCH_FAILED), 1, []() { ui_handle->pop(); });
     return;
   }
 
-  ui_handle->push<fg::TextDisplay>("searching...");
+  ui_handle->push<fg::TextDisplay>(tr(Text::SEARCHING));
   ui_handle->loop();
 
   unsigned matched = 0;
@@ -1068,7 +1087,7 @@ static void runSocketSearchNow() {
 
   ui_handle->pop();
   char message[32];
-  snprintf(message, sizeof(message), "%u of %u found", matched, (unsigned)smart_sockets.size());
+  snprintf(message, sizeof(message), tr(Text::SOCKETS_FOUND), matched, (unsigned)smart_sockets.size());
   ui_handle->push<fg::TextDisplay>(message, 1, []() {
     ui_handle->pop();
   });
@@ -1076,19 +1095,19 @@ static void runSocketSearchNow() {
 
 static void runConnectSocketFlow() {
   if(!canStoreAnotherSocket()) {
-    ui_handle->push<fg::TextDisplay>("socket limit\nreached", 1, []() {
+    ui_handle->push<fg::TextDisplay>(tr(Text::SOCKET_LIMIT_REACHED), 1, []() {
       ui_handle->pop();
     });
     return;
   }
 
-  ui_handle->push<fg::TextDisplay>("scanning...");
+  ui_handle->push<fg::TextDisplay>(tr(Text::SCANNING));
   ui_handle->loop();
 
   scanned_smart_socket_ssids = scanSmartSocketSsids();
   std::vector<std::string> socket_options;
   socket_options.reserve(scanned_smart_socket_ssids.size() + 1);
-  socket_options.push_back("back");
+  socket_options.push_back(tr(Text::BACK));
   for(const auto& socket_ssid : scanned_smart_socket_ssids) {
     socket_options.push_back(smartSocketDisplayName(socket_ssid));
   }
@@ -1096,13 +1115,13 @@ static void runConnectSocketFlow() {
   ui_handle->pop();
 
   if(scanned_smart_socket_ssids.empty()) {
-    ui_handle->push<fg::TextDisplay>("no smart socket found", 1, []() {
+    ui_handle->push<fg::TextDisplay>(tr(Text::NO_SMART_SOCKET_FOUND), 1, []() {
       ui_handle->pop();
     });
     return;
   }
 
-  ui_handle->push<fg::SelectInput>("select socket", 0, socket_options, [=](unsigned selected) {
+  ui_handle->push<fg::SelectInput>(tr(Text::SELECT_SOCKET), 0, socket_options, [=](unsigned selected) {
     ui_handle->pop();
 
     if(selected == 0) {
@@ -1111,14 +1130,14 @@ static void runConnectSocketFlow() {
 
     std::string socket_ssid = scanned_smart_socket_ssids[selected - 1];
     if(!isSmartSocketSsid(socket_ssid)) {
-      ui_handle->push<fg::TextDisplay>("invalid socket", 1, []() {
+      ui_handle->push<fg::TextDisplay>(tr(Text::INVALID_SOCKET), 1, []() {
         ui_handle->pop();
       });
       return;
     }
 
     std::vector<std::string> role_options = getSocketRoleOptions();
-    ui_handle->push<fg::SelectInput>("select role", 0, role_options, [=](unsigned role_selected) {
+    ui_handle->push<fg::SelectInput>(tr(Text::SELECT_ROLE), 0, role_options, [=](unsigned role_selected) {
       ui_handle->pop();
 
       if(role_selected == 0) {
@@ -1128,7 +1147,7 @@ static void runConnectSocketFlow() {
       const std::vector<std::string>& roles = getSocketRolesList();
       std::string socket_role = roles[role_selected];
 
-      ui_handle->push<fg::TextDisplay>("connecting...");
+      ui_handle->push<fg::TextDisplay>(tr(Text::CONNECTING));
       ui_handle->loop();
 
       const std::string home_ssid = primary_ssid;
@@ -1136,7 +1155,7 @@ static void runConnectSocketFlow() {
 
       if(connectToWifi(socket_ssid, "")) {
         ui_handle->pop();
-        ui_handle->push<fg::TextDisplay>("connected");
+        ui_handle->push<fg::TextDisplay>(tr(Text::CONNECTED));
         ui_handle->loop();
 
         std::string socket_ip;
@@ -1151,7 +1170,7 @@ static void runConnectSocketFlow() {
 
         ui_handle->pop();
         if(provisioned) {
-          ui_handle->push<fg::TextDisplay>("socket ready", 1, [socket_ip]() {
+          ui_handle->push<fg::TextDisplay>(tr(Text::SOCKET_READY), 1, [socket_ip]() {
             Serial.print("smart socket ready: ");
             Serial.println(socket_ip.c_str());
             ui_handle->pop();
@@ -1165,7 +1184,7 @@ static void runConnectSocketFlow() {
       }
       else {
         ui_handle->pop();
-        ui_handle->push<fg::TextDisplay>("conn failed", 1, []() {
+        ui_handle->push<fg::TextDisplay>(tr(Text::CONN_FAILED), 1, []() {
           ui_handle->pop();
         });
       }
@@ -1180,15 +1199,15 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   ensureSmartSocketsLoaded();
 
   auto menu = ui->push<SelectMenu>();
-  menu->addOption("back...", [ui]() { ui->pop(); });
+  menu->addOption(tr(Text::BACK_MENU), [ui]() { ui->pop(); });
 
-  menu->addOption("test socket", []() {
+  menu->addOption(tr(Text::TEST_SOCKET), []() {
     showSmartSocketTestSelection(0);
   });
 
-  menu->addOption("connect socket", []() {
+  menu->addOption(tr(Text::CONNECT_SOCKET), []() {
     if(!wifi_configured) {
-      ui_handle->push<TextDisplay>("wifi not configured", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::WIFI_NOT_CONFIGURED), 1, []() {
         ui_handle->pop();
       });
       return;
@@ -1196,25 +1215,25 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     runConnectSocketFlow();
   });
 
-  menu->addOption("find sockets", []() {
+  menu->addOption(tr(Text::FIND_SOCKETS), []() {
     runSocketSearchNow();
   });
 
-  menu->addOption("disconnect", []() {
+  menu->addOption(tr(Text::SOCKET_DISCONNECT), []() {
     if(smart_sockets.empty()) {
-      ui_handle->push<TextDisplay>("no socket paired", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::NO_SOCKET_PAIRED), 1, []() {
         ui_handle->pop();
       });
       return;
     }
 
     std::vector<std::string> disconnect_options;
-    disconnect_options.push_back("back");
+    disconnect_options.push_back(tr(Text::BACK));
     for(size_t i = 0; i < smart_sockets.size(); ++i) {
       disconnect_options.push_back(smartSocketLabel(i));
     }
 
-    ui_handle->push<SelectInput>("disconnect socket", 0, disconnect_options, [](unsigned selected) {
+    ui_handle->push<SelectInput>(tr(Text::DISCONNECT_SOCKET), 0, disconnect_options, [](unsigned selected) {
       ui_handle->pop();
 
       if(selected == 0 || selected > smart_sockets.size()) {
@@ -1223,7 +1242,7 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
       wifiRemoveSmartSocket(smart_sockets[selected - 1].role, (int)(selected - 1));
 
-      ui_handle->push<TextDisplay>("socket disconnected", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::SOCKET_DISCONNECTED), 1, []() {
         ui_handle->pop();
       });
     });
@@ -1391,37 +1410,37 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   bool reconnected_to_home = false;
   auto reconnect_home = [&]() {
     if(reconnected_to_home) return true;
-    emit_status("reconnect wifi");
+    emit_status(tr(Text::RECONNECT_WIFI));
     if(!connectToWifi(home_ssid_clean, home_password_clean)) return false;
     reconnected_to_home = true;
     return true;
   };
   auto fail_with_reconnect = [&](const char* message) {
     error_message = message;
-    if(!reconnect_home()) error_message = "reconnect fail";
+    if(!reconnect_home()) error_message = tr(Text::RECONNECT_FAIL);
     return false;
   };
 
-  emit_status("read cam id...");
+  emit_status(tr(Text::READ_CAM_ID));
   delayWithWatchdog(1500);
   std::string status_body;
   std::string status_url = std::string(TERP_CAM_AP_BASE) + "/get_status.cgi?" + TERP_CAM_AUTH;
   if(!httpGet(status_url.c_str(), &status_body)) {
-    return fail_with_reconnect("cam not reachable");
+    return fail_with_reconnect(tr(Text::CAM_NOT_REACHABLE));
   }
   did = sanitizeSettingString(parseCamVar(status_body, "realdeviceid"));
   if(did.empty()) {
     did = sanitizeSettingString(parseCamVar(status_body, "deviceid"));
   }
   if(did.empty()) {
-    return fail_with_reconnect("cam id fail");
+    return fail_with_reconnect(tr(Text::CAM_ID_FAIL));
   }
   // The P2P id is what the camera answers discovery with. Knowing it from the
   // start means the controller never mistakes another camera on this network -
   // the one this replaces, a neighbour's - for this one.
   const std::string uid = fg::terpCamCanonicalUid(parseCamVar(status_body, "deviceid"));
 
-  emit_status("cam stream...");
+  emit_status(tr(Text::CAM_STREAM));
   const std::string password = fg::terpCamGeneratePassword();
   std::string mac;
   std::string auth = TERP_CAM_AUTH;
@@ -1435,7 +1454,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   // ignores it only keeps its timestamp.
   httpGet((std::string(TERP_CAM_AP_BASE) + "/camera_control.cgi?" + auth + "&param=10&value=0&").c_str());
 
-  emit_status("scan cam wifi...");
+  emit_status(tr(Text::SCAN_CAM_WIFI));
   std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + auth;
   httpGet(scan_url.c_str());
   delayWithWatchdog(3000);
@@ -1444,7 +1463,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   httpGet(scan_result_url.c_str(), &scan_body);
   int authtype = parseCamWifiAuthtype(scan_body, home_ssid_clean);
 
-  emit_status("join home wifi...");
+  emit_status(tr(Text::JOIN_HOME_WIFI));
   // set_wifi.cgi applies immediately and drops the AP, so this GET usually times
   // out — that is the success signal, not a failure. The PSK param is wpa_psk
   // (underscore); the WPA mode goes in authtype (encrypt is WEP-only).
@@ -1457,7 +1476,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   httpGet(set_url.c_str());   // return value ignored: the AP drops before replying
 
   if(!reconnect_home()) {
-    error_message = "reconnect fail";
+    error_message = tr(Text::RECONNECT_FAIL);
     return false;
   }
 
@@ -1484,16 +1503,16 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
       smart_socket_cloud_handle->log("hardware-info:webcam_pwd=" + password, 0);
       smart_socket_cloud_handle->log("hardware-info:webcam_rtsp=on", 0);
     }
-    emit_status("find cam...");
-    emit_status(fg::terpCamFindStream(smart_socket_cloud_handle, 120000) ? "cam found" : "cam not found yet");
+    emit_status(tr(Text::FIND_CAM));
+    emit_status(fg::terpCamFindStream(smart_socket_cloud_handle, 120000) ? tr(Text::CAM_FOUND) : tr(Text::CAM_NOT_FOUND_YET));
   }
   else {
     // Replace the manufacturer's published password now that the camera is on the
     // network. Not while it was still on its setup AP: it does not apply the
     // change until it is provisioned, and over P2P it takes effect at once.
     if(smart_socket_cloud_handle != nullptr) smart_socket_cloud_handle->log("hardware-info:webcam_rtsp=off", 0);
-    emit_status("secure cam...");
-    emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? "cam secured" : "cam kept default pw");
+    emit_status(tr(Text::SECURE_CAM));
+    emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? tr(Text::CAM_SECURED) : tr(Text::CAM_KEPT_DEFAULT_PW));
   }
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
@@ -1501,7 +1520,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
     smart_socket_cloud_handle->log("hardware-info:webcam_uid=" + (uid.empty() ? std::string("none") : uid), 0);
   }
 
-  emit_status("cam configured");
+  emit_status(tr(Text::CAM_CONFIGURED));
   delayWithWatchdog(1500);
   return true;
 }
@@ -1536,11 +1555,11 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   smart_socket_cloud_handle = cloud;
 
   auto menu = ui->push<SelectMenu>();
-  menu->addOption("back...", [ui]() { ui->pop(); });
+  menu->addOption(tr(Text::BACK_MENU), [ui]() { ui->pop(); });
 
-  menu->addOption("connect cam", []() {
+  menu->addOption(tr(Text::CONNECT_CAM), []() {
     if(!wifi_configured) {
-      ui_handle->push<TextDisplay>("wifi not configured", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::WIFI_NOT_CONFIGURED), 1, []() {
         ui_handle->pop();
       });
       return;
@@ -1549,13 +1568,13 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     // Only one camera per module: refuse to provision a second one while a
     // camera is still connected (the user must disconnect it first).
     if(!sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
-      ui_handle->push<TextDisplay>("cam already\nconnected -\ndisconnect first", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::CAM_ALREADY_CONNECTED), 1, []() {
         ui_handle->pop();
       });
       return;
     }
 
-    ui_handle->push<TextDisplay>("scanning...");
+    ui_handle->push<TextDisplay>(tr(Text::SCANNING));
     ui_handle->loop();
 
     std::vector<std::string> all_ssids = scanWifiNetworks();
@@ -1569,13 +1588,13 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     ui_handle->pop();
     if(cam_ssid.empty()) {
-      ui_handle->push<TextDisplay>("no cam found", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::NO_CAM_FOUND), 1, []() {
         ui_handle->pop();
       });
       return;
     }
 
-    ui_handle->push<TextDisplay>("connecting...");
+    ui_handle->push<TextDisplay>(tr(Text::CONNECTING));
     ui_handle->loop();
 
     const std::string home_ssid = primary_ssid;
@@ -1584,12 +1603,12 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     // Join the camera's open AP, provision it onto the home wifi, remember the DID.
     if(!connectToWifi(cam_ssid, "")) {
       ui_handle->pop();
-      ui_handle->push<TextDisplay>("conn failed", 1, []() { ui_handle->pop(); });
+      ui_handle->push<TextDisplay>(tr(Text::CONN_FAILED), 1, []() { ui_handle->pop(); });
       return;
     }
 
     ui_handle->pop();
-    ui_handle->push<TextDisplay>("connected");
+    ui_handle->push<TextDisplay>(tr(Text::CONNECTED));
     ui_handle->loop();
 
     std::string did;
@@ -1604,7 +1623,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     ui_handle->pop();
     if(provisioned) {
-      ui_handle->push<TextDisplay>("cam ready", 1, [did]() {
+      ui_handle->push<TextDisplay>(tr(Text::CAM_READY), 1, [did]() {
         Serial.print("terp cam ready: ");
         Serial.println(did.c_str());
         ui_handle->pop();
@@ -1617,13 +1636,13 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     }
   });
 
-  menu->addOption("disconnect cam", []() {
+  menu->addOption(tr(Text::DISCONNECT_CAM), []() {
     if(sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
       // No camera id, but an interrupted pairing or an older build can still have
       // left the camera's other keys behind. Clear them anyway, so disconnecting
       // always leaves the module as if no camera had ever been paired.
       forgetTerpCam();
-      ui_handle->push<TextDisplay>("no cam connected", 1, []() {
+      ui_handle->push<TextDisplay>(tr(Text::NO_CAM_CONNECTED), 1, []() {
         ui_handle->pop();
       });
       return;
@@ -1631,8 +1650,8 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     // Disconnecting loses the camera pairing (it has to be re-provisioned from
     // its AP), so confirm first — same idiom as the "sockets will be cleared" flow.
-    std::vector<std::string> confirm_options = {"cancel", "disconnect"};
-    ui_handle->push<fg::SelectInput>("disconnect cam?", 0, confirm_options, [](unsigned selected) {
+    std::vector<std::string> confirm_options = {tr(Text::CANCEL), tr(Text::DISCONNECT)};
+    ui_handle->push<fg::SelectInput>(tr(Text::CONFIRM_DISCONNECT_CAM), 0, confirm_options, [](unsigned selected) {
       ui_handle->pop();
       if(selected == 0) {
         return;
@@ -1649,7 +1668,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       // the camera's reset button and confirms with OK - no waiting for the AP
       // (Chris, 2026-11-27).
       const std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
-      ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
+      ui_handle->push<TextDisplay>(tr(Text::RESETTING_CAM), 0, [](){});
       ui_handle->loop();
       // The P2P reset logs its own outcome; the one over the AP is logged here.
       const bool reset_over_lan = !fg::terpCamStreams() && fg::terpCamFactoryReset(smart_socket_cloud_handle);
@@ -1660,16 +1679,16 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         smart_socket_cloud_handle->log(reset_ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", reset_ok ? 0 : 1);
       }
       forgetTerpCam();
-      ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
-                                            : "cam disconnected\nreset failed -\npress the cam's\nreset button",
+      ui_handle->push<TextDisplay>(reset_ok ? tr(Text::CAM_RESET)
+                                            : tr(Text::CAM_RESET_BY_HAND),
                                    1, []() { ui_handle->pop(); });
     });
   });
 
-  menu->addOption("show id", []() {
+  menu->addOption(tr(Text::SHOW_ID), []() {
     std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
     if(did.empty()) {
-      did = "none";
+      did = tr(Text::NONE);
     }
     ui_handle->push<TextDisplay>(did.c_str(), 1, []() {
       ui_handle->pop();
@@ -1684,20 +1703,20 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   auto menu = ui->push<SelectMenu>();
 
-  menu->addOption("back...", [ui](){ ui->pop(); });
+  menu->addOption(tr(Text::BACK_MENU), [ui](){ ui->pop(); });
 
   if(wifi_configured) {
 
-    menu->addOption("Show Wifi Status", [ui](){
+    menu->addOption(tr(Text::SHOW_WIFI_STATUS), [ui](){
       ui->push<WifiStaDash>(WiFi.SSID().c_str(), WiFi.localIP().toString().c_str(), static_cast<float>(WiFi.RSSI()), [ui]() {
         ui->pop();
       });
     });
 
-    menu->addOption("clear saved wifi", [ui](){
+    menu->addOption(tr(Text::CLEAR_SAVED_WIFI), [ui](){
       auto perform_clear = []() {
         resetCredentials();
-        ui_handle->push<TextDisplay>("wifi connection cleared");
+        ui_handle->push<TextDisplay>(tr(Text::WIFI_CONNECTION_CLEARED));
         ui_handle->loop();
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         ESP.restart();
@@ -1718,8 +1737,8 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         return;
       }
 
-      std::vector<std::string> confirm_options = {"cancel", "clear anyway"};
-      ui_handle->push<fg::SelectInput>("sockets will be cleared", 0, confirm_options, [perform_clear](unsigned selected) {
+      std::vector<std::string> confirm_options = {tr(Text::CANCEL), tr(Text::CLEAR_ANYWAY)};
+      ui_handle->push<fg::SelectInput>(tr(Text::SOCKETS_WILL_BE_CLEARED), 0, confirm_options, [perform_clear](unsigned selected) {
         ui_handle->pop();
         if(selected == 1) {
           perform_clear();
@@ -1728,7 +1747,7 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     });
 
 #ifdef ENABLE_CUSTOM_MQTT
-    menu->addOption("custom connection", [ui, cloud](){
+    menu->addOption(tr(Text::CUSTOM_CONNECTION), [ui, cloud](){
       custom_mqtt_server = fg::settings().getStr("mqtt_server");
       custom_mqtt_user = fg::settings().getStr("mqtt_user");
       custom_mqtt_port = fg::settings().getStr("mqtt_port");
@@ -1744,47 +1763,47 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       }
 
       auto mqttmenu = ui_handle->push<SelectMenu>();
-      mqttmenu->addOption("back...", [ui](){ ui->pop(); });
+      mqttmenu->addOption(tr(Text::BACK_MENU), [ui](){ ui->pop(); });
 
       if(custom_mqtt_enabled) {
-        mqttmenu->addOption("disconnect", [ui](){
+        mqttmenu->addOption(tr(Text::DISCONNECT), [ui](){
           ui_handle->pop();
           fg::settings().setU8("mqtt_enabled", 0);
           ESP.restart();
         });
       }
       else {
-        mqttmenu->addOption("MQTT Server", [ui](){
-          ui_handle->push<TextEntry>("MQTT Server", custom_mqtt_server, [](std::string _mqtt_server) {
+        mqttmenu->addOption(tr(Text::MQTT_SERVER), [ui](){
+          ui_handle->push<TextEntry>(tr(Text::MQTT_SERVER), custom_mqtt_server, [](std::string _mqtt_server) {
             custom_mqtt_server = _mqtt_server;
             ui_handle->pop();
           });
         });
-        mqttmenu->addOption("MQTT User", [ui](){
-          ui_handle->push<TextEntry>("MQTT User", custom_mqtt_user, [](std::string _mqtt_user) {
+        mqttmenu->addOption(tr(Text::MQTT_USER), [ui](){
+          ui_handle->push<TextEntry>(tr(Text::MQTT_USER), custom_mqtt_user, [](std::string _mqtt_user) {
             custom_mqtt_user = _mqtt_user;
             ui_handle->pop();
           });
         });
-        mqttmenu->addOption("MQTT Port", [ui](){
-          ui_handle->push<TextEntry>("MQTT Port", custom_mqtt_port, [](std::string _mqtt_port) {
+        mqttmenu->addOption(tr(Text::MQTT_PORT_LABEL), [ui](){
+          ui_handle->push<TextEntry>(tr(Text::MQTT_PORT_LABEL), custom_mqtt_port, [](std::string _mqtt_port) {
             custom_mqtt_port = _mqtt_port;
             ui_handle->pop();
           });
         });
-        mqttmenu->addOption("MQTT Password", [ui](){
-          ui_handle->push<TextEntry>("MQTT Password", custom_mqtt_pass, [](std::string _mqtt_pass) {
+        mqttmenu->addOption(tr(Text::MQTT_PASSWORD), [ui](){
+          ui_handle->push<TextEntry>(tr(Text::MQTT_PASSWORD), custom_mqtt_pass, [](std::string _mqtt_pass) {
             custom_mqtt_pass = _mqtt_pass;
             ui_handle->pop();
           });
         });
-        mqttmenu->addOption("MQTT Identifier", [ui](){
-          ui_handle->push<TextEntry>("MQTT Identifier", custom_mqtt_id, [](std::string _mqtt_id) {
+        mqttmenu->addOption(tr(Text::MQTT_IDENTIFIER), [ui](){
+          ui_handle->push<TextEntry>(tr(Text::MQTT_IDENTIFIER), custom_mqtt_id, [](std::string _mqtt_id) {
             custom_mqtt_id = _mqtt_id;
             ui_handle->pop();
           });
         });
-        mqttmenu->addOption("connect", [ui](){
+        mqttmenu->addOption(tr(Text::CONNECT), [ui](){
           ui_handle->pop();
           fg::settings().setStr("mqtt_server", custom_mqtt_server.c_str());
           fg::settings().setStr("mqtt_user", custom_mqtt_user.c_str());
@@ -1805,13 +1824,13 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
             client->loop();
             if(client->isMqttConnected()) {
               fg::settings().setU8("mqtt_enabled", 1);
-              ui_handle->push<TextDisplay>("connected", 1, []() {
+              ui_handle->push<TextDisplay>(tr(Text::CONNECTED), 1, []() {
                 ESP.restart();
               });
               while(1) { ui_handle->loop(); }
             }
           }
-          ui_handle->push<TextDisplay>("connection failed", 1, []() {
+          ui_handle->push<TextDisplay>(tr(Text::CONNECTION_FAILED), 1, []() {
             ui_handle->pop();
           });
         });
@@ -1821,13 +1840,13 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   if(!custom_mqtt_enabled) {
 
-      menu->addOption("change server", [=](){
+      menu->addOption(tr(Text::CHANGE_SERVER), [=](){
         auto servermenu = ui_handle->push<SelectMenu>();
-        servermenu->addOption("back...", [ui](){ ui->pop(); });
+        servermenu->addOption(tr(Text::BACK_MENU), [ui](){ ui->pop(); });
 
-        servermenu->addOption("use mobile phone", [=](){
+        servermenu->addOption(tr(Text::USE_MOBILE_PHONE), [=](){
           if(!wifiIsConnected()) {
-            ui_handle->push<TextDisplay>("no wifi connection", 1, [](){
+            ui_handle->push<TextDisplay>(tr(Text::NO_WIFI_CONNECTION), 1, [](){
               ui_handle->pop();
             });
             return;
@@ -1841,25 +1860,25 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
           });
         });
 
-        servermenu->addOption("use display", [=](){
-          ui_handle->push<TextEntry>("server url", DEFAULT_API_URL, [=](std::string url) {
+        servermenu->addOption(tr(Text::USE_DISPLAY), [=](){
+          ui_handle->push<TextEntry>(tr(Text::SERVER_URL), DEFAULT_API_URL, [=](std::string url) {
             ui_handle->pop();
 
             auto join = [=](std::string password) {
-              ui_handle->push<TextDisplay>("connecting...");
+              ui_handle->push<TextDisplay>(tr(Text::CONNECTING));
               ui_handle->loop();
 
               cloud->registerWithCloud(url, password);
 
               ui_handle->pop();
-              ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+              ui_handle->push<TextDisplay>(tr(Text::SERVER_CONN_FAILED), 1, []() {
                 ui_handle->pop();
               });
               ui_handle->loop();
             };
 
             // Only a cloud that has a join password gets asked for one.
-            ui_handle->push<TextDisplay>("checking...");
+            ui_handle->push<TextDisplay>(tr(Text::CHECKING));
             ui_handle->loop();
             auto gate = cloud->registrationGate(url);
             ui_handle->pop();
@@ -1868,12 +1887,12 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
               join("");
             }
             else if(gate == Fridgecloud::RegistrationGate::CLOSED) {
-              ui_handle->push<TextDisplay>("registration closed", 1, []() {
+              ui_handle->push<TextDisplay>(tr(Text::REGISTRATION_CLOSED), 1, []() {
                 ui_handle->pop();
               });
             }
             else {
-              ui_handle->push<TextEntry>("join password", [=](std::string password) {
+              ui_handle->push<TextEntry>(tr(Text::JOIN_PASSWORD), [=](std::string password) {
                 ui_handle->pop();
                 join(password);
               });
@@ -1882,18 +1901,18 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         });
       });
 
-      menu->addOption("connect to portal", [=](){
-        ui_handle->push<TextDisplay>("connecting...");
+      menu->addOption(tr(Text::CONNECT_TO_PORTAL), [=](){
+        ui_handle->push<TextDisplay>(tr(Text::CONNECTING));
         ui_handle->loop();
         std::string code = cloud->requestPairingCode();
         ui_handle->pop();
         if(code.size()) {
-          ui_handle->push<TextDisplay>(code.c_str(), "pairing code", 2, [](){
+          ui_handle->push<TextDisplay>(code.c_str(), tr(Text::PAIRING_CODE), 2, [](){
             ui_handle->pop();
           });
         }
         else {
-          ui_handle->push<TextDisplay>("failed to connect to cloud", 1, [](){
+          ui_handle->push<TextDisplay>(tr(Text::CLOUD_CONN_FAILED), 1, [](){
             ui_handle->pop();
           });
         }
@@ -1904,29 +1923,29 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   else {
 
-    menu->addOption("use mobile phone", [ui](){
+    menu->addOption(tr(Text::USE_MOBILE_PHONE), [ui](){
       createConfigurationAP();
       ui->push<PhoneSetupDash>(ip, [ui]() {
         ui->pop();
       }, ssid);
     });
 
-    menu->addOption("use display", [=](){
-      ui_handle->push<TextDisplay>("scanning...");
+    menu->addOption(tr(Text::USE_DISPLAY), [=](){
+      ui_handle->push<TextDisplay>(tr(Text::SCANNING));
       ui_handle->loop();
       scanned_ssids = scanWifiNetworks();
-      scanned_ssids.insert(scanned_ssids.begin(), "back");
+      scanned_ssids.insert(scanned_ssids.begin(), tr(Text::BACK));
       ui_handle->pop();
-      ui_handle->push<fg::SelectInput>("select network", 0, scanned_ssids, [=](unsigned selected) {
+      ui_handle->push<fg::SelectInput>(tr(Text::SELECT_NETWORK), 0, scanned_ssids, [=](unsigned selected) {
         primary_ssid = scanned_ssids[selected].c_str();
         ui_handle->pop();
         if(selected != 0) {
-          ui_handle->push<TextEntry>("enter password", [=](std::string password) {
+          ui_handle->push<TextEntry>(tr(Text::ENTER_PASSWORD), [=](std::string password) {
             primary_password = password.c_str();
             Serial.println(primary_ssid.c_str());
             Serial.println(primary_password.c_str());
             ui_handle->pop();
-            ui_handle->push<TextDisplay>("connecting...");
+            ui_handle->push<TextDisplay>(tr(Text::CONNECTING));
             ui_handle->loop();
             if(connectToWifi(primary_ssid, primary_password)) {
               ui_handle->pop();
@@ -1934,13 +1953,13 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
               Serial.println(primary_password.c_str());
 
               saveWifiCredentials();
-              ui_handle->push<TextDisplay>("connected!", 1, []() {
+              ui_handle->push<TextDisplay>(tr(Text::WIFI_CONNECTED), 1, []() {
                 ESP.restart();
               });
             }
             else {
               ui_handle->pop();
-              ui_handle->push<TextDisplay>("connection failed", 1, []() {
+              ui_handle->push<TextDisplay>(tr(Text::CONNECTION_FAILED), 1, []() {
                 ui_handle->pop();
               });
             }
@@ -1952,13 +1971,13 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
   }
 
-  menu->addOption("reboot", [ui](){
-    ui_handle->push<TextDisplay>("rebooting...", 1, []() {
+  menu->addOption(tr(Text::REBOOT), [ui](){
+    ui_handle->push<TextDisplay>(tr(Text::REBOOTING), 1, []() {
       ESP.restart();
     }, 1500);
   });
 
-  menu->addOption("Conn. Loss Reboot", [ui](){
+  menu->addOption(tr(Text::CONN_LOSS_REBOOT), [ui](){
     showRebootWatchdogUi(ui);
   });
 
@@ -2261,13 +2280,13 @@ void handleServerConfig() {
   stopServerConfigPortal();
 
   ui_handle->pop();
-  ui_handle->push<fg::TextDisplay>("connecting...");
+  ui_handle->push<fg::TextDisplay>(tr(Text::CONNECTING));
   ui_handle->loop();
 
   server_config_cloud->registerWithCloud(url, config_data["password"].as<std::string>());
 
   ui_handle->pop();
-  ui_handle->push<fg::TextDisplay>("connection failed!", 1, []() {
+  ui_handle->push<fg::TextDisplay>(tr(Text::SERVER_CONN_FAILED), 1, []() {
     ui_handle->pop();
   });
   ui_handle->loop();
@@ -3442,10 +3461,10 @@ std::vector<std::string> getSocketRoleOptions() {
 
   for(const auto& role : base_roles) {
     if(role == "back") {
-      role_options.push_back(role);
+      role_options.push_back(tr(Text::BACK));
     }
     else {
-      std::string display_name = role;
+      std::string display_name = socketRoleLabel(role);
       if(isSocketRoleConnected(role)) {
         display_name = "* " + display_name;
       }
@@ -3473,7 +3492,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
     if(reconnected_to_home) {
       return true;
     }
-    emit_status("reconnect wifi");
+    emit_status(tr(Text::RECONNECT_WIFI));
     if(!connectToWifi(home_ssid_clean, home_password_clean)) {
       return false;
     }
@@ -3484,7 +3503,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   auto fail_with_reconnect = [&](const char* message) {
     error_message = message;
     if(!reconnect_home()) {
-      error_message = "reconnect fail";
+      error_message = tr(Text::RECONNECT_FAIL);
     }
     return false;
   };
@@ -3496,14 +3515,14 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   }
 
   if(mqtt_password.empty()) {
-    return fail_with_reconnect("mqtt pass miss");
+    return fail_with_reconnect(tr(Text::MQTT_PASS_MISS));
   }
 
   if(!canStoreAnotherSocket()) {
-    return fail_with_reconnect("socket limit");
+    return fail_with_reconnect(tr(Text::SOCKET_LIMIT));
   }
 
-  emit_status("config socket...");
+  emit_status(tr(Text::CONFIG_SOCKET));
   delayWithWatchdog(2000);
   const uint16_t pulse_value = socketRolePulseTimeValue(socket_role);
   std::string config_url = std::string("http://") + SMART_SOCKET_AP_IP + "/cm?cmnd=Backlog%20"
@@ -3515,15 +3534,15 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
                          + urlEncode("WebPassword " + mqtt_password);
 
   if(!httpGet(config_url.c_str())) {
-    return fail_with_reconnect("config fail");
+    return fail_with_reconnect(tr(Text::CONFIG_FAIL));
   }
 
-  emit_status("config sent");
+  emit_status(tr(Text::CONFIG_SENT));
   delayWithWatchdog(2000);
 
   const std::string auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
 
-  emit_status("wait for ip...");
+  emit_status(tr(Text::WAIT_FOR_IP));
   delayWithWatchdog(8000);
 
   std::string ip_response;
@@ -3538,7 +3557,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   bool ap_command_ok = httpGet(ap_url.c_str());
 
   if(!reconnect_home()) {
-    error_message = "reconnect fail";
+    error_message = tr(Text::RECONNECT_FAIL);
     return false;
   }
 
@@ -3546,12 +3565,12 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   // of its own access point, which is where every socket in pairing mode sits.
   // Storing it would point the row at whatever else the module can reach there.
   if(!ip_command_ok || !parseSmartSocketIp(ip_response, socket_ip) || socket_ip == SMART_SOCKET_AP_IP) {
-    error_message = "ip lookup fail";
+    error_message = tr(Text::IP_LOOKUP_FAIL);
     return false;
   }
 
   if (!ap_command_ok) {
-    emit_status("  failed disabling\n  ap mode - ignoring");
+    emit_status(tr(Text::AP_MODE_STILL_ON));
     delayWithWatchdog(2000);
   }
 
@@ -3603,7 +3622,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   reportSocketsHardwareInfo();
 
 
-  emit_status("socket configured");
+  emit_status(tr(Text::SOCKET_CONFIGURED));
   delayWithWatchdog(2000);
 
   return true;

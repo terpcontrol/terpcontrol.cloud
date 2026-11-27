@@ -33,7 +33,7 @@ namespace fg {
 
     if(*sensor_type == SENSOR_TYPE_NONE) {
       UserInterface::display.setCursor(18, 4);
-      UserInterface::display.write("NO SENSOR");
+      UserInterface::display.write(tr(Text::NO_SENSOR));
     }
     else {
       std::stringstream value_print;
@@ -75,10 +75,10 @@ namespace fg {
     UserInterface::display.setCursor(50, 40);
     UserInterface::display.setTextSize(2);
     if(*out > 0.5) {
-      UserInterface::display.write("ON");
+      UserInterface::display.write(tr(Text::STATE_ON));
     }
     else {
-      UserInterface::display.write("OFF");
+      UserInterface::display.write(tr(Text::STATE_OFF));
     }
 
     if(*use_day) {

@@ -12,10 +12,10 @@ namespace fg {
     std::string display_name = name;
     printCentered(display_name.c_str(), 10);
     if(state == 0) {
-      printCentered("(hold for options)", 20);
+      printCentered(tr(Text::HOLD_FOR_OPTIONS), 20);
     }
     else {
-      printCentered("(hold to edit)", 20);
+      printCentered(tr(Text::HOLD_TO_EDIT), 20);
     }
 
 
@@ -66,14 +66,14 @@ namespace fg {
       UserInterface::display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
     }
     UserInterface::display.setCursor(10, 55);
-    UserInterface::display.write("BACK");
+    UserInterface::display.write(tr(Text::BACK_BUTTON));
     UserInterface::display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 
     if(state == 2) {
       UserInterface::display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
     }
     UserInterface::display.setCursor(90, 55);
-    UserInterface::display.write("DONE");
+    UserInterface::display.write(tr(Text::DONE));
     UserInterface::display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 
   }

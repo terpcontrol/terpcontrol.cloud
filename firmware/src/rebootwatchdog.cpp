@@ -17,20 +17,20 @@ namespace fg {
 
   void showRebootWatchdogUi(UserInterface* ui) {
     auto menu = ui->push<SelectMenu>();
-    menu->addOption("back...", [ui](){ ui->pop(); });
+    menu->addOption(tr(Text::BACK_MENU), [ui](){ ui->pop(); });
 
-    menu->addOption("Daily Reboot", [ui](){
+    menu->addOption(tr(Text::DAILY_REBOOT_MENU), [ui](){
       uint32_t current = rebootWatchdogDailyEnabled() ? 1 : 0;
-      ui->push<SelectInput>("Daily reboot", current, std::vector<std::string>{"off", "on"}, [ui](uint32_t selected) {
+      ui->push<SelectInput>(tr(Text::DAILY_REBOOT), current, std::vector<std::string>{tr(Text::OFF), tr(Text::ON)}, [ui](uint32_t selected) {
         fg::settings().setU8("rbt_daily_dis", selected == 0 ? 1 : 0);
         fg::settings().commit();
         ui->pop();
       });
     });
 
-    menu->addOption("Daily: Lights Off", [ui](){
+    menu->addOption(tr(Text::DAILY_LIGHTS_OFF), [ui](){
       uint32_t current = rebootWatchdogDailyLightsOffOnly() ? 1 : 0;
-      ui->push<SelectInput>("Only while lights off", current, std::vector<std::string>{"no", "yes"}, [ui](uint32_t selected) {
+      ui->push<SelectInput>(tr(Text::ONLY_WHILE_LIGHTS_OFF), current, std::vector<std::string>{tr(Text::NO), tr(Text::YES)}, [ui](uint32_t selected) {
         fg::settings().setU8("rbt_daily_nlt", selected == 0 ? 1 : 0);
         fg::settings().commit();
         ui->pop();

@@ -11,6 +11,7 @@
 #include "wifi.h"
 #include "automation.h"
 #include "rebootwatchdog.h"
+#include "language.h"
 
 #include "observeable.h"
 #include "ui.h"
@@ -183,9 +184,13 @@ void setup()
   ui.init();
   wifiSetUserInterface(&ui);
 
+  languageLoad();
   control->initStatusMenu(&ui);
 
   initializeWifi();
+  if(!wifiIsConfigured() && !languageIsSet()) {
+    showLanguagePrompt(&ui);
+  }
   fgc.init();
   fgc.connect();
 
