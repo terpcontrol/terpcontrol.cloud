@@ -14,6 +14,7 @@ import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService } from './media-presentation.service';
 import { MediaService } from './media.service';
 import { StillDaylightService } from './still-daylight.service';
+import { StillDeletionService } from './still-deletion.service';
 import { TerpCamDirectService } from './terpcam-direct.service';
 import { TerpCamService } from './terpcam.service';
 import { TestCapturesService } from './test-captures.service';
@@ -50,6 +51,7 @@ import { TimelapseService } from './timelapse.service';
     MediaDeliveryService,
     MediaPresentationService,
     StillDaylightService,
+    StillDeletionService,
     TerpCamService,
     TerpCamDirectService,
     TestCapturesService,

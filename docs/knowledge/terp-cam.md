@@ -1,7 +1,7 @@
 ---
-summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
+summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, deleting stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-27
-source: camera orientation and the display stamp (Chris, 2026-09-29, PR #132); the OSD switch and orientation tried on the development fridge's Terp Cam, the caption without a second time and the portrait card (Chris, 2026-11-26); the OSD switch on the setup AP confirmed on that camera (2026-11-27); a film's day from the grow's origin (the redesign session's fix round of 2026-11-16); a Terp Cam judged from its controller's return, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); one picture time for a silent place (the redesign session's fix round of 2026-11-15); a film's caption by the nearest line and measured widths, a film of too few pictures refused at the request, the rest of today filmed from the camera page, a public card drawn over its newest picture (the fourth whole-app walk's fix round, 2026-11-14); a stream test's details, the film's caption, curve and type by the frame, the dark film's refusal worded (the third whole-app walk's fix round, 2026-11-14); a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12); Chris (decisions, PR reviews 2026-08..10; the reset on a camera report 2026-11-25); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
+source: deleting stills - Chris's decisions, the concept and the page agreed with him (2026-11-27); camera orientation and the display stamp (Chris, 2026-09-29, PR #132); the OSD switch and orientation tried on the development fridge's Terp Cam, the caption without a second time and the portrait card (Chris, 2026-11-26); the OSD switch on the setup AP confirmed on that camera (2026-11-27); a film's day from the grow's origin (the redesign session's fix round of 2026-11-16); a Terp Cam judged from its controller's return, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); one picture time for a silent place (the redesign session's fix round of 2026-11-15); a film's caption by the nearest line and measured widths, a film of too few pictures refused at the request, the rest of today filmed from the camera page, a public card drawn over its newest picture (the fourth whole-app walk's fix round, 2026-11-14); a stream test's details, the film's caption, curve and type by the frame, the dark film's refusal worded (the third whole-app walk's fix round, 2026-11-14); a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12); Chris (decisions, PR reviews 2026-08..10; the reset on a camera report 2026-11-25); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -308,6 +308,43 @@ way and what the code has to respect. Internal notes on the camera exist.
   route says beforehand whether a span is dark. While a film plays on a desktop it is as wide as the still beside
   it.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
+
+## Deleting stills (`still-deletion.service.ts`, `screens/camera/pictures/`)
+Somebody may have been pictured who should not be, so a grower deletes single stills or a span of them, and they go
+out of the films too. Chris's decisions (2026-11-27):
+- **Immediately and for good**: no trash, no undo (the toast has no "Widerrufen").
+- **Only camera stills (`kind: still`) of the one camera chosen.** A still a diary line names (`mediaIds`) or a
+  grow's `coverMediaId` is not deleted ("ohne Tagebuch", read so and confirmed by Chris with the page below); it
+  stays in the films too, and goes by taking it out of the diary first.
+- **Single stills are picked from a strip of thumbnails**, no gallery of their own.
+- **Films are not deleted directly** - no route or button of the camera page offers it.
+
+How it works:
+- `POST /v1/cameras/{id}/still-deletions` deletes, `.../preview` answers the same `StillDeletionImpact` deleting
+  nothing; both need `manage` on the camera, so never a share-link guest or the demo. A selection is `ids` (at most
+  `MAX_PICKED_STILLS`) or `startsAt`/`endsAt`, both inclusive, with `except`; anything else is 400
+  `selection_unclear`. The answer counts what goes, lists what a diary keeps (`kept`), the selection hour by hour in
+  the owner's zone (`hours`, which the page lays its strip out from) and the films. `DELETE /v1/media/{id}` of a
+  camera's still goes through the same service and answers 409 `held_by_diary` for a still a diary keeps.
+- Every film whose span holds a deleted still - its own camera's, or another camera's split film showing this one
+  (`render.secondCameraId`) - is deleted at once and queued anew as it was made (`TimelapseService.remake`): a
+  builder-made rolling film (`render: null`) as the plain film of its whole period with the dark frames kept, so the
+  render path frames it (1500 frames, not the builder's spacing) until the builder refreshes an open period. A
+  queued film is left alone: it renders from what is left. Fewer than 13 stills left in the span: no new film, and
+  a grow whose `filmMediaId` named it loses it (`MediaService.deleteFilm`).
+- The renders are queued by the deletion because the builder's walk stops at the first up-to-date period
+  (Timelapses, above) and would never reach an older film.
+- Races: `stillsErased` counts a camera's deletions, and a rolling film encoded from frames read before one is not
+  stored - the period is encoded again. A render whose row was deleted while it ran keeps nothing: `MediaService.fill`
+  drops the bytes when the row is gone, and no grow is told of it.
+- Backups, finished exports (gone after 7 days) and a browser's cache keep what they hold.
+
+The page, as Chris agreed it before it was built: a row "Bilder löschen ›" on the camera page for `manage` only, opening `/cameras/:id/pictures` on the
+slider's day (`?date=`, else today). From/to with date and time; the strip newest first, one row per hour that
+scrolls sideways and is read once in view (`useStillsOf`, 120 a page); a span longer than a day shows each hour
+folded to one tile. Nothing is picked at first, a tap toggles one, "Alle auswählen" takes the span (sent as the span
+with `except`); a diary's still is drawn locked. "n Bilder löschen" asks in the danger style, naming the films made
+again and the ones left without enough pictures, from a preview of exactly that selection.
 
 ## Health, diary, app
 - A camera is aged by the stills it has missed, not by `VALUE_AGE`: live up to 2, stale up to 10, then stopped

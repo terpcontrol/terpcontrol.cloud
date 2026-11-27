@@ -1011,8 +1011,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   (`screens/camera/days.ts`) - the slider rests only on days this camera pictured and is not drawn where there is
   no second one; the films as four chips and one button that plays the newest of that kind or, for whoever may
   manage, makes it (`Films.tsx`, `film-spans.ts`), with "Jetzt ein Bild" beside it; then rows to the curves of the
-  day shown, the diary, a film of one's own, all films and the camera's settings, each only where its target
-  exists. Today's picture is Start's; a picture just taken is shown whatever the light. Two columns from 1280 px.
+  day shown, the diary, a film of one's own, all films, the camera's settings and "Bilder löschen" (for
+  `manage`; [terp-cam.md](terp-cam.md), Deleting stills), each only where its target exists. Today's picture is Start's; a picture just taken is shown whatever the light. Two columns from 1280 px.
   A day's stills are not scrubbed here: the day's film and Verlauf's cursor show them.
   - *The day the slider stands on is part of the address* (`?day=`, the grow's day number): a reload, a link and
     the way back find it. It is written onto the entry the page stands on, not by a navigation - a navigation,

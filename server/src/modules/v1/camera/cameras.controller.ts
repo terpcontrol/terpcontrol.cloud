@@ -9,6 +9,8 @@ import {
   CameraCreate,
   CameraUpdate,
   MediaPage,
+  StillDeletion,
+  StillDeletionImpact,
   StreamTestCapture,
   StreamTestCreate,
   TestCapture,
@@ -21,6 +23,8 @@ import {
   cameraPage,
   cameraUpdate,
   mediaPage,
+  stillDeletion,
+  stillDeletionImpact,
   streamTestCapture,
   streamTestCreate,
   testCapture,
@@ -44,6 +48,7 @@ import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
 import { TestCapturesService } from './test-captures.service';
 import { MediaService } from './media.service';
+import { StillDeletionService } from './still-deletion.service';
 import { TimelapseService } from './timelapse.service';
 import { changesTheStream, isStreamAddress } from './stream-url';
 import { V1Answer } from '../answer-shape';
@@ -107,6 +112,7 @@ export class CamerasController {
     private readonly builder: TimelapseService,
     private readonly access: AccessService,
     private readonly tests: TestCapturesService,
+    private readonly deletion: StillDeletionService,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
@@ -402,6 +408,38 @@ export class CamerasController {
 
     void reply.status(queued ? HttpStatus.ACCEPTED : HttpStatus.OK);
     return { media: this.media.serialise(film), queued };
+  }
+
+  /**
+   * What deleting stills would do - how many go, which a diary holds on to and
+   * keeps, and which films are made again without them - deleting nothing. It
+   * also answers the selection hour by hour, which is how a client lays a span
+   * out before anything is picked.
+   */
+  @Post(':id/still-deletions/preview')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'camera')
+  @ApiOperation({ summary: 'What deleting stills would do' })
+  @V1Answer(stillDeletionImpact)
+  public async previewStillDeletion(@Param('id') id: string, @V1Body(stillDeletion) body: StillDeletion): Promise<StillDeletionImpact> {
+    return this.deletion.preview(await this.require(id), body);
+  }
+
+  /**
+   * Deleting stills, for good and at once: a picture somebody must not keep is
+   * gone with its bytes, and so is every film holding it, which is queued anew
+   * from the stills that are left. What a diary line or a grow's cover holds
+   * stays, and is answered in `kept`.
+   */
+  @Post(':id/still-deletions')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'camera')
+  @ApiOperation({ summary: 'Delete stills, and make the films holding them again without them' })
+  @V1Answer(stillDeletionImpact)
+  public async deleteStills(@Param('id') id: string, @V1Body(stillDeletion) body: StillDeletion): Promise<StillDeletionImpact> {
+    return this.deletion.delete(await this.require(id), body);
   }
 
   /**

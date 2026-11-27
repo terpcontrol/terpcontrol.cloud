@@ -3607,6 +3607,60 @@ export interface TimelapseAccepted {
   queued: boolean;
 }
 
+export interface StillDeletion {
+  /**
+   * The stills picked one by one. Either these or `startsAt` and `endsAt`.
+   *
+   * @maxItems 2000
+   */
+  ids?: string[];
+  startsAt?: string;
+  /**
+   * Inclusive, as `startsAt` is.
+   */
+  endsAt?: string;
+  /**
+   * Stills of the span that stay.
+   *
+   * @maxItems 2000
+   */
+  except?: string[];
+}
+
+export interface StillDeletionFilm {
+  id: string;
+  cameraId: string;
+  window: MediaWindow;
+  startsAt: string;
+  endsAt: string | null;
+  /**
+   * False where too few stills are left for a film.
+   */
+  remade: boolean;
+}
+
+export interface StillDeletionHour {
+  startsAt: string;
+  stills: number;
+  newestId: string;
+}
+
+export interface StillDeletionImpact {
+  /**
+   * How many stills go, or went.
+   */
+  stills: number;
+  /**
+   * Stills of the selection a diary line or a grow cover holds: they stay.
+   */
+  kept: string[];
+  /**
+   * The selection hour by hour, newest first, the kept stills counted in.
+   */
+  hours: StillDeletionHour[];
+  films: StillDeletionFilm[];
+}
+
 export interface SchemeOrigin {
   assetId: string | null;
   version: string | null;

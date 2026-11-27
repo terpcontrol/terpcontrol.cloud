@@ -23,6 +23,7 @@ import { dayWindow } from '@/screens/timeline/view';
 import { shownStill } from '@/screens/start/place';
 import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
+import { dayOf } from '@/ui/days';
 import { useKeptScroll } from '@/ui/kept';
 import { deviceName } from '@/ui/naming';
 import { OfflineBox } from '@/ui/OfflineHelp';
@@ -372,6 +373,13 @@ function Watch({
             title={t(mayManage ? 'camera.settings' : 'camera.about')}
             line={mayManage ? t(mayOwn ? 'camera.row.settingsOwn' : 'camera.row.settingsLine') : t('camera.row.aboutLine')}
           />
+          {mayManage ? (
+            <Row
+              to={`/cameras/${camera.id}/pictures${day ? `?date=${dayOf(new Date(day.capturedAt), zone)}` : ''}`}
+              title={t('camera.row.pictures')}
+              line={t('camera.row.picturesLine')}
+            />
+          ) : null}
         </Rows>
       </div>
 

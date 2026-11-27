@@ -126,6 +126,9 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // and a job read by both would be rendered twice.
   private draining = false;
   private readonly work = new BackgroundWork();
+  // Counted up whenever stills of a camera are deleted, so a film encoded from
+  // frames read before that is not stored after it.
+  private readonly erasures = new Map<string, number>();
 
   constructor(
     private readonly cameras: CamerasService,
@@ -190,8 +193,9 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   private async buildRolling(camera: CameraDocument, rolling: (typeof ROLLING)[number], zone: string | null): Promise<void> {
     const open = periodAround(rolling.window, new Date(), zone);
 
-    for (let period = open; ; period = periodBefore(rolling.window, period, zone)) {
+    for (let period = open, again = false; ; period = again ? period : periodBefore(rolling.window, period, zone)) {
       if (this.work.isStopped) return;
+      again = false;
 
       const { startsAt, endsAt } = period;
       const existing = await this.media.newest({ cameraId: camera.id, kind: 'timelapse', window: rolling.window, from: startsAt, before: endsAt });
@@ -211,10 +215,17 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
       if (!stale) return;
 
+      const erasure = this.erasureOf(camera.id);
       const frames = await this.framesOf(camera.id, startsAt, endsAt, rolling.frameIntervalMs);
       // HD is entitled; a free camera renders at the resolution it always has.
       const quality = this.entitlement.isEntitled(camera) ? 'hd' : 'sd';
       await this.encode(camera, frames, { quality, watermark: this.entitlement.watermarks(camera), compose: null }, async path => {
+        // Stills deleted while it was encoded may be in it: the period is looked at again instead.
+        if (this.erasureOf(camera.id) !== erasure) {
+          again = true;
+          return;
+        }
+
         // The film it replaces goes first: `media` is unique on camera, kind,
         // window and instant, and its delete hook takes the old bytes with it.
         if (existing) await this.media.delete(existing.id);
@@ -424,6 +435,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       );
       const beside = render.secondCameraId ? await this.framesOf(render.secondCameraId, span.startsAt, endsAt, 0) : [];
 
+      let filled = false;
       const built = await this.encode(
         camera,
         frames,
@@ -443,15 +455,16 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
                 }
               : null,
         },
-        path =>
-          this.media.fill(job.id, path, {
+        async path => {
+          filled = await this.media.fill(job.id, path, {
             lengthSeconds: Math.round(frames.length / render.framesPerSecond),
             // A film of a span still going ends at its last frame, as the
             // rolling ones do: that is what lets the hourly pass carry a day
             // film asked for this morning on into the evening, and a later tap
             // ask for the rest, instead of both reading the day as done.
             ...(open && frames.length > 0 ? { endsAt: frames[frames.length - 1].capturedAt } : {}),
-          }),
+          });
+        },
       );
 
       await this.media.setRender(job.id, {
@@ -460,10 +473,93 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         endedAt: new Date(),
         error: built ? null : whyNoFilm(all.length, frames.length),
       });
-      if (built && job.window === 'grow') await this.context.attachGrowFilm(camera, span, job.id);
+      if (built && filled && job.window === 'grow') await this.context.attachGrowFilm(camera, span, job.id);
     } catch (e) {
       await this.media.setRender(job.id, { ...render, status: 'failed', endedAt: new Date(), error: String((e as Error)?.message ?? e) });
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Stills deleted
+  // -------------------------------------------------------------------------
+
+  /** Stills of this camera were deleted: a rolling film encoded from frames read before is not stored. */
+  public stillsErased(cameraId: string): void {
+    this.erasures.set(cameraId, this.erasureOf(cameraId) + 1);
+  }
+
+  private erasureOf(cameraId: string): number {
+    return this.erasures.get(cameraId) ?? 0;
+  }
+
+  /**
+   * The span a film covers, which is what it is made again of: a rolling
+   * window's whole period, else the span it was asked for. Null for a film
+   * that never said where it ends.
+   */
+  public async spanOfFilm(film: MediaDocument): Promise<Span | null> {
+    if (film.window && isRolling(film.window)) {
+      const camera = film.cameraId ? await this.cameras.byId(film.cameraId) : null;
+      return periodAround(film.window, film.capturedAt, camera ? await this.cameras.zoneOf(camera) : null);
+    }
+
+    return film.endsAt ? { startsAt: film.capturedAt, endsAt: film.endsAt } : null;
+  }
+
+  /** Whether a span holds stills enough for a film. */
+  public async filmable(cameraId: string, span: Span, without = 0): Promise<boolean> {
+    const stills = await this.media.count({ cameraId, kind: 'still', from: span.startsAt, before: span.endsAt });
+    return stills - without >= MINIMUM_FRAMES;
+  }
+
+  /**
+   * A film that holds deleted stills goes at once, and is queued anew as it was
+   * made - the plain film of its span where the builder made it - from the
+   * stills that are left. The builder does not do it by itself: it walks back
+   * only as far as the first film that is up to date. Answers whether it is
+   * made again; not where too few stills are left or the camera is gone.
+   */
+  public async remake(film: MediaDocument): Promise<boolean> {
+    await this.media.deleteFilm(film.id);
+
+    const camera = film.cameraId ? await this.cameras.byId(film.cameraId) : null;
+    const span = await this.spanOfFilm(film);
+    if (!camera || camera.removedAt !== null || !film.window || !span || !(await this.filmable(camera.id, span))) return false;
+
+    const render: NonNullable<MediaDocument['render']> = {
+      ...(film.render ?? {
+        framesPerSecond: DEFAULT_FRAME_RATE,
+        watermark: this.entitlement.watermarks(camera),
+        aspect: DEFAULT_ASPECT,
+        overlays: DEFAULT_OVERLAYS,
+        // The builder's films keep the frames taken in the dark.
+        includeLightsOff: true,
+        secondCameraId: null,
+      }),
+      status: 'queued',
+      startedAt: null,
+      endedAt: null,
+      error: null,
+    };
+
+    try {
+      await this.media.queue({
+        kind: 'timelapse',
+        mime: film.mime,
+        cameraId: camera.id,
+        capturedAt: film.capturedAt,
+        endsAt: span.endsAt,
+        window: film.window,
+        quality: film.quality,
+        render,
+      });
+    } catch (error) {
+      // Somebody asked for the same film in the meantime, and that one is made from what is left.
+      if (!isDuplicateKey(error)) throw error;
+    }
+
+    this.renderQueued();
+    return true;
   }
 
   // -------------------------------------------------------------------------

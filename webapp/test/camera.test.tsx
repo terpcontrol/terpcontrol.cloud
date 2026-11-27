@@ -467,6 +467,7 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('button', { name: /^Put together your own timelapse/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Camera settings/ })).toHaveTextContent('Name, interval, Premium, unpair');
     expect(screen.getByText(/192\.168\.1\.40/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Delete pictures/ })).toHaveAttribute('href', '/cameras/camera-1/pictures');
 
     fireEvent.click(screen.getByRole('button', { name: /^Camera settings/ }));
     const sheet = within(screen.getByRole('dialog', { name: 'Camera settings' }));
@@ -509,6 +510,7 @@ describe('the camera page, by who is reading', () => {
     expect(screen.queryByRole('button', { name: /^Put together your own timelapse/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Camera settings/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Delete pictures/ })).not.toBeInTheDocument();
     // Of the four films only the one there is, and it plays.
     expect(screen.queryByRole('button', { name: 'Daily film' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();

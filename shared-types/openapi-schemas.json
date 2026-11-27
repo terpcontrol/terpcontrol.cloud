@@ -11030,6 +11030,147 @@
       "queued"
     ]
   },
+  "StillDeletion": {
+    "type": "object",
+    "properties": {
+      "ids": {
+        "description": "The stills picked one by one. Either these or `startsAt` and `endsAt`.",
+        "maxItems": 2000,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "description": "Inclusive, as `startsAt` is.",
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "except": {
+        "description": "Stills of the span that stay.",
+        "maxItems": 2000,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "StillDeletionFilm": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "cameraId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "window": {
+        "$ref": "#/components/schemas/MediaWindow"
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "remade": {
+        "type": "boolean",
+        "description": "False where too few stills are left for a film."
+      }
+    },
+    "required": [
+      "id",
+      "cameraId",
+      "window",
+      "startsAt",
+      "endsAt",
+      "remade"
+    ]
+  },
+  "StillDeletionHour": {
+    "type": "object",
+    "properties": {
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "stills": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "newestId": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "startsAt",
+      "stills",
+      "newestId"
+    ]
+  },
+  "StillDeletionImpact": {
+    "type": "object",
+    "properties": {
+      "stills": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991,
+        "description": "How many stills go, or went."
+      },
+      "kept": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Stills of the selection a diary line or a grow cover holds: they stay."
+      },
+      "hours": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StillDeletionHour"
+        },
+        "description": "The selection hour by hour, newest first, the kept stills counted in."
+      },
+      "films": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StillDeletionFilm"
+        }
+      }
+    },
+    "required": [
+      "stills",
+      "kept",
+      "hours",
+      "films"
+    ]
+  },
   "SchemeOrigin": {
     "type": "object",
     "properties": {

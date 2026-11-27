@@ -2493,7 +2493,9 @@
       "diary": "Show in the diary",
       "settingsOwn": "Name, interval, Premium, unpair",
       "settingsLine": "Name, interval, Premium",
-      "aboutLine": "Connection, interval, Premium"
+      "aboutLine": "Connection, interval, Premium",
+      "pictures": "Delete pictures",
+      "picturesLine": "Single pictures or a span, from the films too"
     },
     "allFilms": "All films",
     "earlierFilms": "Earlier films",
@@ -5527,6 +5529,44 @@
     "refused": {
       "range": "{{name}}: that has to be between {{min}} and {{max}}.",
       "number": "{{name}}: that is not a number."
+    }
+  },
+  "pictures": {
+    "title": "Delete pictures",
+    "intro": "Pick the span, then the pictures in it. Deleted pictures are gone for good, and the films of that time are made again without them.",
+    "from": "From",
+    "until": "Until",
+    "backwards": "\"Until\" is before \"From\".",
+    "picked_one": "Picked: {{count}} of {{total}}",
+    "picked_other": "Picked: {{count}} of {{total}}",
+    "all": "Pick all",
+    "none": "Clear selection",
+    "keptNote_one": "{{count}} picture stays because it is in the diary. Take it out there to delete it.",
+    "keptNote_other": "{{count}} pictures stay because they are in the diary. Take them out there to delete them.",
+    "empty": "There are no pictures in this span.",
+    "inHour_one": "{{count}} picture",
+    "inHour_other": "{{count}} pictures",
+    "unfold": "{{hour}}: show {{count}} pictures",
+    "more": "More pictures",
+    "tile": "Picture from {{time}}",
+    "keptTile": "Picture from {{time}}, in the diary, stays",
+    "keptMark": "Diary",
+    "delete_one": "Delete {{count}} picture",
+    "delete_other": "Delete {{count}} pictures",
+    "ask_one": "Delete {{count}} picture for good? This cannot be undone.",
+    "ask_other": "Delete {{count}} pictures for good? This cannot be undone.",
+    "remade": "These films are made again without them: {{films}}.",
+    "gone_one": "{{films}} will be gone: too few pictures are left for a film.",
+    "gone_other": "{{films}} will be gone: too few pictures are left for a film.",
+    "yes_one": "Delete for good",
+    "yes_other": "Delete for good",
+    "deleted_one": "{{count}} picture deleted",
+    "deleted_other": "{{count}} pictures deleted",
+    "deletedRemade_one": "{{count}} picture deleted · films are being made again",
+    "deletedRemade_other": "{{count}} pictures deleted · films are being made again",
+    "film": {
+      "day": "Day {{day}}",
+      "week": "Week {{week}}"
     }
   }
 }

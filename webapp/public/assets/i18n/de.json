@@ -2503,7 +2503,9 @@
       "diary": "Im Tagebuch zeigen",
       "settingsOwn": "Name, Bildabstand, Premium, entkoppeln",
       "settingsLine": "Name, Bildabstand, Premium",
-      "aboutLine": "Verbindung, Bildabstand, Premium"
+      "aboutLine": "Verbindung, Bildabstand, Premium",
+      "pictures": "Bilder löschen",
+      "picturesLine": "Einzelne Bilder oder einen Zeitraum, auch aus den Filmen"
     },
     "allFilms": "Alle Filme",
     "earlierFilms": "Frühere Filme",
@@ -5537,6 +5539,44 @@
     "refused": {
       "range": "{{name}}: Das geht nur zwischen {{min}} und {{max}}.",
       "number": "{{name}}: Das ist keine Zahl."
+    }
+  },
+  "pictures": {
+    "title": "Bilder löschen",
+    "intro": "Wähle den Zeitraum, dann die Bilder darin. Gelöschte Bilder sind für immer weg, und die Filme dieser Zeit werden ohne sie neu erstellt.",
+    "from": "Von",
+    "until": "Bis",
+    "backwards": "„Bis“ liegt vor „Von“.",
+    "picked_one": "Ausgewählt: {{count}} von {{total}}",
+    "picked_other": "Ausgewählt: {{count}} von {{total}}",
+    "all": "Alle auswählen",
+    "none": "Auswahl aufheben",
+    "keptNote_one": "{{count}} Bild bleibt, weil es im Tagebuch steht. Nimm es dort heraus, um es zu löschen.",
+    "keptNote_other": "{{count}} Bilder bleiben, weil sie im Tagebuch stehen. Nimm sie dort heraus, um sie zu löschen.",
+    "empty": "In diesem Zeitraum gibt es keine Bilder.",
+    "inHour_one": "{{count}} Bild",
+    "inHour_other": "{{count}} Bilder",
+    "unfold": "{{hour}}: {{count}} Bilder zeigen",
+    "more": "Weitere Bilder",
+    "tile": "Bild von {{time}}",
+    "keptTile": "Bild von {{time}}, steht im Tagebuch und bleibt",
+    "keptMark": "Tagebuch",
+    "delete_one": "{{count}} Bild löschen",
+    "delete_other": "{{count}} Bilder löschen",
+    "ask_one": "{{count}} Bild endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "ask_other": "{{count}} Bilder endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "remade": "Diese Filme werden ohne sie neu erstellt: {{films}}.",
+    "gone_one": "{{films}} gibt es danach nicht mehr: Es bleiben zu wenige Bilder für einen Film.",
+    "gone_other": "{{films}} gibt es danach nicht mehr: Es bleiben zu wenige Bilder für einen Film.",
+    "yes_one": "Endgültig löschen",
+    "yes_other": "Endgültig löschen",
+    "deleted_one": "{{count}} Bild gelöscht",
+    "deleted_other": "{{count}} Bilder gelöscht",
+    "deletedRemade_one": "{{count}} Bild gelöscht · Filme werden neu erstellt",
+    "deletedRemade_other": "{{count}} Bilder gelöscht · Filme werden neu erstellt",
+    "film": {
+      "day": "Tag {{day}}",
+      "week": "Woche {{week}}"
     }
   }
 }

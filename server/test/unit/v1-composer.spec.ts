@@ -90,7 +90,7 @@ const build = (): void => {
   const builder = new TimelapseService(cameras, media, entitlement, context as never);
   builder.renderQueued = () => undefined;
 
-  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, db.spaces);
+  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, {} as never, db.spaces);
 };
 
 /** Pictures of a camera every `everyMs` between two instants, as the poller stores them. */

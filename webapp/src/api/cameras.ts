@@ -8,6 +8,8 @@ import type {
   CameraPage,
   CameraUpdate,
   MediaPage,
+  StillDeletion,
+  StillDeletionImpact,
   StreamTestCapture,
   StreamTestCreate,
   TestCapture,
@@ -290,3 +292,35 @@ export const useLatestStillTimes = (cameraIds: string[]) =>
     queries: cameraIds.map(latestStillQuery),
     combine: results => new Map(cameraIds.map((cameraId, index) => [cameraId, results[index]?.data?.items[0]?.capturedAt ?? null])),
   });
+
+/** How many stills of an hour one read answers: an hour of a camera read every 30 s. */
+const STILLS_PER_PAGE = 120;
+
+/** The stills of a span, newest first, continued by the cursor; `enabled` holds the read until its row is in view. */
+export const useStillsOf = (cameraId: string, span: { startsAt: string; endsAt: string }, enabled: boolean) =>
+  useReadPages({
+    queryKey: ['camera', cameraId, 'stills', span.startsAt, span.endsAt],
+    queryFn: ({ pageParam, signal }) =>
+      api.get<MediaPage>(`/cameras/${cameraId}/frames`, { ...span, limit: STILLS_PER_PAGE, cursor: pageParam }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
+    enabled,
+  });
+
+/** What deleting a selection of stills would do: how many go, which a diary keeps, the hours, the films made again. */
+export const useStillDeletionPreview = (cameraId: string, selection: StillDeletion | null) =>
+  useRead({
+    queryKey: ['camera', cameraId, 'still-deletion', selection],
+    queryFn: () => api.post<StillDeletionImpact>(`/cameras/${cameraId}/still-deletions/preview`, selection),
+    enabled: selection !== null,
+  });
+
+/**
+ * Deleting stills, for good. Every read that may show one of them is taken
+ * again: the camera's own, the place's picture, the diary's day.
+ */
+export const useDeleteStills = (cameraId: string) =>
+  useWrite(
+    (selection: StillDeletion) => api.post<StillDeletionImpact>(`/cameras/${cameraId}/still-deletions`, selection),
+    client => invalidate(client, ['camera', cameraId], ['cameras'], ['space'], ['home'], ['grow'], ['entries']),
+  );
