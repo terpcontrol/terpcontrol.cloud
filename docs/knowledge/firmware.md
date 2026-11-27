@@ -244,7 +244,7 @@ Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
 - **The update itself is neither signed nor encrypted.** It travels over HTTPS, with the server's certificate
   verified. Signing would also break moving a device to another server: registering ends in an OTA of that
   server's own build ([device-protocol.md 3.1](../device-protocol.md#31-post-deviceregister)).
-- **HTTPS against public roots, plain HTTP still allowed.** Every HTTP call of the device (OTA, `register`,
+- **HTTPS against public roots, plain HTTP still allowed.** Every HTTP call of the device (OTA, `register` with its `HEAD`,
   `claimcode`) checks an `https://` server against the public root CAs in `src/ca_bundle.gen.h`, which
   `dev-build.sh` generates from the build container's certifi (Mozilla's list) with ESP-IDF's `gen_crt_bundle.py`.
   So a device can be moved to any server with a publicly trusted certificate; a self-signed one fails. `http://`
