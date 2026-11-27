@@ -142,8 +142,8 @@ header. A full green run went from 53,301 log lines to about 5,100; most of the 
   that failed past it, the deploy path holds the new commit while the old containers keep running, and `./up.sh`
   there brings up the new commit.
 - **The deploy path has no `.git/`**, so `up.sh` there cannot read the commit the web app names on its About page.
-  The deploy has to hand it over as `APP_COMMIT=<sha> ./up.sh`; without it the app is built and runs as before,
-  just without a commit on that page ([webapp](webapp.md)).
+  `deploy-cloud.yml` hands it over as `APP_COMMIT='${GITHUB_SHA}' ./up.sh`; without it the app is built and runs
+  as before, just without a commit on that page ([webapp](webapp.md)).
 - **A cloud deploy** is `./up.sh` and then `scripts/wait-for-healthy.sh server 1800` (both commented in
   `deploy-cloud.yml`). `up.sh` stops before recreating anything when the MongoDB data does not fit the image; then
   `./upgrade-mongodb.sh` has to run on that host first ([runbook](../runbooks/mongodb-upgrade.md)). A boot
