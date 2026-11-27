@@ -1844,8 +1844,8 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         servermenu->addOption("use display", [=](){
           ui_handle->push<TextEntry>("server url", DEFAULT_API_URL, [=](std::string url) {
             ui_handle->pop();
-            ui_handle->push<TextEntry>("join password", [=](std::string password) {
-              ui_handle->pop();
+
+            auto join = [=](std::string password) {
               ui_handle->push<TextDisplay>("connecting...");
               ui_handle->loop();
 
@@ -1856,7 +1856,28 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
                 ui_handle->pop();
               });
               ui_handle->loop();
-            });
+            };
+
+            // Only a cloud that has a join password gets asked for one.
+            ui_handle->push<TextDisplay>("checking...");
+            ui_handle->loop();
+            auto gate = cloud->registrationGate(url);
+            ui_handle->pop();
+
+            if(gate == Fridgecloud::RegistrationGate::OPEN) {
+              join("");
+            }
+            else if(gate == Fridgecloud::RegistrationGate::CLOSED) {
+              ui_handle->push<TextDisplay>("registration closed", 1, []() {
+                ui_handle->pop();
+              });
+            }
+            else {
+              ui_handle->push<TextEntry>("join password", [=](std::string password) {
+                ui_handle->pop();
+                join(password);
+              });
+            }
           });
         });
       });

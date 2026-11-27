@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
 updated: 2026-11-27
-source: `fwupdate` removed and https verified (Chris, 2026-11-27); a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+source: `fwupdate` removed and https verified (Chris, 2026-11-27); Chris on an optional join password asked for by HEAD (2026-11-27); a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -116,11 +116,12 @@ used: it makes an older device download from any URL it is given.
 
 ## 3 HTTP
 
-A device makes three kinds of request (builds before 2026-11-27 a fourth, `fwupdate`'s). All of them are unauthenticated in the HTTP sense — the device proves
+A device makes four kinds of request (builds before 2026-11-27 a fifth, `fwupdate`'s). All of them are unauthenticated in the HTTP sense — the device proves
 itself with its own provisioning password in the body, or not at all.
 
 | Request | When | Firmware |
 | --- | --- | --- |
+| `HEAD {API_URL}/device/register` | "change server" on the display, after the URL and before the password | `fridgecloud.cpp`, `registrationGate` |
 | `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:710-745` |
 | `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:683-708` |
 | `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:595-603` |
@@ -163,6 +164,24 @@ that nobody has claimed makes way for the new registration, while one somebody o
 A new device is pinned to that build on the `stable` channel, so later releases reach it without anybody switching
 updates on. Re-registering an existing device pins it to the same build and keeps whatever channel it follows; it
 also forces `state.hardware.claimcode_auth` to `'off'`, which is what lets a re-homed device issue a claim code again.
+
+An empty or unset `SELF_REGISTRATION_PASSWORD` means no join password: any `registration_password` is accepted,
+because builds from before [3.1a](#31a-head-deviceregister) still make the user type something.
+
+### 3.1a `HEAD /device/register`
+
+Added November 2026. "Change server" on the display asks it right after the URL, so a cloud without a join
+password is joined without the prompt. No body either way; the answer is the status:
+
+| Status | Meaning | Display |
+| --- | --- | --- |
+| 204 | no join password (`SELF_REGISTRATION_PASSWORD` empty) | registers with an empty password at once |
+| 401 | a join password is needed | asks for it, as before |
+| 403 | `ENABLE_SELF_REGISTRATION` is off | "registration closed" |
+
+Anything else - above all the 404 of a server from before this route, or no answer at all - is read as 401, so a
+new build still joins an old cloud. Builds from before this route never ask it. The phone form is unchanged: it
+sends whatever is in its password field, which an open cloud does not check.
 
 ### 3.2 `POST /device/claimcode`
 

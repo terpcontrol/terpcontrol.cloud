@@ -559,6 +559,8 @@ describe('what the device routes answer', () => {
       })
       .expect(201);
     expectDocumented(enrolled, '/device/register', 'post');
+    // The test stack has a join password, so the display is told to ask for it.
+    await anonymous().head('/device/register').expect(401);
 
     const spare = await registerDevice();
     const code = await anonymous().post('/device/claimcode').send({ device_id: spare.deviceId }).expect(200);

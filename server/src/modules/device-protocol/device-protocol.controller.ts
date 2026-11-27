@@ -1,9 +1,9 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, Res, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Head, HttpCode, HttpStatus, Param, Post, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiExcludeController, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { ZodBody } from '@common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../openapi';
-import { DeviceRegistered, DeviceRegistrationService, IssuedClaimCode } from './device-registration.service';
+import { DeviceRegistered, DeviceRegistrationService, IssuedClaimCode, RegistrationGate } from './device-registration.service';
 import { FirmwareImageService } from './firmware-image.service';
 import { ClaimCodeRequest, claimCodeSchema, RegisterDeviceRequest, registerDeviceSchema } from './protocol.schemas';
 
@@ -30,6 +30,13 @@ const sendFirmwareImage = async (reply: FastifyReply, image: Buffer): Promise<vo
     .send(image);
 };
 
+/** How `HEAD /device/register` says what the display has to ask before it registers. */
+const GATE_STATUS: Record<RegistrationGate, number> = {
+  open: HttpStatus.NO_CONTENT,
+  password: HttpStatus.UNAUTHORIZED,
+  closed: HttpStatus.FORBIDDEN,
+};
+
 /** A device the registration does not recognise is told so, and nothing else. */
 const granted = <T>(answer: T | null): T => {
   if (!answer) throw new UnauthorizedException({ status: 'unauthorized' });
@@ -54,6 +61,19 @@ export class DeviceProtocolController {
   })
   public async register(@ZodBody(registerDeviceSchema) body: RegisterDeviceRequest): Promise<DeviceRegistered> {
     return granted(await this.registration.register(body));
+  }
+
+  // Asked by "change server" after the URL and before the join password, so a
+  // cloud without one is joined without the prompt. A server from before this
+  // route answers 404, and the firmware then asks for the password as it always
+  // did - which is why "no password" is the one answer that is not an error.
+  @Head('register')
+  @ApiOperation({ summary: 'Whether enrolling with this cloud needs the join password', ...PUBLIC_OPERATION })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Devices join without a password.' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Joining needs the join password.' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'This cloud takes no new devices.' })
+  public async registrationGate(@Res() reply: FastifyReply): Promise<void> {
+    await reply.code(GATE_STATUS[this.registration.gate()]).send();
   }
 
   @Post('claimcode')

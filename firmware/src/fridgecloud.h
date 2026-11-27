@@ -152,6 +152,8 @@ namespace fg {
     void resetConnection();
     void updateFirmware(std::string fw_id);
     void updateFirmwareFromUrl(std::string update_url);
+    enum class RegistrationGate { PASSWORD, OPEN, CLOSED };
+    RegistrationGate registrationGate(std::string url);
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();
