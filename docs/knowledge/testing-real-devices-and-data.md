@@ -1,7 +1,7 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, connection-loss tests, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
-updated: 2026-11-26
-source: Chris (instructions 2026-08-25..2026-11-26, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
+updated: 2026-11-27
+source: Chris (instructions 2026-08-25..2026-11-27, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -37,7 +37,19 @@ Everyday testing - suites, simulator, own stacks, browser checks - is in [testin
     stack's other containers too (volumes kept); rebuild once from the main checkout afterwards to put it back.
   - `verify.py` waits for every device of a type in the test account: one that has been silent for weeks times its
     type out. Leave it out only on Chris's word (2026-11-14: a second fridge silent for two months) and name it in
-    the PR comment.
+    the PR comment. The simulated `demo-*` devices a `./simulate-device.sh demo-seed` left in the account count too
+    (`firmwareId` `simulated-firmware`, they never update); the same rule holds for them.
+  - **One check or firmware build at a time per machine.** `build-fw.sh` copies the tree into the shared Docker
+    volume `fg2_firmware` and every build reads it from there, so a second session's build swaps the sources under a
+    running cycle; and two rollouts to one class fight over the same devices. Chris had a check running in another
+    session and said to wait 30 minutes (2026-11-27). Before starting, check that no `plantalytix-buildcontainer` or
+    `fw-temp-container` runs (`docker ps`) and that every device's `state.updateEndedAt` is later than its
+    `updateStartedAt` in `GET /v1/devices`.
+  - **A PR that conflicts with master** is skipped by the skill. On Chris's word to resolve it (2026-11-27): merge
+    `origin/master` into the PR branch in a worktree, compile every type with `FW_NO_UPLOAD=1 ./build-fw.sh` (it
+    also uses `fg2_firmware`, see above), commit and push the merge (no force-push). The PR tip is then the
+    post-merge state, and the cycles run from that worktree. On the display-language branch (#186) master's new
+    display strings had to go into `firmware/lib/fghmi/texts.def`, the PR's text table.
 - Compile-only builds are in [AGENTS.md](../../AGENTS.md#firmware). Build every type that compiles a changed shared
   file; one type compiling proves nothing about the others. In a `while read` loop give `build-fw.sh` `</dev/null`:
   its `docker run -i` eats the loop's stdin and silently skips the remaining iterations.
