@@ -243,10 +243,11 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   {url}` accepts it; a URL that is not the current one is 409 `terms_changed`, without `TERMS_URL` 409 `no_terms`.
   Admin-created accounts accept at that gate. The privacy statement (`PRIVACY_URL`) is information under Art. 13
   GDPR: linked at sign-up, never agreed to, nothing recorded.
-- A new password needs 8 characters (EN 303 645, BSI): sign-up, `PUT /v1/me/password`, a recovery redemption and an
-  administrator's create or reset answer 422 `password_too_short` with the field named. The wire contract keeps
-  `min(1)`, because the same schema carries the password signed in with, which may predate the rule; so does
-  `ADMINUSER_PASSWORD`, set at boot and never checked.
+- A new password a person sets for themselves needs 8 characters (EN 303 645, BSI): sign-up, `PUT /v1/me/password`
+  and a recovery redemption answer 422 `password_too_short` with the field named. The wire contract keeps `min(1)`,
+  because the same schema carries the password signed in with, which may predate the rule. Passwords an
+  administrator sets - the admin routes and `ADMINUSER_PASSWORD` - are not checked: that is the operator's call, and
+  the local test stacks create their account with a short throwaway password.
 - `DELETE /v1/me` and `DELETE /v1/admin/users/{id}` run one resumable cascade (`account-deletion.service.ts`). It
   refuses the `ADMINUSER_*` account (409 `admin_account_kept`), which the next boot would re-create anyway.
 

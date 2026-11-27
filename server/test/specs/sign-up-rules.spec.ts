@@ -90,14 +90,12 @@ describe('activating an account', () => {
 });
 
 describe('an administrator', () => {
-  it('cannot give an account a password under eight characters either', async () => {
+  it("may give an account a short password, which is the operator's call", async () => {
     const admin = await loginAsAdmin();
 
-    const answer = await admin.client
+    await admin.client
       .post('/v1/admin/users')
       .send({ email: `${unique('short-admin')}@test.invalid`, handle: unique('short-admin'), password: SHORT })
-      .expect(422);
-
-    tooShort(answer.body, 'password');
+      .expect(201);
   });
 });

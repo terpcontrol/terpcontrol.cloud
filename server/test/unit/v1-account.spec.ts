@@ -186,12 +186,13 @@ describe('a new password', () => {
     expect(await accounts.verify(user.email, NEW_PASSWORD)).not.toBeNull();
   });
 
-  it('is refused under eight characters from an administrator too', async () => {
-    const refused = await refusal(() => accounts.createAsAdmin({ email: 'made@test.invalid', handle: 'made', password: 'short' }));
-    expect(refused.problem.code).toBe('password_too_short');
+  it("is not asked of a password an administrator sets, which is the operator's call", async () => {
+    const made = await accounts.createAsAdmin({ email: 'made@test.invalid', handle: 'made', password: 'short' });
+    expect(await accounts.verify(made.email, 'short')).not.toBeNull();
 
     const user = await signUp('reset-by-admin');
-    expect((await refusal(() => accounts.updateAsAdmin(user.id, { password: 'short' }))).problem.code).toBe('password_too_short');
+    await accounts.updateAsAdmin(user.id, { password: 'short' });
+    expect(await accounts.verify(user.email, 'short')).not.toBeNull();
   });
 
   it('is not asked of a password signed in with, which may predate the rule', async () => {

@@ -47,9 +47,10 @@ export const PASSWORD_MIN_LENGTH = 8;
 
 /**
  * Refuses a new password that is too short, naming the field it came in. Only a
- * password being set is held to it: one being signed in with may predate the
- * rule, and so may the install's own administrator password, which its
- * operator sets in the environment.
+ * password a person sets for themselves is held to it: one being signed in with
+ * may predate the rule, and one an administrator sets - through the admin routes
+ * or the environment - is the operator's call, which test and demo installs rely
+ * on for short throwaway passwords.
  */
 export const requireNewPassword = (password: string, field: string): void => {
   if (password.length >= PASSWORD_MIN_LENGTH) return;
@@ -195,7 +196,6 @@ export class AccountsService implements OnModuleInit {
    * activation code, because whoever created it can hand the password over.
    */
   public async createAsAdmin(body: AdminUserCreate): Promise<StoredUser> {
-    requireNewPassword(body.password, 'password');
     return this.create({
       email: body.email,
       handle: body.handle,
@@ -263,10 +263,7 @@ export class AccountsService implements OnModuleInit {
     if (rest.handle !== undefined) await this.claimHandle(rest.handle, id);
 
     const changes: Partial<StoredUser> = { ...rest };
-    if (password !== undefined) {
-      requireNewPassword(password, 'password');
-      changes.passwordHash = await hash(password, PASSWORD_ROUNDS);
-    }
+    if (password !== undefined) changes.passwordHash = await hash(password, PASSWORD_ROUNDS);
 
     return this.apply(id, changes);
   }
