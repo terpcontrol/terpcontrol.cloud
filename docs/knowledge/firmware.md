@@ -1,7 +1,7 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, reconnecting and the daily recovery reboot, safety stops, known gaps
-updated: 2026-11-14
-source: Chris (decisions 2026-07..11); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
+updated: 2026-11-27
+source: Chris (decisions 2026-07..11, security hardening 2026-11-27); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12); `manual` in the app and checking the firmware card on a stack without firmware (the redesign session of 2026-11-12)
 paths:
   - firmware/**
   - fw-buildcontainer/**
@@ -61,7 +61,8 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   fleet offline (`unknown_ca`) with no remote fix, since updates travel over MQTT. A new CA needs a rollout first.
 - `platformio.ini` uses `build_src_filter` (`src_filter` is deprecated). `-fno-rtti` stays out of `build_flags`: the
   framework passes it to every C++ file, and `build_flags` also reach the C compiler, which warned once per file.
-- Flash headroom, October 2026: `fridge` ~1.42 MB, 67 % of the OTA slot; `fan` 65 %, `plug` 66 %. Compare sizes only
+- Flash headroom, November 2026 (with the root-CA bundle): `fridge` ~1.48 MB, 70 % of the OTA slot;
+  `controller` 70 %, `plug` 69 %, `fan` and `light` 68 %. Compare sizes only
   between builds made back to back with the same toolchain install.
 - The device's web page (AP portal and phone server form) is `html/index.html`; after editing it run
   `python3 firmware/scripts/html-compress.py` and commit the regenerated `src/html_compressed/index.html.h`.
@@ -77,7 +78,7 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - `./log-device.sh` streams the serial log at 115200 baud (`pio device monitor` defaults to 9600 and garbles it). It
   does not decode backtraces: that takes `pio device monitor -f esp32_exception_decoder` in `firmware/` with the ELF
   of the very build the device runs.
-- The boot log prints the device's MQTT username and password, and an NVS dump (`esptool.py read_flash 0x9000
+- The boot log prints the device's MQTT username (not the password, since 2026-11-27), and an NVS dump (`esptool.py read_flash 0x9000
   0x4000`) holds the WiFi password and other secrets: keep both out of issues, pull requests and the repository.
 - A crash without a serial line: every boot writes `message-device-booted:<reason>` to the diary. `TASK_WDT` -
   something blocked for 60 s; `PANIC` - a real crash, get a backtrace; `BROWNOUT` - the supply sags, which fits a
@@ -234,6 +235,37 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
   humidifier sockets on until the failsafe turns them off again, after about the 30 s socket send interval. The
   controller's failsafe writes no diary line (`sensor_fail_logged` in `controller.h` is never used) and keeps
   sending its last temperature and humidity; only `sensor_type` 0 tells the cloud.
+
+## Security hardening (RED, EN 18031)
+
+Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
+- **Updates only over the air.** Nothing may need a person at the device to enter a key or similar (a public key
+  via the knob is ruled out), and a USB re-flash is no regular path for devices in the field.
+- **The update itself is neither signed nor encrypted.** It travels over HTTPS, with the server's certificate
+  verified. Signing would also break moving a device to another server: registering ends in an OTA of that
+  server's own build ([device-protocol.md 3.1](../device-protocol.md#31-post-deviceregister)).
+- **HTTPS against public roots, plain HTTP still allowed.** Every HTTP call of the device (OTA, `register` with its `HEAD`,
+  `claimcode`) checks an `https://` server against the public root CAs in `src/ca_bundle.gen.h`, which
+  `dev-build.sh` generates from the build container's certifi (Mozilla's list) with ESP-IDF's `gen_crt_bundle.py`.
+  So a device can be moved to any server with a publicly trusted certificate; a self-signed one fails. `http://`
+  stays for local stacks and self-hosted servers without TLS. The Arduino core's mbedtls is built without
+  `MBEDTLS_HAVE_TIME_DATE`: chain and host name are checked, certificate dates are not, so the clock does not matter.
+  The handshake is limited to 30 s (`beginHttp`): the framework's 120 s default outlasts the 60 s loop watchdog.
+  The Arduino core's bundle check looks only at the issuer of the topmost certificate the server sends: a chain
+  that ends in a cross-sign by a root no longer in Mozilla's list fails even when the root below it is in the
+  bundle (`www.google.com`, GTS Root R4 cross-signed by GlobalSign Root CA, November 2026). Let's Encrypt chains
+  work (checked on the fridge: a valid name answered, a wrong name, a self-signed and an expired certificate were
+  refused).
+- **The OTA takes only a 200.** Before, any status was written into the update partition.
+- **`fwupdate` is gone** from the firmware: it took a download from any URL, and the server never published it.
+  The topic stays reserved ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
+- **MQTTS stays as it is:** dev and production builds carry the CA; plaintext MQTT remains for local setups and for
+  devices on older firmware.
+- **The setup access point stays open** (no passphrase): it opens only after a menu action at the device and is
+  rarely used.
+- **No secrets in the serial log:** the boot log no longer prints the MQTT password.
+- **No flash encryption:** irreversible eFuses and a bootloader the prebuilt Arduino core does not have are too
+  much risk, and the device holds no real user data - its credential is per device and revocable on the server.
 
 ## OTA and update channels
 
