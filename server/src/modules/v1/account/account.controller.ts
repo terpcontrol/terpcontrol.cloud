@@ -8,6 +8,7 @@ import {
   PasswordResetCreate,
   PasswordResetRedemption,
   SignupUser,
+  TermsAcceptanceCreate,
   UserActivation,
   UserCreate,
 } from '@fg2/shared-types/v1';
@@ -19,6 +20,7 @@ import {
   passwordResetCreate,
   passwordResetRedemption,
   signupUser,
+  termsAcceptanceCreate,
   userActivation,
   userCreate,
 } from '@fg2/shared-types/v1-schemas';
@@ -32,7 +34,7 @@ import { PUBLIC_OPERATION } from '../../../openapi';
 import { V1Answer } from '../answer-shape';
 import { accountOf } from '../caller';
 import { AccountMailService } from './account-mail.service';
-import { AccountsService } from './accounts.service';
+import { AccountsService, requireNewPassword } from './accounts.service';
 import { PasswordResetService } from './password-reset.service';
 
 /**
@@ -59,7 +61,7 @@ export class AccountController {
   @ApiOperation({ summary: 'Sign up', ...PUBLIC_OPERATION })
   @V1Answer(signupUser, { status: HttpStatus.CREATED })
   public async signUp(@V1Body(userCreate) body: UserCreate): Promise<SignupUser> {
-    const user = await this.accounts.signUp(body.email, body.handle, body.password);
+    const user = await this.accounts.signUp(body.email, body.handle, body.password, body.acceptTerms === true);
     // The code goes to the address and nowhere else: whoever can read that
     // mailbox is who the account is for.
     if (user.activationCode) await this.mails.activation(user.email, user.activationCode);
@@ -72,6 +74,7 @@ export class AccountController {
 
   @Post('users/activations')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RateLimited({ limit: 10, message: 'Too many activation attempts, please try again later.' })
   @ApiOperation({ summary: 'Activate an account with the code from its activation mail', ...PUBLIC_OPERATION })
   @ApiNoContentResponse({ description: 'The account is active; sign in with it like any other.' })
   public activate(@V1Body(userActivation) body: UserActivation): Promise<void> {
@@ -122,6 +125,19 @@ export class AccountController {
   }
 
   /**
+   * The install's terms of use, accepted by an account that signed up before
+   * they were published or changed. The app asks for this before anything else.
+   */
+  @Post('me/terms-acceptances')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept the terms of use in force, by the address `Me.termsToAccept` named' })
+  @V1Answer(meShape)
+  public async acceptTerms(@CurrentUser() caller: AuthContext, @V1Body(termsAcceptanceCreate) body: TermsAcceptanceCreate): Promise<Me> {
+    return this.accounts.serialiseMe(await this.accounts.acceptTerms(accountOf(caller), body.url));
+  }
+
+  /**
    * The one tap that turns somebody who believes they are watched over into
    * somebody who is: critical alarms - a device gone offline, a tent too warm -
    * by mail to the address they sign in with, and whatever else can call on
@@ -153,6 +169,7 @@ export class AccountController {
   @ApiNoContentResponse({ description: 'The password is changed.' })
   public async changePassword(@CurrentUser() caller: AuthContext, @V1Body(passwordChange) body: PasswordChange): Promise<void> {
     const user = await this.accounts.require(accountOf(caller));
+    requireNewPassword(body.newPassword, 'newPassword');
 
     if (!(await this.accounts.verify(user.email, body.currentPassword))) {
       throw unauthenticated('current_password_wrong', "That is not this account's current password.");

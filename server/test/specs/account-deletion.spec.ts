@@ -4,6 +4,7 @@ import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Se
 import { claimCodeOf, provisionDevice } from '../support/device';
 import { beginDeletionOf, diaryEntriesOf, joinSpace, remindSpace, rowsIn, seedRow, storeCameraStill, storedImageExists } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
+import { seedMeasurements } from '../support/control';
 import { entryPoint, SERVER_ROOT } from '../support/infra/app';
 
 /**
@@ -51,6 +52,11 @@ const aHousehold = async (): Promise<Household> => {
 
   const device = await provisionDevice(owner, 'controller');
   const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+  // A reading from the week before, and the daily mean of a day already summarised.
+  await seedMeasurements([
+    { device_id: device.deviceId, fields: { temperature: 24.5 }, time: Date.now() - 7 * 86_400_000 },
+    { device_id: device.deviceId, measurement: 'status_daily', fields: { temperature: 23 }, time: Date.now() - 30 * 86_400_000 },
+  ]);
 
   const grow = (
     await owner.client
@@ -262,6 +268,13 @@ describe('deleting an account', () => {
     expect(await rowsIn('alerts', { deviceId: home.deviceId })).toEqual([]);
     // What the hardware reported is not the next owner's to read.
     expect(await diaryEntriesOf(home.deviceId)).toEqual([]);
+    // Nor what it measured: the readings are gone from the store, not merely out of sight.
+    const series = await admin.client
+      .get(`/v1/devices/${home.deviceId}/series`)
+      .query({ startsAt: new Date(Date.now() - 60 * 86_400_000).toISOString(), endsAt: new Date().toISOString(), metrics: 'temperature' })
+      .expect(200);
+    const points = series.body.metrics.flatMap((metric: { points: { value: number | null }[] }) => metric.points);
+    expect(points.filter((point: { value: number | null }) => point.value !== null)).toEqual([]);
   });
 
   it('tells support the device was let go with the account, not that nobody ever added it', async () => {

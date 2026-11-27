@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { useCheckReset, useRedeemReset, useRequestReset, useResetValid } from '@/api/account';
+import { PASSWORD_MIN_LENGTH, useCheckReset, useRedeemReset, useRequestReset, useResetValid } from '@/api/account';
 import { ApiError, refusalCode } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
@@ -189,9 +189,11 @@ function NewPassword({ token }: { token: string }) {
         type="password"
         autoComplete="new-password"
         disabled={redeem.isPending}
+        minLength={PASSWORD_MIN_LENGTH}
         value={password}
         onChange={event => setPassword(event.target.value)}
       />
+      <p className={`${ui.note} ${styles.fieldNote}`}>{t('login.signUp.passwordNote')}</p>
       <Problem>{problem}</Problem>
       <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={redeem.isPending || password === ''}>
         {t('recover.set')}

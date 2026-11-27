@@ -608,6 +608,10 @@ export interface Me {
    */
   pushSubscribed: boolean;
   layers: AccountLayers;
+  /**
+   * The terms of use this account still has to accept before it goes on, as the address they are published at: the install's current terms where the account has not accepted that very address. Null where the install has none, where they are accepted, and for an administrator.
+   */
+  termsToAccept: string | null;
 }
 
 export interface MeUpdate {
@@ -664,6 +668,10 @@ export interface UserCreate {
   email: string;
   handle: string;
   password: string;
+  /**
+   * Confirms being at least 18 and accepting the install's terms of use, which it asks for where it has any.
+   */
+  acceptTerms?: true;
 }
 
 export interface SignupUser {
@@ -676,6 +684,10 @@ export interface SignupUser {
 
 export interface UserActivation {
   activationCode: string;
+}
+
+export interface TermsAcceptanceCreate {
+  url: string;
 }
 
 export interface AuthToken {

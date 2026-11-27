@@ -32,6 +32,7 @@ const auth = {
   selfRegistrationPassword: undefined,
   adminUsername: 'admin@test.invalid',
   adminPassword: 'Adm1n!pass',
+  termsUrl: null as string | null,
 };
 
 const premium = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };
@@ -65,7 +66,7 @@ let accounts: AccountsService;
 let resets: PasswordResetService;
 let sessions: SessionsService;
 
-const build = (): void => {
+const build = (termsUrl: string | null = null): void => {
   accounts = new AccountsService(
     database.users,
     database.pushSubscriptions,
@@ -74,7 +75,7 @@ const build = (): void => {
     database.entries,
     database.memberships,
     database.spaces,
-    { ...auth },
+    { ...auth, termsUrl },
     { ...premium },
     { ...notifications },
     { ...retention },
@@ -164,6 +165,102 @@ describe('signing up', () => {
 
     expect((await refusal(() => accounts.signUp('taken@test.invalid', 'other', PASSWORD))).problem.code).toBe('email_taken');
     expect((await refusal(() => accounts.signUp('other@test.invalid', 'taken', PASSWORD))).problem.code).toBe('handle_taken');
+  });
+});
+
+describe('a new password', () => {
+  it('is refused under eight characters on sign-up, naming the field', async () => {
+    const refused = await refusal(() => accounts.signUp('short@test.invalid', 'short', 'Sh0rt!x'));
+
+    expect(refused.problem).toMatchObject({ status: 422, code: 'password_too_short', errors: [{ field: 'password' }] });
+    expect(await database.users.countDocuments({ email: 'short@test.invalid' })).toBe(0);
+  });
+
+  it('is refused under eight characters when a recovery link sets it, and leaves the link unspent', async () => {
+    const user = await signUp('short-reset');
+    await resets.request(user.email);
+    const token = mailed[0].text.match(/\/recover\/([\w-]+)/)?.[1] as string;
+
+    expect((await refusal(() => resets.redeem(token, 'short'))).problem).toMatchObject({ status: 422, code: 'password_too_short' });
+    await resets.redeem(token, NEW_PASSWORD);
+    expect(await accounts.verify(user.email, NEW_PASSWORD)).not.toBeNull();
+  });
+
+  it("is not asked of a password an administrator sets, which is the operator's call", async () => {
+    const made = await accounts.createAsAdmin({ email: 'made@test.invalid', handle: 'made', password: 'short' });
+    expect(await accounts.verify(made.email, 'short')).not.toBeNull();
+
+    const user = await signUp('reset-by-admin');
+    await accounts.updateAsAdmin(user.id, { password: 'short' });
+    expect(await accounts.verify(user.email, 'short')).not.toBeNull();
+  });
+
+  it('is not asked of a password signed in with, which may predate the rule', async () => {
+    const user = await signUp('old-password');
+    await accounts.setPassword(user.id, 'old');
+
+    expect(await accounts.verify(user.email, 'old')).not.toBeNull();
+  });
+});
+
+describe('the terms of use', () => {
+  const TERMS = 'https://terms.test.invalid/terms?stand=2026-11';
+  const NEWER = 'https://terms.test.invalid/terms?stand=2026-12';
+
+  const signUpAccepting = (prefix: string) => accounts.signUp(`${prefix}@test.invalid`, prefix, PASSWORD, true);
+
+  it('are neither asked for nor recorded where the install has none', async () => {
+    const user = await signUp('no-terms');
+
+    expect((await database.users.findOne({ id: user.id }).lean())?.termsAcceptance).toBeNull();
+    expect((await accounts.serialiseMe(user)).termsToAccept).toBeNull();
+    expect((await refusal(() => accounts.acceptTerms(user.id, TERMS))).problem).toMatchObject({ status: 409, code: 'no_terms' });
+  });
+
+  it('refuse a sign-up that does not accept them, naming the field', async () => {
+    build(TERMS);
+
+    const refused = await refusal(() => signUp('not-accepting'));
+    expect(refused.problem).toMatchObject({ status: 422, code: 'terms_not_accepted', errors: [{ field: 'acceptTerms' }] });
+    expect(await database.users.countDocuments({ email: 'not-accepting@test.invalid' })).toBe(0);
+  });
+
+  it('are recorded with the account that accepted them, by their address and the moment', async () => {
+    build(TERMS);
+    const before = Date.now();
+
+    const user = await signUpAccepting('accepting');
+    const stored = (await database.users.findOne({ id: user.id }).lean())?.termsAcceptance;
+
+    expect(stored?.url).toBe(TERMS);
+    expect(stored?.at.getTime()).toBeGreaterThanOrEqual(before);
+    expect((await accounts.serialiseMe(user)).termsToAccept).toBeNull();
+  });
+
+  it('are asked again once their address changes, and only the address in force is taken', async () => {
+    build(TERMS);
+    const user = await signUpAccepting('changed-terms');
+
+    build(NEWER);
+    expect((await accounts.serialiseMe(await accounts.require(user.id))).termsToAccept).toBe(NEWER);
+
+    // A tab opened before the change accepts nothing.
+    expect((await refusal(() => accounts.acceptTerms(user.id, TERMS))).problem).toMatchObject({ status: 409, code: 'terms_changed' });
+
+    const accepted = await accounts.acceptTerms(user.id, NEWER);
+    expect(accepted.termsAcceptance?.url).toBe(NEWER);
+    expect((await accounts.serialiseMe(accepted)).termsToAccept).toBeNull();
+  });
+
+  it('are asked of an account made before them or by an administrator, and never of an administrator', async () => {
+    const plain = await signUp('before-terms');
+    const made = await accounts.createAsAdmin({ email: 'made-terms@test.invalid', handle: 'made-terms', password: PASSWORD });
+    const admin = await accounts.createAsAdmin({ email: 'admin-terms@test.invalid', handle: 'admin-terms', password: PASSWORD, isAdmin: true });
+    build(TERMS);
+
+    expect((await accounts.serialiseMe(plain)).termsToAccept).toBe(TERMS);
+    expect((await accounts.serialiseMe(made)).termsToAccept).toBe(TERMS);
+    expect((await accounts.serialiseMe(admin)).termsToAccept).toBeNull();
   });
 });
 

@@ -1,7 +1,7 @@
 import { type DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
+import { PASSWORD_MIN_LENGTH, useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
 import { itemsOf } from '@/api/pages';
 import { refusalCode } from '@/api/problem';
 import { useSession } from '@/api/session';
@@ -175,6 +175,7 @@ function PasswordRow({ held }: { held: boolean }) {
                     className={ui.input}
                     type="password"
                     autoComplete={key === 'current' ? 'current-password' : 'new-password'}
+                    minLength={key === 'current' ? undefined : PASSWORD_MIN_LENGTH}
                     aria-invalid={(key === 'current' && wrong) || undefined}
                     value={typed[key]}
                     onChange={event => setTyped({ ...typed, [key]: event.target.value })}

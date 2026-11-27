@@ -294,6 +294,12 @@ export const me = named(
     telegramAvailable: z.boolean(),
     pushSubscribed: z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
     layers: accountLayers,
+    termsToAccept: z
+      .string()
+      .nullable()
+      .describe(
+        'The terms of use this account still has to accept before it goes on, as the address they are published at: the install\'s current terms where the account has not accepted that very address. Null where the install has none, where they are accepted, and for an administrator.',
+      ),
   }),
 );
 
@@ -330,9 +336,10 @@ export const meUpdate = named(
  * bodies that carry one.
  *
  * Deliberately no more than "not empty". Strength is the server's rule and the
- * server's alone: a minimum written into the wire contract would also be applied
- * to the password somebody is signing *in* with, and lock out every account
- * whose password predates it.
+ * server's alone - a new password is refused under eight characters with
+ * `password_too_short` - because a minimum written into the wire contract would
+ * also be applied to the password somebody is signing *in* with, and lock out
+ * every account whose password predates it.
  */
 const password = () => z.string().min(1);
 
@@ -357,11 +364,22 @@ export const passwordChange = named(
   }),
 );
 
+const accountCreate = user.pick({ email: true, handle: true }).extend({ password: password() });
+
 /**
  * `POST /users`. A sign-up names its own handle, because it is the only name
  * this account will ever show and inventing one would only have to be corrected.
+ *
+ * Where the install publishes terms of use, `acceptTerms` is the person saying
+ * they are of age and accept them; a sign-up without it is refused with
+ * `terms_not_accepted`, and the acceptance is recorded with the account.
  */
-export const userCreate = named('UserCreate', user.pick({ email: true, handle: true }).extend({ password: password() }));
+export const userCreate = named(
+  'UserCreate',
+  accountCreate.extend({
+    acceptTerms: z.literal(true).optional().describe('Confirms being at least 18 and accepting the install\'s terms of use, which it asks for where it has any.'),
+  }),
+);
 
 /**
  * What a sign-up is told about the account it just made. Never the activation
@@ -381,6 +399,14 @@ export const signupUser = named('SignupUser', user.pick({ id: true, createdAt: t
  * entire request.
  */
 export const userActivation = named('UserActivation', z.object({ activationCode: user.shape.activationCode.unwrap() }));
+
+/**
+ * `POST /me/terms-acceptances`: the terms of use as the person read them, by the
+ * address `Me.termsToAccept` named. An address that is no longer the current one
+ * is refused with `terms_changed`, so a tab left open does not accept terms its
+ * reader never saw.
+ */
+export const termsAcceptanceCreate = named('TermsAcceptanceCreate', z.object({ url: z.string().min(1) }));
 
 /**
  * One signed token and the instant it stops working. A duration would be the
@@ -577,7 +603,7 @@ export const adminUserPage = named('AdminUserPage', page(user));
  */
 export const adminUserCreate = named(
   'AdminUserCreate',
-  userCreate.extend(user.pick({ isAdmin: true, isActive: true }).partial().shape),
+  accountCreate.extend(user.pick({ isAdmin: true, isActive: true }).partial().shape),
 );
 
 /**

@@ -317,10 +317,13 @@ export class DevicesService {
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim
     // that lost the race.
+    // Hardware somebody held before is read from this claim on: what it measured for them is not the claimer's.
+    const claimedAt = new Date();
+    const heldBefore = Boolean(device.state?.released) || (device.placements?.length ?? 0) > 0;
     const claimed = await this.devices
       .findOneAndUpdate(
         { id: device.id, ownerId: null },
-        { $set: { ownerId, name, 'state.claimedAt': new Date(), 'state.released': null } },
+        { $set: { ownerId, name, 'state.claimedAt': claimedAt, 'state.readsFrom': heldBefore ? claimedAt : null, 'state.released': null } },
         { new: true },
       )
       .lean<StoredDevice>();
@@ -397,6 +400,7 @@ export class DevicesService {
             isDemo: false,
             scheduleClock: null,
             'state.claimedAt': null,
+            'state.readsFrom': null,
             // The places it stood in go on calling it what its holder did (`calledIn`) - unless that account is
             // being deleted, whose places go with it and whose name for the device is nobody's to keep.
             'state.released':

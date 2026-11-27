@@ -60,6 +60,7 @@ import {
   OutputFigure,
   OutputSwitching,
   pointsOf,
+  everySamplePredicate,
   rawSamplePredicate,
   SampleEdges,
   readingsOf,
@@ -822,6 +823,26 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     });
 
     if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s raw samples: ${answer.status} ${await answer.text()}`);
+  }
+
+  /**
+   * Every point a device wrote inside a stretch, dropped - its raw samples and
+   * the daily summaries made of them alike. What a deleted account's devices
+   * measured for it goes this way; a summary standing for a day the stretch
+   * only touches goes with it, because it speaks for that day's readings.
+   */
+  public async dropEverySample(deviceId: string, startsAt: Date, endsAt: Date): Promise<void> {
+    const url = new URL('/api/v2/delete', this.config.url);
+    url.searchParams.set('org', this.config.org!);
+    url.searchParams.set('bucket', this.bucket);
+
+    const answer = await fetch(url, {
+      method: 'POST',
+      headers: { authorization: `Token ${this.config.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ start: startsAt.toISOString(), stop: endsAt.toISOString(), predicate: everySamplePredicate(deviceId) }),
+    });
+
+    if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s samples: ${answer.status} ${await answer.text()}`);
   }
 
   // Org and bucket are required environment - without them there is no
