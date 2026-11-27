@@ -41,8 +41,8 @@ pull request. The rules on top of the ones above:
   to `master`, never merge, never force-push.
 - Never roll out firmware or deploy anything: no `./build-fw.sh` without `FW_NO_UPLOAD=1`, no `./up.sh` against a
   real environment, no calls to a live API. Compile-check firmware as described under **Firmware**.
-- `.github/workflows/` is changed by humans only. When a change needs it, say so on the issue and add the label
-  `stage:hilfe`.
+- Changes to `.github/workflows/` are fine in a pull request: say in its body what they change. A human reviews them
+  before the merge.
 - The board stage of an issue is its `stage:*` label; set only the labels the factory's instructions name.
 
 ## Before committing
