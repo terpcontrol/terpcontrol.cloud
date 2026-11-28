@@ -1,0 +1,23 @@
+/* A ring in the button's own colour with one quarter drawn, turning once a second. */
+.ring {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* Asked to keep still, the ring stands: it still says "loading" beside the word, without moving. */
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+  }
+}

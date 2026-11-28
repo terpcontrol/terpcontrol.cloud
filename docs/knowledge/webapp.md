@@ -65,8 +65,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   place, so the three never disagree about a tent.
 - **Grow** is `src/screens/grow/`: `CurrentGrow.tsx` (the bar's item) and `GrowPage.tsx` (a grow by its id) draw
   the same `GrowScreen` - `GrowHead`, `GrowMenu` and the tab the address names (`grow-tabs.ts`: the diary is the
-  address itself, an unknown segment leads there). The diary and the pictures are one read,
-  `GET /v1/grows/{id}/diary` (`useGrowDiary`, a few weeks a page): `diary/days.ts` puts a day's answer into the
+  address itself, an unknown segment leads there). The diary reads `GET /v1/grows/{id}/diary` (`useGrowDiary`, a
+  few weeks a page), the pictures the same weeks without their climate, `GET /v1/grows/{id}/pictures`
+  (`useGrowPictures`), which costs the server no time series: `diary/days.ts` puts a day's answer into the
   words and the order a card draws - titles, the climate line, the folded lines, the pictures of a day - and
   `diary/Diary.tsx`, `diary/DayCard.tsx` and `pictures/Pictures.tsx` draw them. A line is `ui/Lines.tsx`, the row
   Start's last lines are too. `Grows.tsx` is the list at `/grows`. The days are drawn by `Days` for whoever reads

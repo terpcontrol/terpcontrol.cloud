@@ -1,8 +1,8 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import type { GrowDiaryPage, GrowReport } from '@fg2/shared-types/v1';
-import { growDiaryPage, growReport } from '@fg2/shared-types/v1-schemas';
+import type { GrowDiaryPage, GrowPicturesPage, GrowReport } from '@fg2/shared-types/v1';
+import { growDiaryPage, growPicturesPage, growReport } from '@fg2/shared-types/v1-schemas';
 import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { Grant } from '@common/v1/access.types';
 import { V1Query } from '@common/v1/validation';
@@ -14,8 +14,8 @@ import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
  * The reads of the grow page that are not the grow itself: its diary day by
- * day, the weeks a public diary is made of, and the report that tells it as
- * chapters.
+ * day, the same days read for their pictures alone, and the report that tells
+ * it as chapters.
  *
  * All are reads of one grow and declare the need every read does, so a member
  * sees them, a share link reaches them clamped to its range, and a public grow
@@ -36,6 +36,22 @@ export class GrowDiaryController {
   @V1Answer(growDiaryPage)
   public days(@CurrentGrant() grant: Grant, @Param('id') id: string, @V1Query(diaryQuery) query: z.infer<typeof diaryQuery>): Promise<GrowDiaryPage> {
     return this.diary.page(id, grant, query);
+  }
+
+  @Get(':id/pictures')
+  @UseGuards(OptionalSessionGuard, AccessGuard)
+  @Requires('view', 'grow')
+  @ApiOperation({
+    summary: 'The pictures of the grow’s diary, the same weeks as its diary and with no climate, newest first',
+    ...SHARED_READ_OPERATION,
+  })
+  @V1Answer(growPicturesPage)
+  public pictures(
+    @CurrentGrant() grant: Grant,
+    @Param('id') id: string,
+    @V1Query(diaryQuery) query: z.infer<typeof diaryQuery>,
+  ): Promise<GrowPicturesPage> {
+    return this.diary.pictures(id, grant, query);
   }
 
   @Get(':id/report')

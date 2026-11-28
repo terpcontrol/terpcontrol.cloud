@@ -582,7 +582,7 @@ export const picturesOfLine = (day: Pick<GrowDiaryDay, 'dayNumber' | 'date'>, en
  * what the lines of that day carry. A still somebody made a line of is one
  * picture, and is the line's.
  */
-export const picturesOfDay = (day: GrowDiaryDay): GrowPicture[] => {
+export const picturesOfDay = (day: Pick<GrowDiaryDay, 'dayNumber' | 'date' | 'still' | 'entries'>): GrowPicture[] => {
   const written = day.entries.flatMap(entry => picturesOfLine(day, entry));
   const camera =
     day.still && !written.some(picture => picture.mediaId === day.still!.mediaId)
@@ -620,9 +620,9 @@ export const placeAt = (grow: Pick<GrowListItem, 'placements'>, at: string): str
   grow.placements.find(placement => placement.startedAt <= at && (placement.endedAt === null || placement.endedAt > at))?.spaceId ?? null;
 
 /** A week that has its film. */
-export type FilmedWeek = GrowDiaryWeek & { film: NonNullable<GrowDiaryWeek['film']> };
+export type FilmedWeek<Week extends Pick<GrowDiaryWeek, 'film'> = GrowDiaryWeek> = Week & { film: NonNullable<GrowDiaryWeek['film']> };
 
-export const hasFilm = (week: GrowDiaryWeek): week is FilmedWeek => week.film !== null;
+export const hasFilm = <Week extends Pick<GrowDiaryWeek, 'film'>>(week: Week): week is FilmedWeek<Week> => week.film !== null;
 
 /** "Tag 28 · 11. Nov · Dein Foto · Erste Blüten": which day, which date, whose picture, and what was written with it. */
 export const pictureCaption = (t: Translate, picture: GrowPicture, userId: string | null): string =>

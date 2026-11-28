@@ -10,6 +10,7 @@ import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { timelinePath } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
 import { sinceLabel } from '@/ui/age';
+import { EarlierButton } from '@/ui/EarlierButton';
 import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { MINUTE_MS } from '@/ui/days';
@@ -251,12 +252,7 @@ export function Days({
           {inWeek.map(card)}
         </WeekRow>
       ))}
-      {more ? (
-        // Not disabled while it asks: that would drop the focus, and the rescue's ring then read as a button of its own.
-        <button type="button" className={ui.button} aria-disabled={more.pending || undefined} onClick={() => more.pending || more.load()}>
-          {more.pending ? t('home.waiting') : t('grow.earlierWeeks')}
-        </button>
-      ) : null}
+      {more ? <EarlierButton pending={more.pending} load={more.load} /> : null}
       {earlier.length > 0 ? (
         <article className={styles.day} aria-label={t('grow.diary.earlier')}>
           <div className={styles.dayHead}>

@@ -2,12 +2,13 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import type { GrowDiaryWeek, GrowListItem } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowPicturesWeek } from '@fg2/shared-types/v1';
 import { useCamerasShape } from '@/api/cameras';
-import { useGrowDiary } from '@/api/grows';
+import { useGrowPictures } from '@/api/grows';
 import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useLog } from '@/log/log-context';
+import { EarlierButton } from '@/ui/EarlierButton';
 import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -31,14 +32,15 @@ const whichOf = (asked: string | null): Which => WHICH.find(one => one === asked
 /**
  * The pictures of a grow: the newest week film on top, then week by week the
  * camera's picture of each day and what was written into the diary, each
- * named by its day or as somebody's own. They are the diary's days read for
- * their pictures, so the weeks before arrive the way the diary's do.
+ * named by its day or as somebody's own. They are the diary's weeks read for
+ * their pictures alone, without the climate a diary card shows, so the weeks
+ * before arrive the way the diary's do and cost the server no time series.
  */
 export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   const { t } = useTranslation();
   const { user } = useSession();
   const { openDetails } = useLog();
-  const diary = useGrowDiary(grow.id);
+  const read = useGrowPictures(grow.id);
   const cameras = useCamerasShape();
   // Which pictures are shown is part of the address, so a reload and a link keep it.
   const [params, setParams] = useSearchParams();
@@ -46,10 +48,10 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   const [viewing, setViewing] = useState<GrowPicture | null>(null);
   const mayLog = enough(useMayWith()(growStanding(grow)), 'log') && grow.endedAt === null;
 
-  if (diary.isPending) return <Waiting lines={4} />;
-  if (!diary.data) return <LoadFailed retry={() => void diary.refetch()} />;
+  if (read.isPending) return <Waiting lines={4} />;
+  if (!read.data) return <LoadFailed retry={() => void read.refetch()} />;
 
-  const weeks = itemsOf(diary.data);
+  const weeks = itemsOf(read.data);
   const film = weeks.find(hasFilm) ?? null;
   const all = weeks.flatMap(week => week.days).flatMap(picturesOfDay);
   // "Kamera" is a choice only where a camera watches the grow or once did.
@@ -64,14 +66,14 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   const pictures = byWeek.flatMap(row => row.pictures);
   // The newest week of a grow still running is the one it is in: "this week, from day 29".
   const running = grow.endedAt === null ? (weeks[0]?.weekNumber ?? null) : null;
-  const heading = (week: GrowDiaryWeek): string =>
+  const heading = (week: GrowPicturesWeek): string =>
     week.weekNumber === running
       ? t('grow.pictures.thisWeek', { day: week.dayFrom })
       : [stageOfWeek(t, week), t('grow.diary.days', { from: week.dayFrom, to: week.dayTo })].filter(Boolean).join(' · ');
 
   return (
     <div className={`${ui.stack3} ${styles.pictures}`}>
-      <RefreshFailed failedAt={diary.isError ? diary.dataUpdatedAt : null} now={now} />
+      <RefreshFailed failedAt={read.isError ? read.dataUpdatedAt : null} now={now} />
       <div className={styles.which} role="group" aria-label={t('grow.pictures.whichLabel')}>
         {offered.map(one => (
           <button
@@ -88,7 +90,7 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       {film && which !== 'photos' && byWeek.length > 0 ? <FilmCard week={film} picture={mediaUrl} /> : null}
 
       {/* Weeks without a picture are not the whole grow without one, while earlier weeks are still to be asked for. */}
-      {byWeek.length === 0 ? <NothingHere>{t(diary.hasNextPage ? 'grow.pictures.noneInWeeks' : `grow.pictures.none.${which}`)}</NothingHere> : null}
+      {byWeek.length === 0 ? <NothingHere>{t(read.hasNextPage ? 'grow.pictures.noneInWeeks' : `grow.pictures.none.${which}`)}</NothingHere> : null}
       {byWeek.map(({ week, pictures: inWeek }) => (
         <section key={week.weekNumber} className={`${ui.stack3} ${styles.week}`} aria-labelledby={`grow-pictures-${week.weekNumber}`}>
           <h2 id={`grow-pictures-${week.weekNumber}`}>{heading(week)}</h2>
@@ -112,16 +114,7 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
         </section>
       ))}
 
-      {diary.hasNextPage ? (
-        <button
-          type="button"
-          className={ui.button}
-          aria-disabled={diary.isFetchingNextPage || undefined}
-          onClick={() => diary.isFetchingNextPage || void diary.fetchNextPage()}
-        >
-          {diary.isFetchingNextPage ? t('home.waiting') : t('grow.earlierWeeks')}
-        </button>
-      ) : null}
+      {read.hasNextPage ? <EarlierButton pending={read.isFetchingNextPage} load={() => void read.fetchNextPage()} /> : null}
 
       {mayLog ? (
         <button

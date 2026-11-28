@@ -5,8 +5,8 @@ import { shareLinkOnGrow } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
 
 /**
- * The diary over HTTP: the timeline read and written, the diary by the day and
- * the report.
+ * The diary over HTTP: the timeline read and written, the diary by the day,
+ * its pictures and the report.
  *
  * The unit suite has the arithmetic and the access matrix against a database.
  * What it cannot see is the measurement store, the picture store and the guards
@@ -323,5 +323,50 @@ describe('writing the diary', () => {
       .set('X-Share-Token', token)
       .send({ kind: 'note', growId, values: { kind: 'note' } })
       .expect(401);
+  });
+});
+
+describe('the pictures of the diary', () => {
+  it('are the diary´s weeks with each day´s picture and photo lines and no climate, for the owner and through a link', async () => {
+    const picture = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', growId).attach('file', A_PICTURE, 'bud.png').expect(201)
+    ).body;
+    const photo = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'photo', growId, mediaIds: [picture.id], values: { kind: 'photo' } })
+        .expect(201)
+    ).body;
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'note', growId, text: 'No picture here', values: { kind: 'note' } })
+      .expect(201);
+
+    const diary = (await owner.client.get(`/v1/grows/${growId}/diary?limit=1`).expect(200)).body;
+    const pictures = (await owner.client.get(`/v1/grows/${growId}/pictures?limit=1`).expect(200)).body;
+
+    expect(pictures.nextCursor).toBe(diary.nextCursor);
+    expect(pictures.items[0]).toMatchObject({ weekNumber: 3, dayFrom: 15, dayTo: 21, stage: 'flowering', stageWeek: 1 });
+    expect(pictures.items[0].days.map((day: { dayNumber: number }) => day.dayNumber)).toEqual([21, 20, 19, 18, 17, 16, 15]);
+    // Last in the file, so the lines the writing specs left are today's too: of them, only those with a picture.
+    const today: { id: string; mediaIds: string[] }[] = pictures.items[0].days[0].entries;
+    expect(today.map(line => line.id)).toContain(photo.id);
+    expect(today.every(line => line.mediaIds.length > 0)).toBe(true);
+    expect(diary.items[0].days[0].entries.filter((line: { mediaIds: string[] }) => line.mediaIds.length > 0)).toEqual(today);
+    expect(Object.keys(pictures.items[0].days[0]).sort()).toEqual(['date', 'dayNumber', 'entries', 'still']);
+    expect(pictures).not.toHaveProperty('people');
+
+    const token = unique('pictures');
+    await shareLinkOnGrow(growId, token);
+    const linked = (await anonymous().get(`/v1/grows/${growId}/pictures?limit=1`).set('X-Share-Token', token).expect(200)).body;
+    expect(linked.items[0].days[0].entries.map((line: { id: string }) => line.id)).toContain(photo.id);
+
+    const earlier = (await owner.client.get(`/v1/grows/${growId}/pictures?limit=8&cursor=${pictures.nextCursor}`).expect(200)).body;
+    expect(earlier.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([2, 1]);
+    expect(earlier.nextCursor).toBeNull();
+  });
+
+  it('are not there for a stranger', async () => {
+    await stranger.client.get(`/v1/grows/${growId}/pictures`).expect(404);
   });
 });

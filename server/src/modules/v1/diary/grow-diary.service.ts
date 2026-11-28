@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { z } from 'zod';
-import type { GrowDayEvent, GrowDiaryDay, GrowDiaryPage, GrowDiaryWeek } from '@fg2/shared-types/v1';
+import type { Entry, GrowDayEvent, GrowDiaryDay, GrowDiaryPage, GrowDiaryWeek, GrowPicturesPage } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { pageOf } from '@common/v1/pages';
@@ -40,6 +40,9 @@ import type { DeviceChange } from '../timeline/place-history';
  * left their band, one of the raw samples around those runs - and per page one read of
  * the stills around every day's midday plus two per day that had none there.
  * The weeks' reads run side by side.
+ *
+ * The pictures of a page (`pictures`) are the same weeks for the same reader
+ * with only the lines, the films and the stills: no read of the store at all.
  */
 
 /** A page is what a phone shows before somebody asks for more: the days of this week and the two before it. */
@@ -68,8 +71,28 @@ const SHORTEST_FILM_SECONDS = 2;
 
 /** What a controller recorded over a week, and the place it stands in. */
 
-/** Everything the days of a page are built from that was read once for all of them. */
-interface PageWorld {
+/**
+ * What both reads of a page begin with: the grow, the reader's window, the
+ * weeks the cursor and the limit pick, and of those the part the reader may
+ * see and the grow lived through. Null where the page holds no week.
+ */
+interface PageFrame {
+  grow: GrowDocument;
+  zone: string | null;
+  origin: Date;
+  horizon: Date;
+  range: AccessRange;
+  weeks: DiaryWeek[];
+  nextCursor: string | null;
+  seen: Span;
+  life: Span;
+  spaceIds: (string | null)[];
+  /** The places of `spaceIds`; a stretch in no place has none. */
+  named: string[];
+}
+
+/** What the pictures of a page are built from that was read once for all of its days. */
+interface PictureWorld {
   grow: GrowDocument;
   grant: Grant;
   hide: Redaction;
@@ -78,14 +101,18 @@ interface PageWorld {
   horizon: Date;
   zone: string | null;
   lines: EntryDocument[];
+  stills: Map<number, DayStill>;
+  films: WeekFilm[];
+}
+
+/** Everything else the days of a diary page are built from that was read once for all of them. */
+interface PageWorld extends PictureWorld {
   /** When the devices of the place were in maintenance; none for a reader from outside. */
   maintenance: Span[];
   /** When a device of the place had its regulation switched off; none for a reader from outside. */
   controlOff: Span[];
   /** When another device took over the climate where the grow stood; none for a reader from outside. */
   changes: DeviceChange[];
-  stills: Map<number, DayStill>;
-  films: WeekFilm[];
   /** The devices that stood where the grow stood, and when; null for a reader from outside. */
   alongside: { deviceId: string; alongside: Span[] }[] | null;
 }
@@ -102,62 +129,38 @@ export class GrowDiaryService {
   ) {}
 
   public async page(growId: string, grant: Grant, query: z.infer<typeof diaryQuery>, now: Date = new Date()): Promise<GrowDiaryPage> {
-    const grow = await this.grows.require(growId);
-    const zone = await this.grows.zoneOf(grow);
-    const origin = growOriginOf(grow);
-    const horizon = horizonOf(grow, now);
-    const range = clampRange(grant);
+    const frame = await this.frameOf(growId, grant, query, now);
+    if (!frame) return { items: [], nextCursor: null, people: [], earlier: [], devices: [] };
+    const { grow, zone, origin, range, life, spaceIds, named } = frame;
 
-    // Newest first, which is the order a diary is read in.
-    const lived = diaryWeeksOf(origin, horizon, zone).filter(week => overlapsRange(range, week.startsAt, week.endsAt));
-    const page = pageOf(weeksAfter(lived.reverse(), query.cursor), limitOf(query.limit), week => ({
-      at: week.startsAt,
-      id: String(week.weekNumber),
-    }));
-    if (page.items.length === 0) return { items: [], nextCursor: null, people: [], earlier: [], devices: [] };
-
-    // What the reader may see of the page, and of that what the grow lived
-    // through: the first date begins at midnight and the grow some hours later.
-    const seen = seenOf({ startsAt: page.items[page.items.length - 1].startsAt, endsAt: laterOf(page.items[0].endsAt, horizon, false) }, range);
-    const life = { startsAt: laterOf(seen.startsAt, origin, true), endsAt: seen.endsAt };
-    const spaceIds = spacesDuring(grow, life.startsAt, life.endsAt);
-    const named = spaceIds.filter((id): id is string => id !== null);
-    // A link that was not made to carry pictures is not told that a camera exists either.
-    const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
-    const days = page.items.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
-
-    const [hide, { lines, maintenance, controlOff }, earlier, controllers, changes, films, stills, alongside] = await Promise.all([
-      this.grows.redaction(grant),
-      this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
+    const [pictured, earlier, controllers, changes, alongside] = await Promise.all([
+      this.picturedIn(frame, grant, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
-      page.nextCursor === null ? this.earlierThan(grow, grant, dateStartOf(origin, zone), range) : Promise.resolve([]),
+      frame.nextCursor === null ? this.earlierThan(grow, grant, dateStartOf(origin, zone), range) : Promise.resolve([]),
       this.climate.controllersIn(spaceIds, life),
       isOutsider(grant) ? [] : this.climate.deviceChanges(grow.placements, life),
-      weekFilmsOf(this.media, cameraIds, seen, range),
-      stillsOfDays(
-        this.media,
-        cameraIds,
-        days.map(({ day, life: lived }) => ({ key: day.dayNumber, ...lived!, ...pictureOf(day, lived!, horizon, grow) })),
-        life,
-      ),
       // A reader from outside is told no device: the lines they read name none.
       isOutsider(grant) ? null : this.climate.alongside(grow.placements, spaceIds, life),
     ]);
+    const { world: pictures, maintenance, controlOff } = pictured;
     // One read of the store per week of the page, each over the part of the week the grow lived and the reader may see.
-    const stretches = page.items.map(week => lifeOf(week, life));
+    const stretches = frame.weeks.map(week => lifeOf(week, life));
     const recorded = await this.climate.recorded(
       controllers,
       grow.placements,
       stretches.filter((stretch): stretch is Span => stretch !== null),
     );
     const recordedOf = new Map(
-      page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
+      frame.weeks.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, controlOff, changes, stills, films, alongside };
-    const weeks = page.items.map(week => this.weekOf(week, world, recordedOf.get(week.weekNumber) ?? []));
+    const world: PageWorld = { ...pictures, maintenance, controlOff, changes, alongside };
+    const weeks = frame.weeks.map(week => ({
+      ...this.weekOf(week, world),
+      days: [...week.days].reverse().flatMap(day => this.dayOf(day, world, recordedOf.get(week.weekNumber) ?? []) ?? []),
+    }));
 
-    const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
+    const before = earlier.map(entry => serialiseDiaryEntry(entry, world.hide, grant));
     const people = await peopleNamed(this.users, [
       ...weeks.flatMap(week => week.days.flatMap(day => day.entries.map(entry => entry.authorId))),
       ...before.map(entry => entry.authorId),
@@ -170,10 +173,89 @@ export class GrowDiaryService {
       ? []
       : await this.climate.calledIn([...said.map(entry => entry.deviceId), ...(alongside ?? []).map(one => one.deviceId)], grow.ownerId);
 
-    return { items: weeks, nextCursor: page.nextCursor, people, earlier: before, devices };
+    return { items: weeks, nextCursor: frame.nextCursor, people, earlier: before, devices };
   }
 
-  private weekOf(week: DiaryWeek, world: PageWorld, devices: RecordedController[]): GrowDiaryWeek {
+  /**
+   * The pictures of the same weeks a page of the diary holds, for the same
+   * reader: each day's camera picture and the lines with a picture. Nothing of
+   * the measurement store is read - no climate, no device, nobody named - which
+   * is most of what a page of the diary costs.
+   */
+  public async pictures(growId: string, grant: Grant, query: z.infer<typeof diaryQuery>, now: Date = new Date()): Promise<GrowPicturesPage> {
+    const frame = await this.frameOf(growId, grant, query, now);
+    if (!frame) return { items: [], nextCursor: null };
+
+    // The lines of the place are the diary's as well: a picture is filed with them the way the diary files it.
+    const { world } = await this.picturedIn(frame, grant, isOutsider(grant) ? [] : frame.named);
+    const withPictures = { ...world, lines: world.lines.filter(entry => entry.mediaIds.length > 0) };
+    const items = frame.weeks.map(week => ({
+      ...this.weekOf(week, withPictures),
+      days: [...week.days].reverse().flatMap(day => {
+        const seen = seenOn(day, withPictures);
+        return seen ? [{ date: day.date, dayNumber: day.dayNumber, still: stillOf(day, withPictures), entries: linesOn(seen, withPictures) }] : [];
+      }),
+    }));
+
+    return { items, nextCursor: frame.nextCursor };
+  }
+
+  private async frameOf(growId: string, grant: Grant, query: z.infer<typeof diaryQuery>, now: Date): Promise<PageFrame | null> {
+    const grow = await this.grows.require(growId);
+    const zone = await this.grows.zoneOf(grow);
+    const origin = growOriginOf(grow);
+    const horizon = horizonOf(grow, now);
+    const range = clampRange(grant);
+
+    // Newest first, which is the order a diary is read in.
+    const lived = diaryWeeksOf(origin, horizon, zone).filter(week => overlapsRange(range, week.startsAt, week.endsAt));
+    const page = pageOf(weeksAfter(lived.reverse(), query.cursor), limitOf(query.limit), week => ({
+      at: week.startsAt,
+      id: String(week.weekNumber),
+    }));
+    if (page.items.length === 0) return null;
+
+    // What the reader may see of the page, and of that what the grow lived
+    // through: the first date begins at midnight and the grow some hours later.
+    const seen = seenOf({ startsAt: page.items[page.items.length - 1].startsAt, endsAt: laterOf(page.items[0].endsAt, horizon, false) }, range);
+    const life = { startsAt: laterOf(seen.startsAt, origin, true), endsAt: seen.endsAt };
+    const spaceIds = spacesDuring(grow, life.startsAt, life.endsAt);
+    const named = spaceIds.filter((id): id is string => id !== null);
+
+    return { grow, zone, origin, horizon, range, weeks: page.items, nextCursor: page.nextCursor, seen, life, spaceIds, named };
+  }
+
+  /**
+   * The lines, the films and the stills of a page, which both reads hand out alike - so what a share link or a public
+   * grow is shown of them cannot differ between the diary and its pictures.
+   */
+  private async picturedIn(
+    frame: PageFrame,
+    grant: Grant,
+    linesWhere: string[],
+  ): Promise<{ world: PictureWorld; maintenance: Span[]; controlOff: Span[] }> {
+    const { grow, origin, horizon, range, seen, life, named } = frame;
+    // A link that was not made to carry pictures is not told that a camera exists either.
+    const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
+    const days = frame.weeks.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
+
+    const [hide, { lines, maintenance, controlOff }, films, stills] = await Promise.all([
+      this.grows.redaction(grant),
+      this.linesIn(grow, grant, seen, linesWhere),
+      weekFilmsOf(this.media, cameraIds, seen, range),
+      stillsOfDays(
+        this.media,
+        cameraIds,
+        days.map(({ day, life: lived }) => ({ key: day.dayNumber, ...lived!, ...pictureOf(day, lived!, horizon, grow) })),
+        life,
+      ),
+    ]);
+
+    return { world: { grow, grant, hide, range, origin, horizon, zone: frame.zone, lines, stills, films }, maintenance, controlOff };
+  }
+
+  /** How a week is named, and its film; its days are each read's own. */
+  private weekOf(week: DiaryWeek, world: PictureWorld): Omit<GrowDiaryWeek, 'days'> {
     const { grow, origin, horizon, zone } = world;
     // A week that is over is named after the stage standing at its middle, and
     // that stage's week then; the week still running after the stage the grow
@@ -204,17 +286,15 @@ export class GrowDiaryService {
             lengthSeconds: film.lengthSeconds ?? null,
           }
         : null,
-      days: [...week.days].reverse().flatMap(day => this.dayOf(day, world, devices) ?? []),
     };
   }
 
   private dayOf(day: DiaryDay, world: PageWorld, devices: RecordedController[]): GrowDiaryDay | null {
-    const seen = lifeOf(day, seenOf({ startsAt: day.startsAt, endsAt: laterOf(day.endsAt, world.horizon, false) }, world.range));
+    const seen = seenOn(day, world);
     if (!seen) return null;
 
     // The day's lines are filed by the date; its climate and its picture are of the hours the grow lived.
     const life = lifeOf(seen, { startsAt: world.origin, endsAt: world.horizon });
-    const still = world.stills.get(day.dayNumber) ?? null;
     // Only the controllers that stood where the grow stood that day speak for it, each for the hours it did.
     const { climate, events } = life
       ? dayClimateOf(
@@ -242,15 +322,13 @@ export class GrowDiaryService {
       dayNumber: day.dayNumber,
       startsAt: seen.startsAt.toISOString(),
       endsAt: seen.endsAt.toISOString(),
-      still: still?.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null,
+      still: stillOf(day, world),
       climate: climate && outsider ? { ...climate, inBandFraction: null } : climate,
       phase: phase
         ? { stage: phase.stage, preset: phase.preset, stageWeek: stageWeekOf(world.origin, phase.startedAt, day.dayNumber, world.zone) }
         : null,
       events: outsider ? [] : [...events, ...switched, ...world.changes.filter(change => within(seen, new Date(change.at)))].sort(byInstant),
-      entries: world.lines
-        .filter(entry => within(linesOf(world.grow, seen), entry.occurredAt))
-        .map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
+      entries: linesOn(seen, world),
       // The devices a line of the day is named among: where the place held another that day, it says which it means.
       ...(world.alongside
         ? {
@@ -334,6 +412,19 @@ const lifeOf = (stretch: Span, within: Span): Span | null => {
   const endsAt = laterOf(stretch.endsAt, within.endsAt, false);
   return endsAt > startsAt ? { startsAt, endsAt } : null;
 };
+
+/** The part of a day the reader may see; nothing for a day outside their window. */
+const seenOn = (day: DiaryDay, world: PictureWorld): Span | null =>
+  lifeOf(day, seenOf({ startsAt: day.startsAt, endsAt: laterOf(day.endsAt, world.horizon, false) }, world.range));
+
+const stillOf = (day: DiaryDay, world: PictureWorld): GrowDiaryDay['still'] => {
+  const still = world.stills.get(day.dayNumber);
+  return still?.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null;
+};
+
+/** The lines of a day, which are filed by its date. */
+const linesOn = (seen: Span, world: PictureWorld): Entry[] =>
+  world.lines.filter(entry => within(linesOf(world.grow, seen), entry.occurredAt)).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant));
 
 /**
  * Which picture stands for a day: the one taken nearest midday - and for the

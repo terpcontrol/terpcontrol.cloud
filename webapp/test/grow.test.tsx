@@ -204,7 +204,26 @@ const wire = {
   plants: [] as { id: string; growId: string; label: string }[],
   /** The diary's pages by cursor; the first under ''. */
   diary: {} as Record<string, { items: GrowDiaryWeek[]; nextCursor: string | null; people: { id: string; handle: string }[]; earlier?: Entry[] }>,
+  /** Holds a read back until the returned promise settles; it is handed the read's signal. */
+  hold: null as ((asked: string, signal: AbortSignal | undefined) => Promise<void> | null) | null,
+  /** The reads, path and query, refused instead of answered. */
+  refused: [] as string[],
 };
+
+/** The pictures read of a diary page: the same weeks, each day with its still and the lines that carry a picture. */
+const picturesOf = ({ items, nextCursor }: (typeof wire.diary)[string]) => ({
+  items: items.map(({ days, weekNumber, dayFrom, dayTo, stage, preset, stageWeek, film }) => ({
+    weekNumber,
+    dayFrom,
+    dayTo,
+    stage,
+    preset,
+    stageWeek,
+    film,
+    days: days.map(({ date, dayNumber, still, entries }) => ({ date, dayNumber, still, entries: entries.filter(line => line.mediaIds.length > 0) })),
+  })),
+  nextCursor,
+});
 
 vi.stubGlobal(
   'fetch',
@@ -218,8 +237,13 @@ vi.stubGlobal(
       return json(path === '/entries' ? entry({ id: 'written' }) : { ...grow, ...(JSON.parse(String(init.body)) as object) });
     }
 
-    if (path === '/grows/grow-1/diary')
-      return json({ earlier: [], ...(wire.diary[url.searchParams.get('cursor') ?? ''] ?? { items: [], nextCursor: null, people: [] }) });
+    await wire.hold?.(`${path}${url.search}`, init?.signal ?? undefined);
+    if (wire.refused.includes(`${path}${url.search}`))
+      return json({ status: 503, code: 'unavailable', title: 'unavailable', detail: '', errors: [] }, 503);
+
+    const page = wire.diary[url.searchParams.get('cursor') ?? ''] ?? { items: [], nextCursor: null, people: [] };
+    if (path === '/grows/grow-1/diary') return json({ earlier: [], ...page });
+    if (path === '/grows/grow-1/pictures') return json(picturesOf(page));
 
     if (path === '/grows/grow-1/report') return json(wire.report);
     if (path === '/grows/grow-1/plants') return json({ items: wire.plants, nextCursor: null });
@@ -238,6 +262,8 @@ beforeEach(() => {
   wire.calls = [];
   wire.writes = [];
   wire.diary = {};
+  wire.hold = null;
+  wire.refused = [];
   wire.asked = [];
   forgetKept();
   wire.job = EXPORT_ROW('queued');
@@ -1657,14 +1683,21 @@ describe('the diary', () => {
   });
 
   it('reads the weeks before only when asked for them, eight at a time', async () => {
+    let answer = () => {};
+    wire.hold = asked => (asked.includes('cursor=earlier') ? new Promise<void>(resolve => (answer = resolve)) : null);
     drawDiary();
 
     const earlier = await screen.findByRole('button', { name: 'Earlier weeks' });
     earlier.focus();
     fireEvent.click(earlier);
-    // While it asks it keeps the focus: disabling it dropped the focus, whose ring then read as a button of its own.
+    // While it asks it says so, and keeps the focus: disabling it dropped the focus, whose ring then read as a button of its own.
+    await waitFor(() => expect(earlier).toHaveAttribute('aria-busy', 'true'));
+    expect(earlier).toHaveAccessibleName('loading');
+    expect(earlier.querySelector('[aria-hidden="true"]')).not.toBeNull();
     expect(earlier).not.toBeDisabled();
     expect(earlier).toHaveFocus();
+    fireEvent.click(earlier);
+    act(() => answer());
 
     expect(await screen.findByRole('button', { name: reads(/^Day 21/) })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
@@ -1788,6 +1821,64 @@ describe('the pictures of a grow', () => {
 
     expect(await screen.findByText('No pictures in these weeks')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Earlier weeks' })).toBeInTheDocument();
+  });
+
+  describe('the weeks before', () => {
+    const EARLIER = '/grows/grow-1/pictures?cursor=earlier&limit=8';
+
+    beforeEach(() => {
+      wire.diary[''] = { items: [diaryWeek(5, [day(0, { still: still(0) })])], nextCursor: 'earlier', people };
+      wire.diary.earlier = { items: [diaryWeek(4, [day(7, { still: still(7) })])], nextCursor: null, people };
+    });
+
+    it('come eight at a time from the read of the pictures, not of the diary, with the button saying it is busy meanwhile', async () => {
+      let answer = () => {};
+      wire.hold = asked => (asked === EARLIER ? new Promise<void>(resolve => (answer = resolve)) : null);
+      drawPictures();
+
+      const earlier = await screen.findByRole('button', { name: 'Earlier weeks' });
+      earlier.focus();
+      fireEvent.click(earlier);
+
+      await waitFor(() => expect(earlier).toHaveAttribute('aria-busy', 'true'));
+      expect(earlier).toHaveAccessibleName('loading');
+      expect(earlier).toHaveAttribute('aria-disabled', 'true');
+      expect(earlier.querySelector('[aria-hidden="true"]')).not.toBeNull();
+      expect(earlier).not.toBeDisabled();
+      expect(earlier).toHaveFocus();
+      // A second press while it asks asks for nothing more.
+      fireEvent.click(earlier);
+
+      act(() => answer());
+      expect(await screen.findByRole('heading', { name: 'Flower, week 1 · Day 22 to 28' })).toBeInTheDocument();
+      expect(screen.getAllByRole('listitem').map(tile => tile.textContent)).toEqual(['Day 35', 'Day 28']);
+      expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();
+      expect(wire.asked.filter(call => call.startsWith('/grows/grow-1/'))).toEqual(['/grows/grow-1/pictures', EARLIER]);
+    });
+
+    it('leave the pictures shown and the button to ask again when they could not be read', async () => {
+      wire.refused = [EARLIER];
+      drawPictures();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Earlier weeks' }));
+
+      expect(await screen.findByText(/^Could not refresh/)).toBeInTheDocument();
+      const again = screen.getByRole('button', { name: 'Earlier weeks' });
+      expect(again).not.toHaveAttribute('aria-busy');
+      expect(screen.getAllByRole('listitem').map(tile => tile.textContent)).toEqual(['Day 35']);
+    });
+
+    it('are let go of when the page is left while they come', async () => {
+      let asking: AbortSignal | undefined;
+      wire.hold = (asked, signal) => (asked === EARLIER ? ((asking = signal), new Promise<void>(() => {})) : null);
+      const { unmount } = drawPictures();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Earlier weeks' }));
+      await waitFor(() => expect(asking).toBeDefined());
+      unmount();
+
+      expect(asking?.aborted).toBe(true);
+    });
   });
 
   it('makes a line of the diary out of the camera´s picture of a day', async () => {
