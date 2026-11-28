@@ -1,3 +1,4 @@
+import type { GrowDiaryWeek } from '@fg2/shared-types/v1';
 import { Play } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +11,13 @@ import styles from './Diary.module.css';
  * played where it stands once somebody asks for it - silent, so it starts on
  * that tap.
  */
-export function FilmCard({ week, picture }: { week: FilmedWeek; picture: (mediaId: string) => string | null }) {
+export function FilmCard({
+  week,
+  picture,
+}: {
+  week: FilmedWeek<Pick<GrowDiaryWeek, 'film' | 'stage' | 'preset' | 'stageWeek'>>;
+  picture: (mediaId: string) => string | null;
+}) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const src = picture(week.film.mediaId);

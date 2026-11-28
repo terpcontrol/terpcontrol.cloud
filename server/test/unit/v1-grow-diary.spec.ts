@@ -1,4 +1,4 @@
-import type { DeviceSeries, GrowDiaryDay, GrowDiaryPage, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import type { DeviceSeries, GrowDiaryDay, GrowDiaryPage, GrowPicturesPage, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { growDayAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
@@ -51,6 +51,8 @@ let diary: GrowDiaryService;
 /** What the store holds: readings by instant and device, null for a window nothing was heard in. */
 let measured: (at: Date, deviceId: string) => { temperature: number | null; humidity: number | null };
 let readWindows: { deviceId: string; startsAt: Date; endsAt: Date }[];
+/** How often the raw samples of the store were read. */
+let rawReads: number;
 
 /** The hours of the Berlin clock the lamp is lit between: six in the morning to six in the evening unless a test says otherwise. */
 let lamp: { from: number; until: number };
@@ -122,8 +124,9 @@ const fakeData = {
       lastSampleAt: (silentFrom && silentFrom < request.endsAt ? silentFrom : request.endsAt).toISOString(),
     };
   },
-  rawSamples: async (deviceId: string, metrics: readonly Metric[], stretches: readonly { startsAt: Date; endsAt: Date }[]) =>
-    new Map(
+  rawSamples: async (deviceId: string, metrics: readonly Metric[], stretches: readonly { startsAt: Date; endsAt: Date }[]) => {
+    rawReads += 1;
+    return new Map(
       metrics.map(metric => [
         metric,
         stretches.flatMap(stretch =>
@@ -133,7 +136,8 @@ const fakeData = {
           }),
         ),
       ]),
-    ),
+    );
+  },
 } as unknown as DataService;
 
 const entry = (over: Partial<EntryDocument>): EntryDocument =>
@@ -326,6 +330,7 @@ const world = async (): Promise<void> => {
 beforeEach(async () => {
   await db.reset();
   readWindows = [];
+  rawReads = 0;
   lamp = { from: 6, until: 18 };
   silentFrom = null;
   measured = at => ({ temperature: lit(at.getTime()) ? 25 : 20, humidity: 55 });
@@ -350,6 +355,9 @@ const grantFor = async (ctx: AccessContext): Promise<Grant> => {
 
 const read = async (ctx: AccessContext = session(OWNER), query: { limit?: number; cursor?: string } = {}): Promise<GrowDiaryPage> =>
   diary.page(GROW, await grantFor(ctx), query, NOW);
+
+const picturesOf = async (ctx: AccessContext = session(OWNER), query: { limit?: number; cursor?: string } = {}): Promise<GrowPicturesPage> =>
+  diary.pictures(GROW, await grantFor(ctx), query, NOW);
 
 const dayOf = (page: GrowDiaryPage, dayNumber: number): GrowDiaryDay => {
   const day = page.items.flatMap(week => week.days).find(one => one.dayNumber === dayNumber);
@@ -940,6 +948,85 @@ describe('the pictures of a diary', () => {
     await db.media.updateOne({ id: 'film-week' }, { $set: { lengthSeconds: 1 } });
 
     expect((await read()).items.map(week => week.film)).toEqual([null, null]);
+  });
+});
+
+describe('the pictures of a page', () => {
+  /** A photo somebody took, a line without one, and a picture of the camera somebody kept in the diary. */
+  const pictured = () =>
+    db.entries.create([
+      entry({ id: 'photo-of-day-10', growId: GROW, occurredAt: berlin(11, '09:00'), text: 'Topped', mediaIds: ['photo-1'] }),
+      entry({ id: 'plain-note', growId: GROW, occurredAt: berlin(11, '10:00'), text: 'Watered' }),
+      entry({ id: 'kept-camera-shot', growId: GROW, cameraId: CAMERA, occurredAt: berlin(11, '11:00'), mediaIds: ['camera-shot'] }),
+    ]);
+
+  /** What the diary's own page says of the same pictures. */
+  const picturesIn = (page: GrowDiaryPage): GrowPicturesPage => ({
+    nextCursor: page.nextCursor,
+    items: page.items.map(({ weekNumber, dayFrom, dayTo, stage, preset, stageWeek, film, days }) => ({
+      weekNumber,
+      dayFrom,
+      dayTo,
+      stage,
+      preset,
+      stageWeek,
+      film,
+      days: days.map(({ date, dayNumber, still, entries }) => ({
+        date,
+        dayNumber,
+        still,
+        entries: entries.filter(line => line.mediaIds.length > 0),
+      })),
+    })),
+  });
+
+  it('are the weeks, stills, films and picture lines of the diary, without a read of the store', async () => {
+    await pictured();
+    const page = await read();
+    readWindows = [];
+    rawReads = 0;
+
+    const pictures = await picturesOf();
+
+    expect(readWindows).toEqual([]);
+    expect(rawReads).toBe(0);
+    expect(pictures).toEqual(picturesIn(page));
+    const day10 = pictures.items.flatMap(week => week.days).find(day => day.dayNumber === 10)!;
+    expect(day10.entries.map(line => line.id)).toEqual(['kept-camera-shot', 'photo-of-day-10']);
+  });
+
+  it('come as many weeks at a time as the diary', async () => {
+    const first = await picturesOf(session(OWNER), { limit: 1 });
+    expect(first.items.map(week => week.weekNumber)).toEqual([2]);
+
+    const next = await picturesOf(session(OWNER), { limit: 1, cursor: first.nextCursor! });
+    expect(next.items.map(week => week.weekNumber)).toEqual([1]);
+    expect(next.nextCursor).toBeNull();
+  });
+
+  it('show a link without cameras what its diary shows, and no picture of the camera´s own', async () => {
+    await pictured();
+    await db.shareLinks.create({
+      id: 'share-1',
+      token: 'two-days',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: berlin(10, '00:00'), endsAt: berlin(11, '13:00') },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const pictures = await picturesOf(visitor('two-days'));
+    const days = pictures.items.flatMap(week => week.days);
+
+    expect(pictures).toEqual(picturesIn(await read(visitor('two-days'))));
+    expect(days.map(day => day.dayNumber)).toEqual([10, 9]);
+    expect(days.map(day => day.still)).toEqual([null, null]);
+    expect(pictures.items.map(week => week.film)).toEqual([null]);
+    // Nor which camera took what somebody kept of it.
+    expect(JSON.stringify(pictures)).not.toMatch(/camera-1|still-|film-/);
   });
 });
 

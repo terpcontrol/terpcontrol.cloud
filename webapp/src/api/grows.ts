@@ -6,6 +6,7 @@ import type {
   GrowDiaryPage,
   GrowListItem,
   GrowPage,
+  GrowPicturesPage,
   GrowReport,
   GrowSeries,
   GrowSeriesRange,
@@ -66,6 +67,20 @@ export const useGrowDiary = (growId: string | null) =>
     enabled: growId !== null,
     queryFn: ({ pageParam, signal }) =>
       api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam, limit: pageParam ? EARLIER_WEEKS : undefined }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
+  });
+
+/**
+ * The pictures of the diary, the same weeks without their climate: what the pictures tab shows, and so the read it
+ * makes. The diary's weeks each cost a read of the time series, which a screen of pictures has no use for.
+ */
+export const useGrowPictures = (growId: string | null) =>
+  useReadPages({
+    queryKey: ['grow', growId, 'pictures'],
+    enabled: growId !== null,
+    queryFn: ({ pageParam, signal }) =>
+      api.get<GrowPicturesPage>(`/grows/${growId}/pictures`, { cursor: pageParam, limit: pageParam ? EARLIER_WEEKS : undefined }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });

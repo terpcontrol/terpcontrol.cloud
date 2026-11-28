@@ -2238,6 +2238,33 @@ export const growDiaryPage = named(
 );
 
 /**
+ * A day of the diary read for its pictures alone: the camera's picture of the
+ * day and the lines of that day that carry one. It says nothing of the
+ * climate, which is what makes it cheap - not that nothing was measured.
+ */
+export const growPicturesDay = named(
+  'GrowPicturesDay',
+  growDiaryDay.pick({ date: true, dayNumber: true, still: true }).extend({
+    entries: z.array(entry).describe('The lines of the day that carry a picture, newest first: those of `GrowDiaryDay.entries` with `mediaIds`.'),
+  }),
+);
+
+/** A week of the diary read for its pictures: named as `GrowDiaryWeek` is, with its film. */
+export const growPicturesWeek = named(
+  'GrowPicturesWeek',
+  growDiaryWeek.pick({ weekNumber: true, dayFrom: true, dayTo: true, stage: true, preset: true, stageWeek: true, film: true }).extend({
+    days: z.array(growPicturesDay).describe('The days of the week that have happened and that the reader may see, newest first.'),
+  }),
+);
+
+/**
+ * The grow's pictures, a few weeks at a time: the diary's weeks and days, its
+ * cursors and the reader's window, without the climate, the devices and the
+ * people that make a page of the diary costly.
+ */
+export const growPicturesPage = named('GrowPicturesPage', page(growPicturesWeek));
+
+/**
  * One stretch of the grow at one stage, as the report tells its story: a
  * chapter with its cover, its day range, how it was kept and what was done to
  * the plants in it.

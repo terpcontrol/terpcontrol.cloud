@@ -4691,6 +4691,56 @@ export interface GrowDiaryPage {
   devices: TimelineDevice[];
 }
 
+export interface GrowPicturesDay {
+  /**
+   * The date on the owner’s calendar, `YYYY-MM-DD`.
+   */
+  date: string;
+  dayNumber: number;
+  /**
+   * The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.
+   */
+  still: {
+    mediaId: string;
+    cameraId: string;
+    capturedAt: string;
+  } | null;
+  /**
+   * The lines of the day that carry a picture, newest first: those of `GrowDiaryDay.entries` with `mediaIds`.
+   */
+  entries: Entry[];
+}
+
+export interface GrowPicturesWeek {
+  weekNumber: number;
+  dayFrom: number;
+  dayTo: number;
+  stage: GrowthStage | null;
+  preset: string | null;
+  /**
+   * Which week of its stage the week’s stage was in, from the stage’s own start (days 1 to 7 are week 1): at the week’s middle for a week that is over, today for the week still running. The week itself is seven days of the grow, named by its days. Null before the first phase.
+   */
+  stageWeek: number | null;
+  film: {
+    mediaId: string;
+    dayFrom: number;
+    dayTo: number;
+    lengthSeconds: number | null;
+  } | null;
+  /**
+   * The days of the week that have happened and that the reader may see, newest first.
+   */
+  days: GrowPicturesDay[];
+}
+
+export interface GrowPicturesPage {
+  items: GrowPicturesWeek[];
+  /**
+   * Pass back as `cursor` for the next page; null on the last one.
+   */
+  nextCursor: string | null;
+}
+
 export interface GrowReportPhase {
   phaseId: string;
   stage: GrowthStage;

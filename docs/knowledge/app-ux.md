@@ -1249,7 +1249,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     and holds the pill it opened on until somebody presses another: a start moved from its foot made the other
     grow the newer, and the line went there.
   - *One secondary button*: "Früher", "Frühere Wochen", "+ Erinnerung", "+ Alarm" and a plant page's actions are
-    the app's ghost button, a plant page's in words alone, without icons; a load-more button is not disabled while it asks (the focus rescue ringed it). A done
+    the app's ghost button, a plant page's in words alone, without icons; a load-more button is not disabled while it asks (the focus rescue ringed it). "Frühere Wochen" is one control for Tagebuch, Bilder and the public diary (`ui/EarlierButton.tsx`): while it asks it reads "lädt" beside a turning ring, is busy for a screen reader and takes no second click (issue #208: the words alone went unseen). A done
     task is marked in the soft green with a tick (`Check`, `screens/tasks/TaskCard.tsx`), the brand green stays the action's; "+ Neuer Grow" is a quiet pill beside
     Eintrag.
 - **Alle Grows** at `/grows` (`screens/grow/Grows.tsx`): the running grows as cards with their picture, day, phase

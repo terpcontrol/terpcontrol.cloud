@@ -205,6 +205,10 @@ hardware, the development devices and copies of production data are in
 - **After a server or contract change, rebuild the stack's server** (`docker compose up --build -d server`, about a
   minute) before a live probe, a screenshot or an agent drives the app. The image bakes the source in: a container
   from before the change answers 404 on every new route, and screens read fields it has never heard of.
+  A server that restarts with exit code 1 and no log at all could not read its files: a checkout made under a
+  strict umask (`0077`) generates `shared-types/v1-schemas/` readable to its owner alone, the image's user cannot
+  load it, and `main.js` dies on the import before it logs anything (issue #208). `chmod -R a+rX` the sources and
+  rebuild; git keeps no directory modes, so nothing of it reaches a commit.
 - `AGENT_TESTING_*` is the admin and sees every device, camera and account by design. Ownership and access tests need
   ordinary accounts made through the API (`POST /v1/users`; no activation with `REQUIRE_ACTIVATION=false`); deleting
   them afterwards (`DELETE /v1/admin/users/{id}`) exercises the deletion cascade too.

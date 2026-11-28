@@ -420,6 +420,13 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   page carries what was written to the grow for a moment before the date it began on (`earlier`), which has no
   day. A week's film is the one whose middle falls into the week, named by its days there, and none shorter than
   two seconds.
+- **The pictures of a diary** (`GET /v1/grows/{id}/pictures`, `GrowDiaryService.pictures`; issue #208) are the same
+  weeks for the same reader - the same calendar, cursor, limit, share-link window and cameras - with only the
+  stills, the films and the lines that carry a picture: no read of the measurement store at all. The diary's cost is
+  its climate - per week and controller a history read at 5-minute grain with the lamp's switchings at the device's
+  rhythm, plus raw samples around up to `MAX_EDGES` runs outside the band, the weeks of a page in parallel - and
+  eight weeks of that at once held the server at full load for a long while when Bilder asked for earlier weeks it
+  draws none of the climate of. A screen that draws no climate reads the pictures, not the diary.
 - **Which entries are diary is said once** (`modules/v1/diary/diary-entries.ts`; the redesign session of
   2026-11-12): the diary kinds, the plan's steps, and maintenance going on and off, parted into lines and
   stretches by `toldOf`. A day of the grow's diary reads through it, and so does **the diary's tail**
